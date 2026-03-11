@@ -4,172 +4,130 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Showly</title>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   body { background: #0d0d14; color: #e8e8f0; font-family: 'DM Sans', sans-serif; min-height: 100vh; }
-  input, select, button { font-family: 'DM Sans', sans-serif; }
+  input, select, textarea, button { font-family: 'DM Sans', sans-serif; }
   ::-webkit-scrollbar { width: 6px; } ::-webkit-scrollbar-track { background: #0d0d14; } ::-webkit-scrollbar-thumb { background: #252540; border-radius: 3px; }
   @keyframes spin { to { transform: rotate(360deg); } }
   @keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
   @keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:.4;} }
   .fade { animation: fadeIn 0.3s ease; }
-  .card { background: #1a1a2e; border: 1px solid #252540; border-radius: 12px; transition: border-color 0.2s, transform 0.2s; }
-  .card:hover { border-color: rgba(233,69,96,0.4); transform: translateY(-1px); }
-  .btn { border: none; cursor: pointer; font-weight: 600; border-radius: 6px; padding: 8px 18px; font-size: 13px; transition: opacity 0.15s; }
-  .btn:disabled { opacity: 0.6; cursor: not-allowed; }
-  .btn-accent { background: #e94560; color: #fff; }
-  .btn-blue { background: #0f3460; color: #fff; }
-  .btn-ghost { background: none; border: 1px solid #252540; color: #6060a0; }
-  .btn-purple { background: #3d1f5e; border: 1px solid rgba(155,89,182,0.4); color: #c39bd3; }
-  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 200; display: flex; align-items: center; justify-content: center; animation: fadeIn 0.15s ease; }
-  .modal { background: #13131f; border: 1px solid #252540; border-radius: 12px; padding: 24px; width: 380px; max-width: 92vw; box-shadow: 0 20px 60px rgba(0,0,0,0.6); max-height: 88vh; overflow-y: auto; }
-  .tab-bar { background: #13131f; border-bottom: 1px solid #252540; position: sticky; top: 0; z-index: 100; }
-  .tab-inner { max-width: 1100px; margin: 0 auto; padding: 0 20px; display: flex; align-items: center; overflow-x: auto; }
-  .tab-btn { background: none; border: none; cursor: pointer; color: #6060a0; border-bottom: 2px solid transparent; padding: 14px 13px; font-size: 12.5px; font-weight: 400; white-space: nowrap; display: flex; align-items: center; gap: 5px; transition: all 0.2s; }
-  .tab-btn.active { color: #e8e8f0; border-bottom-color: #e94560; font-weight: 600; }
-  .tab-badge { border-radius: 10px; font-size: 10px; font-weight: 700; padding: 1px 6px; min-width: 18px; text-align: center; }
-  .content { max-width: 1100px; margin: 0 auto; padding: 28px 20px 60px; }
-  .ep-banner { padding: 10px 18px; border-bottom: 1px solid #252540; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-  .progress-bar { height: 3px; background: #252540; border-radius: 2px; overflow: hidden; }
-  .progress-fill { height: 100%; border-radius: 2px; transition: width 0.4s; }
-  .badge { border-radius: 4px; padding: 1px 6px; font-size: 10px; font-weight: 700; letter-spacing: 0.4px; white-space: nowrap; }
-  .platform-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
-  .platform-btn { padding: 8px 10px; border-radius: 7px; cursor: pointer; font-size: 12px; font-weight: 400; text-align: left; transition: all 0.15s; background: #1a1a2e; border: 1px solid #252540; color: #6060a0; }
-  .platform-btn.selected { background: #0f3460; border-color: #1a5296; color: #fff; font-weight: 600; }
-  .ep-row { display: grid; grid-template-columns: 36px 50px 1fr; align-items: center; gap: 12px; padding: 10px 18px; border-bottom: 1px solid rgba(37,37,64,0.15); cursor: default; transition: background 0.15s; }
-  .ep-row:hover { background: rgba(37,37,64,0.2); }
-  .ep-row.watched { background: rgba(26,46,26,0.12); }
-  .ep-row.watched:hover { background: rgba(26,46,26,0.25); }
-  .check-btn { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 13px; transition: all 0.2s; border: 2px solid #252540; background: transparent; color: #6060a0; }
-  .check-btn.watched { border-color: #2ecc71; background: rgba(46,204,113,0.15); color: #2ecc71; }
-  .cover { border-radius: 6px; flex-shrink: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; overflow: hidden; position: relative; }
+  .card { background: #1a1a2e; border: 1px solid #252540; border-radius: 12px; overflow: hidden; transition: border-color 0.2s, transform 0.2s; }
+  .card:hover { border-color: #e9456060; transform: translateY(-1px); }
   .spinner { animation: spin 1s linear infinite; display: inline-block; }
+  .tab-btn { background: none; border: none; cursor: pointer; color: #6060a0; border-bottom: 2px solid transparent; padding: 14px 13px; font-size: 12.5px; font-weight: 400; transition: all 0.2s; white-space: nowrap; display: flex; align-items: center; gap: 5px; flex-shrink: 0; }
+  .tab-btn.active { color: #e8e8f0; border-bottom-color: #e94560; font-weight: 600; }
+  .btn { border: none; cursor: pointer; border-radius: 6px; font-weight: 600; transition: opacity 0.15s; }
+  .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+  .btn-accent { background: #e94560; color: #fff; padding: 9px 20px; font-size: 13px; }
+  .btn-blue { background: #0f3460; color: #fff; padding: 8px 16px; font-size: 13px; }
+  .btn-ghost { background: none; border: 1px solid #252540 !important; color: #6060a0; padding: 8px 14px; font-size: 13px; }
+  .btn-purple { background: #3d1f5e; border: 1px solid #9b59b640 !important; color: #c39bd3; padding: 6px 14px; font-size: 12px; }
+  .btn-green { background: #2ecc71; color: #fff; padding: 7px 18px; font-size: 12px; font-weight: 700; }
+  .input { background: #13131f; border: 1px solid #252540; color: #e8e8f0; padding: 9px 12px; border-radius: 6px; font-size: 13px; outline: none; width: 100%; }
+  .input:focus { border-color: #e9456080; }
+  .modal-overlay { position: fixed; inset: 0; background: #00000088; z-index: 200; display: flex; align-items: center; justify-content: center; animation: fadeIn 0.15s ease; }
+  .modal { background: #13131f; border: 1px solid #252540; border-radius: 12px; padding: 24px; box-shadow: 0 20px 60px #00000080; max-height: 85vh; overflow-y: auto; }
+  .platform-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
+  .platform-btn { background: #1a1a2e; border: 1px solid #252540; color: #6060a0; padding: 8px 10px; border-radius: 7px; cursor: pointer; font-size: 12px; font-weight: 400; transition: all 0.15s; text-align: left; }
+  .platform-btn.selected { background: #0f3460; border-color: #1a5296; color: #fff; font-weight: 600; }
+  .progress-bar-track { flex: 1; height: 3px; background: #252540; border-radius: 2px; }
+  .progress-bar-fill { height: 100%; border-radius: 2px; transition: width 0.4s; }
+  .ep-row { display: grid; grid-template-columns: 36px 50px 1fr; align-items: center; gap: 12px; padding: 10px 18px; border-bottom: 1px solid #25254015; transition: background 0.15s; cursor: pointer; }
+  .ep-row:hover { background: #25254020; }
+  .ep-row.watched { background: #1a2e1a18; }
+  .ep-row.watched:hover { background: #1a2e1a30; }
+  .ep-check { width: 28px; height: 28px; border-radius: 50%; border: 2px solid #252540; background: transparent; color: #6060a0; cursor: pointer; font-size: 13px; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+  .ep-check.watched { border-color: #2ecc71; background: #2ecc7125; color: #2ecc71; }
+  .badge { border-radius: 4px; padding: 1px 6px; font-size: 10px; font-weight: 700; letter-spacing: 0.4px; white-space: nowrap; }
+  .cover { border-radius: 6px; flex-shrink: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; overflow: hidden; position: relative; }
+  .auth-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
+  .auth-box { background: #13131f; border: 1px solid #252540; border-radius: 16px; padding: 40px; width: 100%; max-width: 400px; }
+  .empty-state { text-align: center; padding: 80px 0; color: #6060a0; }
+  .section-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 24px; flex-wrap: wrap; gap: 10px; }
 </style>
 </head>
 <body>
-
 <div id="app"></div>
-
 <script>
 const SUPABASE_URL = 'https://jtnkwzzaubkvqszjrrak.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp0bmt3enphdWJrdnFzempycmFrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMyMzgxMjYsImV4cCI6MjA4ODgxNDEyNn0.UhKOw3DulX38GvYErlAo0gejoFtWfn1_bpHRPOrw8-4';
-const ANTHROPIC_KEY = prompt("Enter your Anthropic API key (sk-ant-...):") || "";
-
-const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
-const C = {
-  bg:"#0d0d14", surface:"#13131f", card:"#1a1a2e", border:"#252540",
-  accent:"#e94560", blue:"#0f3460", blueBright:"#1a5296",
-  text:"#e8e8f0", muted:"#6060a0", green:"#2ecc71", amber:"#f39c12",
-  purple:"#9b59b6", purpleDim:"#3d1f5e",
-};
-
-const STATUS_META = {
-  Watching:  { color:"#0f3460", bright:"#4a9eff", icon:"▶" },
-  Watched:   { color:"#1a3d2b", bright:"#2ecc71", icon:"✓" },
-  Paused:    { color:"#2e1a3e", bright:"#c39bd3", icon:"⏸" },
-  Watchlist: { color:"#3d2b00", bright:"#f39c12", icon:"◉" },
-  Dropped:   { color:"#3a0a0a", bright:"#e94560", icon:"✕" },
-};
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp0bmt3enphdWJrdnFzempycmFrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMyMzgxMjYsImV4cCI6MjA4ODgxNDEyNn0.UhKOw3DulX38GvYErlAo0gejoFtWfn1_bpHRPOrw8-4';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 
 const PLATFORMS = ["Netflix","HBO / Max","Disney+","Apple TV+","Hulu","Amazon Prime Video","Peacock","Paramount+","AMC+","Showtime","Crunchyroll","YouTube Premium","Other"];
-
+const STATUS_META = {
+  Watching:  { color: "#0f3460", bright: "#4a9eff", icon: "▶" },
+  Watched:   { color: "#1a3d2b", bright: "#2ecc71", icon: "✓" },
+  Paused:    { color: "#2e1a3e", bright: "#c39bd3", icon: "⏸" },
+  Watchlist: { color: "#3d2b00", bright: "#f39c12", icon: "◉" },
+  Dropped:   { color: "#3a0a0a", bright: "#e94560", icon: "✕" },
+};
 const COVER_PALETTES = [
   ["#e94560","#0f3460"],["#9b59b6","#1a0a2e"],["#2ecc71","#0a2e1a"],
   ["#f39c12","#2e1a00"],["#4a9eff","#0a1a2e"],["#e67e22","#2e0f00"],
   ["#1abc9c","#002e28"],["#e91e8c","#2e0020"],
 ];
 
-function hashStr(s) {
-  let h = 0;
-  for (let i = 0; i < s.length; i++) h = (Math.imul(31,h) + s.charCodeAt(i)) | 0;
-  return Math.abs(h);
-}
-
 // ── State ────────────────────────────────────────────────────────────────────
-let state = {
-  tab: "watching",
-  shows: [],
-  user: null,
-  authMode: "login",
-  authEmail: "", authPassword: "", authError: "", authLoading: false,
-  adding: { watching: false, watchlist: false, shows: false },
-  addTitle: "",
-  addLoading: false,
-  addError: "",
-  addStep: "name", // name | disambig | platform
-  addMatches: [],
-  addPending: null,
-  addDefaultStatus: "Watching",
-  filter: "All",
-  detailShowId: "",
-  detailQuery: "",
-  detailSearching: false,
-  detailResults: [],
-  detailActiveSeason: 1,
-  detailLoadingEps: false,
-  detailEpError: "",
-  pauseModalShow: null,
-  platformModalShow: null,
-  platformModalTitle: "Start Watching",
-  platformModalCallback: null,
-  platformSelected: "",
-  platformCustom: "",
-  resumeModalShow: null,
-  disambigMatches: [],
-  disambigCallback: null,
-};
+let state = { tab: 'watching', shows: [], user: null, session: null, apiKey: '', loaded: false };
+let saveTimeout = null;
 
 function setState(patch) {
-  state = { ...state, ...patch };
+  Object.assign(state, typeof patch === 'function' ? patch(state) : patch);
   render();
+  if (patch.shows !== undefined || (typeof patch === 'function')) scheduleSave();
+}
+
+function scheduleSave() {
+  clearTimeout(saveTimeout);
+  saveTimeout = setTimeout(saveShows, 800);
 }
 
 // ── Supabase ─────────────────────────────────────────────────────────────────
 async function loadShows() {
   if (!state.user) return;
-  const { data, error } = await sb.from("shows").select("id, data").eq("user_id", state.user.id);
-  if (!error && data) {
-    setState({ shows: data.map(r => r.data) });
-  }
+  const { data } = await sb.from('shows').select('id, data').eq('user_id', state.user.id);
+  if (data) setState({ shows: data.map(r => r.data), loaded: true });
+  else setState({ loaded: true });
 }
 
-async function saveShow(show) {
+async function saveShows() {
+  if (!state.user || !state.loaded) return;
+  const rows = state.shows.map(s => ({ id: s.id, user_id: state.user.id, data: s, updated_at: new Date().toISOString() }));
+  // Delete removed shows then upsert all
+  const ids = rows.map(r => r.id);
+  await sb.from('shows').delete().eq('user_id', state.user.id).not('id', 'in', ids.length ? `(${ids.map(i=>`"${i}"`).join(',')})` : '("")');
+  if (rows.length) await sb.from('shows').upsert(rows, { onConflict: 'id,user_id' });
+}
+
+async function upsertShow(show) {
+  setState(s => ({ shows: s.shows.find(x => x.id === show.id) ? s.shows.map(x => x.id === show.id ? show : x) : [...s.shows, show] }));
   if (!state.user) return;
-  await sb.from("shows").upsert({ id: show.id, user_id: state.user.id, data: show, updated_at: new Date().toISOString() });
+  await sb.from('shows').upsert({ id: show.id, user_id: state.user.id, data: show, updated_at: new Date().toISOString() }, { onConflict: 'id,user_id' });
 }
 
-async function deleteShow(id) {
+async function removeShow(id) {
+  setState(s => ({ shows: s.shows.filter(x => x.id !== id) }));
   if (!state.user) return;
-  await sb.from("shows").delete().eq("id", id).eq("user_id", state.user.id);
-}
-
-function upsertShow(show) {
-  const shows = state.shows;
-  const idx = shows.findIndex(s => s.id === show.id);
-  const next = idx >= 0 ? [...shows.slice(0,idx), show, ...shows.slice(idx+1)] : [...shows, show];
-  setState({ shows: next });
-  saveShow(show);
-}
-
-function removeShow(id) {
-  setState({ shows: state.shows.filter(s => s.id !== id) });
-  deleteShow(id);
+  await sb.from('shows').delete().eq('id', id).eq('user_id', state.user.id);
 }
 
 // ── Claude ───────────────────────────────────────────────────────────────────
 async function askClaude(prompt) {
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "x-api-key": ANTHROPIC_KEY, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" },
-    body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 4000, messages: [{ role: "user", content: prompt }] }),
+  const key = state.apiKey || localStorage.getItem('showly_api_key') || '';
+  if (!key) throw new Error('No API key');
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
+    body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 4000, messages: [{ role: 'user', content: prompt }] }),
   });
   const data = await res.json();
   if (data.error) throw new Error(data.error.message);
-  const text = data.content?.map(b => b.text || "").join("") || "";
-  return text.replace(/^```json\s*/i,"").replace(/^```\s*/i,"").replace(/```\s*$/,"").trim();
+  const text = data.content?.map(b => b.text || '').join('') || '';
+  return text.replace(/^```json\s*/i,'').replace(/^```\s*/i,'').replace(/```\s*$/,'').trim();
 }
 
 function parseJSON(raw) {
@@ -182,20 +140,39 @@ function parseJSON(raw) {
 
 async function loadEpisodesForShow(show) {
   const raw = await askClaude(
-    `List every season and episode of the TV show "${show.title}"${show.years ? ` (${show.years})` : ""}. ` +
-    `Return ONLY valid JSON, no markdown, no explanation. Use this exact format: ` +
+    `List every season and episode of the TV show "${show.title}"${show.years ? ` (${show.years})` : ''}. ` +
+    `Return ONLY valid JSON, no markdown, no explanation. Format: ` +
     `{"seasons":[{"number":1,"episodes":[{"number":1,"title":"Pilot","runtime":47},{"number":2,"title":"Cat's in the Bag","runtime":48}]},{"number":2,"episodes":[{"number":1,"title":"Seven Thirty-Seven","runtime":47}]}]}`
   );
   const data = parseJSON(raw);
-  if (!data?.seasons) throw new Error("Bad response");
+  if (!data?.seasons) throw new Error('Bad response');
   return { episodeData: data.seasons, totalEpisodes: data.seasons.reduce((a,s) => a + s.episodes.length, 0) };
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
+function hashStr(s) { let h=0; for(let i=0;i<s.length;i++) h=(Math.imul(31,h)+s.charCodeAt(i))|0; return Math.abs(h); }
+
+function coverStyle(title, size) {
+  const [a, b] = COVER_PALETTES[hashStr(title) % COVER_PALETTES.length];
+  return `width:${size}px;height:${size*1.5}px;background:linear-gradient(145deg,${a},${b});border-radius:6px;flex-shrink:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:${size*0.06}px;overflow:hidden;position:relative;`;
+}
+
+function coverHTML(show, size=80) {
+  const words = show.title.trim().split(/\s+/);
+  const initials = words.length===1 ? words[0].slice(0,2).toUpperCase() : words.slice(0,2).map(w=>w[0].toUpperCase()).join('');
+  const fs = size*0.28;
+  return `<div style="${coverStyle(show.title, size)}">
+    <span style="font-size:${size*0.7}px;position:absolute;top:${size*0.05}px;right:-${size*0.1}px;opacity:0.12;">📺</span>
+    <span style="font-size:${fs*1.3}px;font-weight:900;color:#fff;font-family:'Playfair Display',serif;z-index:1;text-shadow:0 2px 8px #0008;">${initials}</span>
+    <span style="font-size:${fs*0.62}px;color:rgba(255,255,255,0.7);font-weight:600;z-index:1;text-align:center;padding:0 ${size*0.08}px;overflow:hidden;white-space:nowrap;max-width:100%;text-overflow:ellipsis;">${show.title}</span>
+    ${show.years ? `<span style="font-size:${fs*0.5}px;color:rgba(255,255,255,0.4);z-index:1;">${show.years}</span>` : ''}
+  </div>`;
+}
+
 function getNextEpisode(show) {
   if (!show.episodeData) return null;
   for (const season of show.episodeData) {
-    for (let i = 0; i < season.episodes.length; i++) {
+    for (let i=0; i<season.episodes.length; i++) {
       const key = `${season.number}-${i+1}`;
       if (!show.watchedEps?.[key]) return { season: season.number, episode: i+1, title: season.episodes[i].title, runtime: season.episodes[i].runtime };
     }
@@ -208,7 +185,7 @@ function getPausedAt(show) {
   if (!show.episodeData) return null;
   let last = null;
   for (const season of show.episodeData) {
-    for (let i = 0; i < season.episodes.length; i++) {
+    for (let i=0; i<season.episodes.length; i++) {
       const key = `${season.number}-${i+1}`;
       if (show.watchedEps?.[key]) last = { season: season.number, episode: i+1, title: season.episodes[i].title };
     }
@@ -216,808 +193,755 @@ function getPausedAt(show) {
   return last;
 }
 
-function pad(n) { return String(n).padStart(2,"0"); }
+function pad(n) { return String(n).padStart(2,'0'); }
 
-// ── Cover Art ─────────────────────────────────────────────────────────────────
-function coverHTML(show, size) {
-  const [a,b] = COVER_PALETTES[hashStr(show.title) % COVER_PALETTES.length];
-  const words = show.title.trim().split(/\s+/);
-  const initials = words.length === 1 ? words[0].slice(0,2).toUpperCase() : words.slice(0,2).map(w=>w[0].toUpperCase()).join("");
-  const fs = size * 0.28;
-  const h = size * 1.5;
-  return `<div class="cover" style="width:${size}px;height:${h}px;background:linear-gradient(145deg,${a},${b});">
-    <span style="font-size:${fs*1.3}px;font-weight:900;color:#fff;letter-spacing:1px;font-family:'Playfair Display',serif;text-shadow:0 2px 8px #0008;z-index:1">${initials}</span>
-    <span style="font-size:${fs*0.6}px;color:rgba(255,255,255,0.7);font-weight:600;z-index:1;text-align:center;padding:0 ${size*0.08}px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${show.title}</span>
-    ${show.years ? `<span style="font-size:${fs*0.5}px;color:rgba(255,255,255,0.45);z-index:1">${show.years}</span>` : ""}
-  </div>`;
-}
-
-// ── HTML Builders ─────────────────────────────────────────────────────────────
-function progressHTML(watched, total) {
-  if (!total) return "";
+function progressBar(watched, total) {
+  if (!total) return '';
   const pct = Math.min(100, Math.round((watched/total)*100));
-  const color = pct===100 ? C.green : C.accent;
+  const color = pct===100 ? '#2ecc71' : '#e94560';
   return `<div style="display:flex;align-items:center;gap:8px;">
-    <div class="progress-bar" style="flex:1"><div class="progress-fill" style="width:${pct}%;background:${color}"></div></div>
-    <span style="font-size:11px;color:${C.muted};min-width:32px;text-align:right">${pct}%</span>
+    <div class="progress-bar-track"><div class="progress-bar-fill" style="width:${pct}%;background:${color};"></div></div>
+    <span style="font-size:11px;color:#6060a0;min-width:32px;text-align:right;">${pct}%</span>
   </div>`;
 }
 
-function badgeHTML(label, color, bright) {
-  return `<span class="badge" style="background:${color};color:${bright};border:1px solid ${bright}50">${label}</span>`;
+function badge(label, color, bright) {
+  return `<span class="badge" style="background:${color};color:${bright};border:1px solid ${bright}50;">${label}</span>`;
 }
 
-function spinnerHTML(text="Loading…") {
-  return `<span style="display:flex;align-items:center;gap:8px;color:${C.muted};font-size:12px"><span class="spinner">⟳</span>${text}</span>`;
+// ── Modals (imperative) ───────────────────────────────────────────────────────
+function showModal(html, onClose) {
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = html;
+  overlay.addEventListener('click', e => { if (e.target === overlay) { overlay.remove(); onClose && onClose(); } });
+  document.body.appendChild(overlay);
+  return overlay;
 }
 
-// ── Auth Screen ───────────────────────────────────────────────────────────────
-function renderAuth() {
-  const { authMode, authEmail, authPassword, authError, authLoading } = state;
-  return `<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px">
-    <div style="width:380px;max-width:100%">
-      <h1 style="font-family:'Playfair Display',serif;font-size:36px;color:${C.accent};letter-spacing:2px;text-align:center;margin-bottom:8px">SHOWLY</h1>
-      <p style="text-align:center;color:${C.muted};font-size:13px;margin-bottom:32px">Track every show. Never lose your place.</p>
-      <div style="background:${C.surface};border:1px solid ${C.border};border-radius:12px;padding:28px">
-        <div style="display:flex;gap:0;margin-bottom:24px;border:1px solid ${C.border};border-radius:8px;overflow:hidden">
-          <button onclick="setState({authMode:'login'})" style="flex:1;padding:9px;background:${authMode==='login'?C.accent:'transparent'};color:${authMode==='login'?'#fff':C.muted};border:none;cursor:pointer;font-size:13px;font-weight:600;transition:all 0.2s">Log In</button>
-          <button onclick="setState({authMode:'signup'})" style="flex:1;padding:9px;background:${authMode==='signup'?C.accent:'transparent'};color:${authMode==='signup'?'#fff':C.muted};border:none;cursor:pointer;font-size:13px;font-weight:600;transition:all 0.2s">Sign Up</button>
+function platformModal(show, title, onConfirm) {
+  return new Promise(resolve => {
+    const btns = PLATFORMS.map(p => `<button class="platform-btn${(show.watchingOn||show.platform)===p?' selected':''}" data-p="${p}">${p}</button>`).join('');
+    const overlay = showModal(`
+      <div class="modal" style="width:340px;max-width:90vw;" onclick="event.stopPropagation()">
+        <h3 style="font-family:'Playfair Display',serif;font-size:18px;margin-bottom:6px;">${title}</h3>
+        <div style="color:#6060a0;font-size:13px;margin-bottom:18px;">Where are you watching <strong style="color:#e8e8f0;">${show.title}</strong>?</div>
+        <div class="platform-grid">${btns}</div>
+        <div id="custom-wrap" style="display:none;margin-bottom:14px;"><input class="input" id="custom-input" placeholder="Platform name…" /></div>
+        <div style="display:flex;gap:8px;margin-top:4px;">
+          <button class="btn btn-accent" id="confirm-btn" style="flex:1;">▶ ${title}</button>
+          <button class="btn btn-ghost" id="cancel-btn">Cancel</button>
         </div>
-        <div style="display:flex;flex-direction:column;gap:12px">
-          <input id="auth-email" type="email" placeholder="Email" value="${authEmail}"
-            oninput="setState({authEmail:this.value})"
-            onkeydown="if(event.key==='Enter')handleAuth()"
-            style="background:${C.bg};border:1px solid ${C.border};color:${C.text};padding:10px 14px;border-radius:7px;font-size:13px;outline:none;width:100%" />
-          <input id="auth-password" type="password" placeholder="Password" value="${authPassword}"
-            oninput="setState({authPassword:this.value})"
-            onkeydown="if(event.key==='Enter')handleAuth()"
-            style="background:${C.bg};border:1px solid ${C.border};color:${C.text};padding:10px 14px;border-radius:7px;font-size:13px;outline:none;width:100%" />
-          ${authError ? `<div style="color:${C.accent};font-size:12px;text-align:center">${authError}</div>` : ""}
-          <button class="btn btn-accent" onclick="handleAuth()" ${authLoading?"disabled":""} style="width:100%;padding:11px;font-size:14px">
-            ${authLoading ? spinnerHTML(authMode==='login'?'Logging in…':'Creating account…') : (authMode==='login'?'Log In':'Create Account')}
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>`;
-}
-
-async function handleAuth() {
-  const { authMode, authEmail, authPassword } = state;
-  if (!authEmail || !authPassword) return setState({ authError: "Please fill in all fields." });
-  setState({ authLoading: true, authError: "" });
-  try {
-    let result;
-    if (authMode === "login") {
-      result = await sb.auth.signInWithPassword({ email: authEmail, password: authPassword });
-    } else {
-      result = await sb.auth.signUp({ email: authEmail, password: authPassword });
-    }
-    if (result.error) setState({ authError: result.error.message, authLoading: false });
-    else { setState({ authLoading: false }); }
-  } catch(e) { setState({ authError: e.message, authLoading: false }); }
-}
-
-// ── Add Show ──────────────────────────────────────────────────────────────────
-function renderAddFlow(tabKey) {
-  const { addStep, addTitle, addLoading, addError, addMatches, addPending } = state;
-
-  if (addStep === "disambig") {
-    return `<div class="modal-overlay" onclick="cancelAdd()">
-      <div class="modal" onclick="event.stopPropagation()">
-        <h3 style="font-family:'Playfair Display',serif;font-size:18px;margin-bottom:6px">Multiple Matches Found</h3>
-        <p style="color:${C.muted};font-size:13px;margin-bottom:18px">Which show did you mean?</p>
-        <div style="display:flex;flex-direction:column;gap:10px">
-          ${addMatches.map((m,i) => `
-            <div onclick="selectMatch(${i})" class="card" style="padding:12px 16px;cursor:pointer;display:flex;gap:12px;align-items:center">
-              ${coverHTML(m, 36)}
-              <div style="flex:1">
-                <div style="font-family:'Playfair Display',serif;font-size:15px;margin-bottom:3px">${m.title}</div>
-                <div style="font-size:12px;color:${C.muted}">${[m.years,m.genre,m.network].filter(Boolean).join(" · ")}</div>
-                ${m.description ? `<div style="font-size:11px;color:${C.muted};font-style:italic;margin-top:3px">${m.description}</div>` : ""}
-              </div>
-              <span style="color:${C.accent};font-size:18px">→</span>
-            </div>`).join("")}
-        </div>
-        <button class="btn btn-ghost" onclick="cancelAdd()" style="width:100%;margin-top:14px">Cancel</button>
-      </div>
-    </div>`;
-  }
-
-  return `<div style="background:${C.card};border:1px solid ${C.border};border-radius:10px;padding:16px;margin-bottom:20px">
-    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-      <input id="add-title-input" placeholder="Show title…" value="${addTitle}" autofocus
-        oninput="setState({addTitle:this.value})"
-        onkeydown="if(event.key==='Enter')submitAddName()"
-        style="flex:1;min-width:180px;background:${C.surface};border:1px solid ${C.border};color:${C.text};padding:9px 12px;border-radius:6px;font-size:13px;outline:none" />
-      <button class="btn btn-accent" onclick="submitAddName()" ${addLoading||!addTitle.trim()?"disabled":""}>
-        ${addLoading ? spinnerHTML("Searching…") : "Next →"}
-      </button>
-      <button class="btn btn-ghost" onclick="cancelAdd()">✕</button>
-    </div>
-    ${addError ? `<div style="color:${C.accent};font-size:12px;margin-top:8px">${addError}</div>` : ""}
-  </div>`;
-}
-
-async function submitAddName() {
-  const title = state.addTitle.trim();
-  if (!title) return;
-  setState({ addLoading: true, addError: "" });
-  try {
-    const raw = await askClaude(
-      `Are there multiple distinct TV shows named "${title}" (e.g. remakes, reboots, different countries or eras)? ` +
-      `Return ONLY a valid JSON array, no markdown, no explanation: [{"title":"...","years":"...","genre":"...","network":"...","description":"one sentence"}]. ` +
-      `If only one show matches return one item. Include 2-5 only if genuinely different shows share the name.`
-    );
-    const results = parseJSON(raw);
-    if (!results?.length) throw new Error("No results");
-    if (results.length > 1) {
-      setState({ addLoading: false, addStep: "disambig", addMatches: results });
-    } else {
-      setState({ addLoading: false, addPending: results[0] });
-      if (state.addDefaultStatus === "Watching") openPlatformForAdd(results[0]);
-      else finalizeAdd(results[0], "");
-    }
-  } catch(e) {
-    setState({ addLoading: false, addError: "Couldn't find that show. Try a different title." });
-  }
-}
-
-function selectMatch(i) {
-  const match = state.addMatches[i];
-  setState({ addStep: "name", addMatches: [], addPending: match });
-  if (state.addDefaultStatus === "Watching") openPlatformForAdd(match);
-  else finalizeAdd(match, "");
-}
-
-function openPlatformForAdd(meta) {
-  setState({
-    platformModalShow: meta,
-    platformModalTitle: "Start Watching",
-    platformSelected: "",
-    platformCustom: "",
-    platformModalCallback: (platform) => { finalizeAdd(meta, platform); },
+      </div>`, () => resolve(null));
+    let sel = show.watchingOn || show.platform || '';
+    overlay.querySelectorAll('.platform-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        sel = btn.dataset.p;
+        overlay.querySelectorAll('.platform-btn').forEach(b => b.classList.toggle('selected', b.dataset.p === sel));
+        document.getElementById('custom-wrap').style.display = sel==='Other' ? 'block' : 'none';
+        if (sel==='Other') document.getElementById('custom-input').focus();
+      });
+    });
+    document.getElementById('confirm-btn').addEventListener('click', () => {
+      const val = sel==='Other' ? (document.getElementById('custom-input').value.trim()||'Other') : sel;
+      overlay.remove(); resolve(val);
+    });
+    document.getElementById('cancel-btn').addEventListener('click', () => { overlay.remove(); resolve(null); });
   });
 }
 
-function finalizeAdd(meta, platform) {
-  const show = {
-    id: Date.now().toString(),
-    title: meta.title || state.addTitle.trim(),
-    genre: meta.genre || "", network: meta.network || "",
-    years: meta.years || "", description: meta.description || "",
-    status: state.addDefaultStatus, watchingOn: platform || "",
-    totalEpisodes: "", episodesWatched: 0,
-    episodeData: null, watchedEps: {}, pauseNote: "", pauseEpisode: null,
-  };
-  upsertShow(show);
-  cancelAdd();
-}
-
-function cancelAdd() {
-  setState({ addStep: "name", addTitle: "", addLoading: false, addError: "", addMatches: [], addPending: null, platformModalShow: null, adding: { watching: false, watchlist: false, shows: false } });
-}
-
-// ── Platform Modal ────────────────────────────────────────────────────────────
-function renderPlatformModal() {
-  const { platformModalShow, platformModalTitle, platformSelected, platformCustom, platformModalCallback } = state;
-  if (!platformModalShow) return "";
-  return `<div class="modal-overlay" onclick="closePlatformModal()">
-    <div class="modal" onclick="event.stopPropagation()">
-      <h3 style="font-family:'Playfair Display',serif;font-size:18px;margin-bottom:6px">${platformModalTitle}</h3>
-      <p style="color:${C.muted};font-size:13px;margin-bottom:18px">Where are you watching <strong style="color:${C.text}">${platformModalShow.title}</strong>?</p>
-      <div class="platform-grid">
-        ${PLATFORMS.map(p => `<button class="platform-btn ${platformSelected===p?'selected':''}" onclick="setState({platformSelected:'${p}'})">${p}</button>`).join("")}
-      </div>
-      ${platformSelected==="Other" ? `<input placeholder="Platform name…" value="${platformCustom}" oninput="setState({platformCustom:this.value})" onkeydown="if(event.key==='Enter')confirmPlatform()" style="width:100%;background:${C.bg};border:1px solid ${C.border};color:${C.text};padding:9px 12px;border-radius:7px;font-size:13px;outline:none;margin-bottom:14px" />` : ""}
-      <div style="display:flex;gap:8px;margin-top:4px">
-        <button class="btn btn-accent" onclick="confirmPlatform()" style="flex:1;padding:10px;font-size:14px">▶ ${platformModalTitle}</button>
-        <button class="btn btn-ghost" onclick="closePlatformModal()" style="padding:10px 16px">Cancel</button>
-      </div>
-    </div>
-  </div>`;
-}
-
-function confirmPlatform() {
-  const { platformSelected, platformCustom, platformModalCallback } = state;
-  const platform = platformSelected === "Other" ? (platformCustom.trim() || "Other") : platformSelected;
-  if (platformModalCallback) platformModalCallback(platform);
-  setState({ platformModalShow: null, platformModalCallback: null });
-}
-
-function closePlatformModal() {
-  setState({ platformModalShow: null, platformModalCallback: null });
-  if (state.addStep === "platform") cancelAdd();
-}
-
-// ── Pause Modal ───────────────────────────────────────────────────────────────
-function renderPauseModal() {
-  const { pauseModalShow } = state;
-  if (!pauseModalShow) return "";
-  const next = getNextEpisode(pauseModalShow);
-  const ph = next ? `e.g. S${pad(next.season)}E${pad(next.episode)} — ${next.title}` : "e.g. Season 2, Episode 4…";
-  return `<div class="modal-overlay" onclick="setState({pauseModalShow:null})">
-    <div class="modal" onclick="event.stopPropagation()">
-      <h3 style="font-family:'Playfair Display',serif;font-size:18px;margin-bottom:6px">Pause Show</h3>
-      <p style="color:${C.muted};font-size:13px;margin-bottom:18px">Pausing <strong style="color:${C.text}">${pauseModalShow.title}</strong>. Add a note to remember where you left off.</p>
-      <input id="pause-note" placeholder="${ph}" autofocus
-        onkeydown="if(event.key==='Enter')confirmPause()"
-        style="width:100%;background:${C.bg};border:1px solid ${C.border};color:${C.text};padding:10px 12px;border-radius:7px;font-size:13px;outline:none;margin-bottom:16px" />
-      <div style="display:flex;gap:8px">
-        <button class="btn btn-purple" onclick="confirmPause()" style="flex:1;padding:10px;font-size:14px">⏸ Pause</button>
-        <button class="btn btn-ghost" onclick="setState({pauseModalShow:null})" style="padding:10px 16px">Cancel</button>
-      </div>
-    </div>
-  </div>`;
-}
-
-function confirmPause() {
-  const show = state.pauseModalShow;
-  const note = document.getElementById("pause-note")?.value?.trim() || "";
-  const next = getNextEpisode(show);
-  const pauseEp = next ? { season: next.season, episode: next.episode, title: next.title } : null;
-  upsertShow({ ...show, status: "Paused", pauseNote: note, pauseEpisode: pauseEp });
-  setState({ pauseModalShow: null });
-}
-
-// ── Watching Tab ──────────────────────────────────────────────────────────────
-function renderWatching() {
-  const { shows, adding } = state;
-  const watching = shows.filter(s => s.status === "Watching");
-  return `<div class="fade">
-    <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:24px;flex-wrap:wrap;gap:10px">
-      <div>
-        <h2 style="font-family:'Playfair Display',serif;font-size:28px;margin-bottom:4px">Currently Watching</h2>
-        <div style="display:flex;align-items:center;gap:10px">
-          <div style="width:8px;height:8px;border-radius:50%;background:${C.accent};animation:pulse 1.5s ease-in-out infinite"></div>
-          <span style="color:${C.muted};font-size:13px">${watching.length} active ${watching.length===1?"show":"shows"}</span>
+function pauseModal(show) {
+  return new Promise(resolve => {
+    const next = getNextEpisode(show);
+    const ph = next ? `e.g. S${pad(next.season)}E${pad(next.episode)} — ${next.title}` : 'e.g. Season 2, Episode 4…';
+    const overlay = showModal(`
+      <div class="modal" style="width:340px;max-width:90vw;" onclick="event.stopPropagation()">
+        <h3 style="font-family:'Playfair Display',serif;font-size:18px;margin-bottom:6px;">Pause Show</h3>
+        <div style="color:#6060a0;font-size:13px;margin-bottom:18px;">Pausing <strong style="color:#e8e8f0;">${show.title}</strong>. Add a note to remember where you left off.</div>
+        <input class="input" id="pause-note" placeholder="${ph}" style="margin-bottom:16px;" />
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-purple" id="pause-btn" style="flex:1;font-size:14px;">⏸ Pause</button>
+          <button class="btn btn-ghost" id="cancel-btn">Cancel</button>
         </div>
-      </div>
-      <button class="btn btn-accent" onclick="setState({adding:{...state.adding,watching:true},addDefaultStatus:'Watching'})">+ Add Show</button>
-    </div>
-    ${adding.watching ? renderAddFlow("watching") : ""}
-    ${watching.length === 0 && !adding.watching ? `
-      <div style="text-align:center;padding:80px 0;color:${C.muted}">
-        <div style="font-size:56px;margin-bottom:16px">📺</div>
-        <div style="font-family:'Playfair Display',serif;font-size:20px;color:${C.text};margin-bottom:8px">Nothing playing right now</div>
-        <div style="font-size:14px;margin-bottom:24px">Start a show from your watchlist</div>
-        <button class="btn btn-accent" onclick="setState({tab:'watchlist'})">Browse Watchlist</button>
-      </div>` :
-      `<div style="display:grid;gap:14px">${watching.map(s => watchingCardHTML(s)).join("")}</div>`
-    }
-  </div>`;
+      </div>`, () => resolve(null));
+    document.getElementById('pause-note').focus();
+    document.getElementById('pause-note').addEventListener('keydown', e => { if(e.key==='Enter') document.getElementById('pause-btn').click(); });
+    document.getElementById('pause-btn').addEventListener('click', () => { const note = document.getElementById('pause-note').value.trim(); overlay.remove(); resolve({ note }); });
+    document.getElementById('cancel-btn').addEventListener('click', () => { overlay.remove(); resolve(null); });
+  });
 }
 
-function watchingCardHTML(show) {
+function disambigModal(matches) {
+  return new Promise(resolve => {
+    const items = matches.map((m,i) => `
+      <div class="card" data-i="${i}" style="padding:12px 16px;cursor:pointer;display:flex;gap:12px;align-items:center;border-radius:8px;">
+        ${coverHTML(m, 36)}
+        <div style="flex:1;">
+          <div style="font-family:'Playfair Display',serif;font-size:15px;margin-bottom:3px;">${m.title}</div>
+          <div style="font-size:12px;color:#6060a0;">${[m.years,m.genre,m.network].filter(Boolean).join(' · ')}</div>
+          ${m.description ? `<div style="font-size:11px;color:#6060a0;font-style:italic;margin-top:3px;">${m.description}</div>` : ''}
+        </div>
+        <span style="color:#e94560;font-size:18px;">→</span>
+      </div>`).join('');
+    const overlay = showModal(`
+      <div class="modal" style="width:420px;max-width:92vw;" onclick="event.stopPropagation()">
+        <h3 style="font-family:'Playfair Display',serif;font-size:18px;margin-bottom:6px;">Multiple Matches Found</h3>
+        <div style="color:#6060a0;font-size:13px;margin-bottom:18px;">Which show did you mean?</div>
+        <div style="display:flex;flex-direction:column;gap:10px;" id="match-list">${items}</div>
+        <button class="btn btn-ghost" style="width:100%;margin-top:14px;" id="cancel-btn">Cancel</button>
+      </div>`, () => resolve(null));
+    overlay.querySelectorAll('[data-i]').forEach(el => {
+      el.addEventListener('mouseenter', () => el.style.borderColor='#e9456060');
+      el.addEventListener('mouseleave', () => el.style.borderColor='#252540');
+      el.addEventListener('click', () => { overlay.remove(); resolve(matches[+el.dataset.i]); });
+    });
+    document.getElementById('cancel-btn').addEventListener('click', () => { overlay.remove(); resolve(null); });
+  });
+}
+
+function apiKeyModal() {
+  return new Promise(resolve => {
+    const overlay = showModal(`
+      <div class="modal" style="width:380px;max-width:92vw;" onclick="event.stopPropagation()">
+        <h3 style="font-family:'Playfair Display',serif;font-size:18px;margin-bottom:6px;">Anthropic API Key</h3>
+        <div style="color:#6060a0;font-size:13px;margin-bottom:18px;">Enter your Anthropic API key to enable AI features. It's stored locally in your browser only.</div>
+        <input class="input" id="api-key-input" type="password" placeholder="sk-ant-..." style="margin-bottom:16px;" />
+        <button class="btn btn-accent" id="save-btn" style="width:100%;">Save Key</button>
+      </div>`, () => resolve(null));
+    document.getElementById('api-key-input').focus();
+    document.getElementById('api-key-input').addEventListener('keydown', e => { if(e.key==='Enter') document.getElementById('save-btn').click(); });
+    document.getElementById('save-btn').addEventListener('click', () => {
+      const key = document.getElementById('api-key-input').value.trim();
+      if (!key) return;
+      localStorage.setItem('showly_api_key', key);
+      state.apiKey = key;
+      overlay.remove(); resolve(key);
+    });
+  });
+}
+
+// ── Add Show Flow ─────────────────────────────────────────────────────────────
+async function addShowFlow(defaultStatus='Watching') {
+  const apiKey = state.apiKey || localStorage.getItem('showly_api_key') || '';
+  if (!apiKey) { await apiKeyModal(); }
+
+  return new Promise(resolve => {
+    const overlay = showModal(`
+      <div class="modal" style="width:380px;max-width:92vw;" onclick="event.stopPropagation()">
+        <h3 style="font-family:'Playfair Display',serif;font-size:18px;margin-bottom:16px;">Add Show</h3>
+        <input class="input" id="show-title-input" placeholder="Show title…" style="margin-bottom:12px;" />
+        <div id="add-error" style="color:#e94560;font-size:12px;min-height:16px;margin-bottom:8px;"></div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-accent" id="search-btn" style="flex:1;">Next →</button>
+          <button class="btn btn-ghost" id="cancel-btn">✕</button>
+        </div>
+        <div id="add-spinner" style="margin-top:10px;display:none;color:#6060a0;font-size:12px;"><span class="spinner">⟳</span> Searching…</div>
+      </div>`, () => resolve(null));
+
+    document.getElementById('show-title-input').focus();
+    document.getElementById('show-title-input').addEventListener('keydown', e => { if(e.key==='Enter') document.getElementById('search-btn').click(); });
+    document.getElementById('cancel-btn').addEventListener('click', () => { overlay.remove(); resolve(null); });
+    document.getElementById('search-btn').addEventListener('click', async () => {
+      const title = document.getElementById('show-title-input').value.trim();
+      if (!title) return;
+      document.getElementById('search-btn').disabled = true;
+      document.getElementById('add-spinner').style.display = 'block';
+      document.getElementById('add-error').textContent = '';
+      try {
+        const raw = await askClaude(
+          `Are there multiple distinct TV shows named "${title}"? ` +
+          `Return ONLY a valid JSON array, no markdown: [{"title":"...","years":"...","genre":"...","network":"...","description":"one sentence"}]. ` +
+          `If only one show matches return array with one item. Include 2-5 items only if genuinely different shows share the name.`
+        );
+        const results = parseJSON(raw);
+        if (!results?.length) throw new Error('No results');
+        overlay.remove();
+        let picked = results[0];
+        if (results.length > 1) {
+          picked = await disambigModal(results);
+          if (!picked) { resolve(null); return; }
+        }
+        if (defaultStatus === 'Watching') {
+          const platform = await platformModal(picked, 'Start Watching');
+          if (platform === null) { resolve(null); return; }
+          picked.watchingOn = platform;
+        }
+        const show = {
+          id: Date.now().toString(), title: picked.title, genre: picked.genre||'',
+          network: picked.network||'', years: picked.years||'', description: picked.description||'',
+          status: defaultStatus, watchingOn: picked.watchingOn||'',
+          totalEpisodes: '', episodesWatched: 0, episodeData: null, watchedEps: {}, pauseNote: '', pauseEpisode: null,
+        };
+        await upsertShow(show);
+        resolve(show);
+      } catch(e) {
+        document.getElementById('add-error').textContent = e.message.includes('API key') ? 'Invalid or missing API key.' : "Couldn't find that show. Try a different title.";
+        document.getElementById('search-btn').disabled = false;
+        document.getElementById('add-spinner').style.display = 'none';
+      }
+    });
+  });
+}
+
+// ── Render helpers ────────────────────────────────────────────────────────────
+function renderWatchingCard(show) {
   const next = getNextEpisode(show);
-  let banner = "";
+  let banner = '';
   if (!show.episodeData) {
-    banner = `<div class="ep-banner" style="background:rgba(15,52,96,0.4);justify-content:space-between">
-      <span style="color:${C.muted};font-size:12px;font-style:italic">Load episodes to track progress</span>
-      <button class="btn btn-accent" onclick="doLoadEpisodes('${show.id}')" style="padding:5px 14px;font-size:11px">⬇ Load Episodes</button>
+    banner = `<div style="background:#0f346040;border-bottom:1px solid #252540;padding:10px 18px;display:flex;align-items:center;justify-content:space-between;gap:12px;">
+      <span style="color:#6060a0;font-size:12px;font-style:italic;">Load episodes to track progress</span>
+      <button class="btn btn-accent" style="font-size:11px;padding:5px 14px;flex-shrink:0;" onclick="handleLoadEps('${show.id}')">⬇ Load Episodes</button>
     </div>`;
   } else if (next) {
-    banner = `<div class="ep-banner" style="background:linear-gradient(135deg,rgba(15,52,96,0.8),rgba(233,69,96,0.2))">
-      <div style="flex:1">
-        <div style="font-size:10px;font-weight:800;letter-spacing:1.5px;color:#4a9eff;text-transform:uppercase;margin-bottom:2px">Up Next</div>
-        <div style="color:${C.text};font-size:14px;font-weight:600">S${pad(next.season)}E${pad(next.episode)} — ${next.title}${next.runtime?`<span style="color:${C.muted};font-size:11px;font-weight:400;margin-left:8px">${next.runtime}m</span>`:""}</div>
+    banner = `<div style="background:linear-gradient(135deg,#0f3460cc,#e9456030);border-bottom:1px solid #252540;padding:10px 18px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+      <div style="flex:1;">
+        <div style="font-size:10px;font-weight:800;letter-spacing:1.5px;color:#4a9eff;text-transform:uppercase;margin-bottom:2px;">Up Next</div>
+        <div style="color:#e8e8f0;font-size:14px;font-weight:600;">S${pad(next.season)}E${pad(next.episode)} — ${next.title}${next.runtime ? `<span style="color:#6060a0;font-size:11px;font-weight:400;margin-left:8px;">${next.runtime}m</span>` : ''}</div>
       </div>
-      <button class="btn" onclick="markWatched('${show.id}')" style="background:${C.green};color:#fff;padding:7px 18px;font-size:12px;flex-shrink:0">✓ Watched</button>
+      <button class="btn btn-green" onclick="handleMarkWatched('${show.id}')" style="flex-shrink:0;">✓ Watched</button>
     </div>`;
   } else {
-    banner = `<div class="ep-banner" style="background:linear-gradient(135deg,rgba(26,61,43,0.6),rgba(46,204,113,0.2))">
-      <span style="font-size:10px;font-weight:800;letter-spacing:1.5px;color:${C.green};text-transform:uppercase">✓ All Caught Up</span>
+    banner = `<div style="background:linear-gradient(135deg,#1a3d2b99,#2ecc7130);border-bottom:1px solid #252540;padding:10px 18px;display:flex;align-items:center;gap:8px;">
+      <span style="font-size:10px;font-weight:800;letter-spacing:1.5px;color:#2ecc71;text-transform:uppercase;">✓ All Caught Up</span>
     </div>`;
   }
-  return `<div class="card" style="overflow:hidden">
+  return `<div class="card" id="card-${show.id}">
     ${banner}
-    <div style="padding:14px 18px;display:flex;gap:14px;align-items:flex-start">
+    <div style="padding:14px 18px;display:flex;gap:14px;align-items:flex-start;">
       ${coverHTML(show, 64)}
-      <div style="flex:1;display:flex;flex-direction:column;gap:5px;min-width:0">
-        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-          <span style="font-family:'Playfair Display',serif;font-size:17px;font-weight:700;cursor:pointer" onclick="viewDetail('${show.id}')">${show.title}</span>
-          ${show.years?`<span style="color:${C.muted};font-size:11px">${show.years}</span>`:""}
+      <div style="flex:1;display:flex;flex-direction:column;gap:5px;min-width:0;">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          <span style="font-family:'Playfair Display',serif;font-size:17px;font-weight:700;">${show.title}</span>
+          ${show.years ? `<span style="color:#6060a0;font-size:11px;">${show.years}</span>` : ''}
         </div>
-        <div style="display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:${C.muted}">
-          ${show.watchingOn?`<span style="color:#4a9eff">📡 ${show.watchingOn}</span>`:""}
-          ${show.genre?`<span>🎭 ${show.genre}</span>`:""}
-          ${show.totalEpisodes?`<span>🎬 ${show.episodesWatched||0}/${show.totalEpisodes} eps</span>`:""}
+        <div style="display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:#6060a0;">
+          ${show.watchingOn ? `<span style="color:#4a9eff;">📡 ${show.watchingOn}</span>` : ''}
+          ${show.genre ? `<span>🎭 ${show.genre}</span>` : ''}
+          ${show.totalEpisodes ? `<span>🎬 ${show.episodesWatched||0}/${show.totalEpisodes} eps</span>` : ''}
         </div>
-        ${show.totalEpisodes ? progressHTML(show.episodesWatched||0, Number(show.totalEpisodes)) : ""}
+        ${show.totalEpisodes ? progressBar(show.episodesWatched||0, Number(show.totalEpisodes)) : ''}
       </div>
-      <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end;flex-shrink:0">
-        <button class="btn btn-purple" onclick="openPause('${show.id}')" style="padding:6px 14px;font-size:12px">⏸ Pause</button>
-        <button class="btn btn-ghost" onclick="removeShow('${show.id}')" style="padding:4px 8px;font-size:10px">Remove</button>
+      <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end;flex-shrink:0;">
+        <button class="btn btn-purple" onclick="handlePause('${show.id}')">⏸ Pause</button>
+        <button class="btn btn-ghost" style="font-size:10px;padding:4px 8px;" onclick="handleRemove('${show.id}')">Remove</button>
       </div>
     </div>
   </div>`;
 }
 
-function markWatched(id) {
+function renderPausedCard(show) {
+  const pauseInfo = show.pauseEpisode || getPausedAt(show);
+  const pauseLabel = pauseInfo
+    ? `S${pad(pauseInfo.season)}E${pad(pauseInfo.episode)}${pauseInfo.title ? ` — ${pauseInfo.title}` : ''}`
+    : show.pauseNote || '<span style="font-style:italic;color:#6060a0;">Load episodes to track progress</span>';
+  return `<div class="card" style="border-color:#9b59b630;" id="card-${show.id}">
+    <div style="background:linear-gradient(135deg,#3d1f5ecc,#9b59b620);border-bottom:1px solid #9b59b630;padding:10px 18px;display:flex;align-items:center;gap:10px;">
+      <span style="font-size:10px;font-weight:800;letter-spacing:1.5px;color:#c39bd3;text-transform:uppercase;">⏸ Paused At</span>
+      <span style="color:#e8e8f0;font-size:13px;font-weight:500;">${pauseLabel}</span>
+    </div>
+    <div style="padding:14px 18px;display:flex;gap:14px;align-items:flex-start;">
+      ${coverHTML(show, 64)}
+      <div style="flex:1;display:flex;flex-direction:column;gap:5px;min-width:0;">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          <span style="font-family:'Playfair Display',serif;font-size:17px;font-weight:700;">${show.title}</span>
+          ${show.years ? `<span style="color:#6060a0;font-size:11px;">${show.years}</span>` : ''}
+        </div>
+        <div style="display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:#6060a0;">
+          ${show.watchingOn ? `<span style="color:#c39bd3;">📡 ${show.watchingOn}</span>` : ''}
+          ${show.genre ? `<span>🎭 ${show.genre}</span>` : ''}
+          ${show.totalEpisodes ? `<span>🎬 ${show.episodesWatched||0}/${show.totalEpisodes} eps</span>` : ''}
+        </div>
+        ${show.pauseNote && show.pauseEpisode ? `<div style="font-size:11px;color:#6060a0;font-style:italic;">📝 ${show.pauseNote}</div>` : ''}
+        ${show.totalEpisodes ? progressBar(show.episodesWatched||0, Number(show.totalEpisodes)) : ''}
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end;flex-shrink:0;">
+        <button class="btn btn-blue" onclick="handleResume('${show.id}')">▶ Resume</button>
+        <button class="btn btn-ghost" style="font-size:10px;padding:4px 8px;" onclick="handleRemove('${show.id}')">Remove</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+// ── Event Handlers ────────────────────────────────────────────────────────────
+window.handleMarkWatched = async (id) => {
   const show = state.shows.find(s => s.id === id);
   if (!show) return;
   const next = getNextEpisode(show);
   if (!next) return;
   const key = `${next.season}-${next.episode}`;
   const watchedEps = { ...show.watchedEps, [key]: true };
-  upsertShow({ ...show, watchedEps, episodesWatched: Object.values(watchedEps).filter(Boolean).length });
-}
+  await upsertShow({ ...show, watchedEps, episodesWatched: Object.values(watchedEps).filter(Boolean).length });
+};
 
-async function doLoadEpisodes(id) {
+window.handleLoadEps = async (id) => {
   const show = state.shows.find(s => s.id === id);
   if (!show) return;
-  // Show loading state inline
-  const shows = state.shows.map(s => s.id === id ? { ...s, _loadingEps: true } : s);
-  setState({ shows });
+  const btn = document.querySelector(`#card-${id} button[onclick*="handleLoadEps"]`);
+  if (btn) { btn.textContent = '⟳ Loading…'; btn.disabled = true; }
   try {
     const updates = await loadEpisodesForShow(show);
-    upsertShow({ ...show, ...updates, _loadingEps: false });
-  } catch {
-    upsertShow({ ...show, _loadingEps: false });
-    alert("Failed to load episodes. Try again.");
-  }
-}
+    await upsertShow({ ...show, ...updates });
+  } catch { if (btn) { btn.textContent = '⬇ Load Episodes'; btn.disabled = false; } }
+};
 
-function openPause(id) {
-  const show = state.shows.find(s => s.id === id);
-  setState({ pauseModalShow: show });
-}
-
-// ── Paused Tab ────────────────────────────────────────────────────────────────
-function renderPaused() {
-  const { shows } = state;
-  const paused = shows.filter(s => s.status === "Paused");
-  return `<div class="fade">
-    <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:24px;flex-wrap:wrap;gap:10px">
-      <div>
-        <h2 style="font-family:'Playfair Display',serif;font-size:28px;margin-bottom:4px">Paused Shows</h2>
-        <span style="color:${C.muted};font-size:13px">${paused.length} ${paused.length===1?"show":"shows"} on hold</span>
-      </div>
-      ${paused.length > 1 ? `<button class="btn btn-blue" onclick="resumeAll()">▶ Resume All</button>` : ""}
-    </div>
-    ${paused.length === 0 ? `
-      <div style="text-align:center;padding:80px 0;color:${C.muted}">
-        <div style="font-size:56px;margin-bottom:16px">⏸</div>
-        <div style="font-family:'Playfair Display',serif;font-size:20px;color:${C.text};margin-bottom:8px">No paused shows</div>
-      </div>` :
-      `<div style="display:grid;gap:14px">${paused.map(s => pausedCardHTML(s)).join("")}</div>`
-    }
-  </div>`;
-}
-
-function pausedCardHTML(show) {
-  const pauseInfo = show.pauseEpisode || getPausedAt(show);
-  const pauseLabel = pauseInfo
-    ? `S${pad(pauseInfo.season)}E${pad(pauseInfo.episode)}${pauseInfo.title ? ` — ${pauseInfo.title}` : ""}`
-    : show.pauseNote || "Load episodes in Show Detail to track progress";
-  return `<div class="card" style="border-color:rgba(155,89,182,0.3);overflow:hidden">
-    <div class="ep-banner" style="background:linear-gradient(135deg,rgba(61,31,94,0.8),rgba(155,89,182,0.2));border-bottom-color:rgba(155,89,182,0.3)">
-      <span style="font-size:10px;font-weight:800;letter-spacing:1.5px;color:#c39bd3;text-transform:uppercase">⏸ Paused At</span>
-      <span style="color:${C.text};font-size:13px;font-weight:500">${pauseLabel}</span>
-    </div>
-    <div style="padding:14px 18px;display:flex;gap:14px;align-items:flex-start">
-      ${coverHTML(show, 64)}
-      <div style="flex:1;display:flex;flex-direction:column;gap:5px;min-width:0">
-        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-          <span style="font-family:'Playfair Display',serif;font-size:17px;font-weight:700;cursor:pointer" onclick="viewDetail('${show.id}')">${show.title}</span>
-          ${show.years?`<span style="color:${C.muted};font-size:11px">${show.years}</span>`:""}
-        </div>
-        <div style="display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:${C.muted}">
-          ${show.watchingOn?`<span style="color:#c39bd3">📡 ${show.watchingOn}</span>`:""}
-          ${show.genre?`<span>🎭 ${show.genre}</span>`:""}
-          ${show.totalEpisodes?`<span>🎬 ${show.episodesWatched||0}/${show.totalEpisodes} eps</span>`:""}
-        </div>
-        ${show.totalEpisodes ? progressHTML(show.episodesWatched||0, Number(show.totalEpisodes)) : ""}
-      </div>
-      <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end;flex-shrink:0">
-        <button class="btn btn-blue" onclick="openResume('${show.id}')" style="padding:6px 14px;font-size:12px">▶ Resume</button>
-        <button class="btn btn-ghost" onclick="removeShow('${show.id}')" style="padding:4px 8px;font-size:10px">Remove</button>
-      </div>
-    </div>
-  </div>`;
-}
-
-function openResume(id) {
-  const show = state.shows.find(s => s.id === id);
-  setState({
-    platformModalShow: show,
-    platformModalTitle: "Resume Watching",
-    platformSelected: show.watchingOn || "",
-    platformCustom: "",
-    platformModalCallback: (platform) => {
-      upsertShow({ ...show, status: "Watching", watchingOn: platform, pauseEpisode: null, pauseNote: "" });
-    },
-  });
-}
-
-function resumeAll() {
-  state.shows.filter(s => s.status === "Paused").forEach(s => upsertShow({ ...s, status: "Watching", pauseEpisode: null, pauseNote: "" }));
-}
-
-// ── All Shows Tab ─────────────────────────────────────────────────────────────
-function renderAllShows() {
-  const { shows, filter, adding } = state;
-  const statuses = ["All", ...Object.keys(STATUS_META)];
-  const filtered = filter === "All" ? shows : shows.filter(s => s.status === filter);
-  return `<div class="fade">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">
-      <h2 style="font-family:'Playfair Display',serif;font-size:26px">All Shows <span style="color:${C.muted};font-size:16px;font-weight:400">(${shows.length})</span></h2>
-      <button class="btn ${adding.shows?'btn-ghost':'btn-accent'}" onclick="setState({adding:{...state.adding,shows:!state.adding.shows},addDefaultStatus:'Watching'})">${adding.shows?"✕ Cancel":"+ Add Show"}</button>
-    </div>
-    ${adding.shows ? renderAddFlow("shows") : ""}
-    <div style="display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap">
-      ${statuses.map(s => {
-        const count = s==="All" ? shows.length : shows.filter(sh=>sh.status===s).length;
-        const sm = STATUS_META[s];
-        const active = filter===s;
-        return `<button onclick="setState({filter:'${s}'})" style="background:${active?(sm?sm.color:C.accent):C.card};border:1px solid ${active?(sm?sm.bright:C.accent):C.border};color:${active?(sm?sm.bright:'#fff'):C.muted};padding:5px 13px;border-radius:20px;cursor:pointer;font-size:12px;font-weight:${active?700:400};transition:all 0.2s">${sm?sm.icon+' ':''}${s} (${count})</button>`;
-      }).join("")}
-    </div>
-    ${filtered.length===0 ? `<div style="text-align:center;padding:60px 0;color:${C.muted}"><div style="font-size:40px;margin-bottom:10px">📭</div><div>No shows here yet</div></div>` :
-      `<div style="display:grid;gap:10px">${filtered.map(s => compactCardHTML(s)).join("")}</div>`}
-  </div>`;
-}
-
-function compactCardHTML(show) {
-  const sm = STATUS_META[show.status] || STATUS_META.Watching;
-  return `<div class="card" style="padding:12px 16px;display:flex;gap:12px;align-items:center">
-    ${coverHTML(show, 48)}
-    <div style="flex:1;display:flex;flex-direction:column;gap:4px;min-width:0">
-      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-        <span style="font-family:'Playfair Display',serif;font-size:15px;font-weight:700;cursor:pointer" onclick="viewDetail('${show.id}')">${show.title}</span>
-        ${badgeHTML(`${sm.icon} ${show.status}`, sm.color, sm.bright)}
-        ${show.years?`<span style="color:${C.muted};font-size:11px">${show.years}</span>`:""}
-      </div>
-      <div style="display:flex;gap:12px;font-size:12px;color:${C.muted};flex-wrap:wrap">
-        ${show.watchingOn?`<span style="color:#4a9eff">📡 ${show.watchingOn}</span>`:""}
-        ${show.genre?`<span>🎭 ${show.genre}</span>`:""}
-        ${show.totalEpisodes?`<span>🎬 ${show.episodesWatched||0}/${show.totalEpisodes}</span>`:""}
-      </div>
-    </div>
-    <div style="display:flex;flex-direction:column;gap:5px;align-items:flex-end;flex-shrink:0">
-      ${show.status==="Watching"?`<button class="btn btn-purple" onclick="openPause('${show.id}')" style="padding:4px 10px;font-size:11px">⏸</button>`:""}
-      <select onchange="changeStatus('${show.id}',this.value)" style="background:${C.surface};border:1px solid ${C.border};color:${C.text};padding:4px 8px;border-radius:5px;font-size:11px;cursor:pointer">
-        ${Object.keys(STATUS_META).map(s=>`<option ${show.status===s?"selected":""}>${s}</option>`).join("")}
-      </select>
-      <button class="btn btn-ghost" onclick="removeShow('${show.id}')" style="padding:3px 8px;font-size:10px">Remove</button>
-    </div>
-  </div>`;
-}
-
-function changeStatus(id, newStatus) {
+window.handlePause = async (id) => {
   const show = state.shows.find(s => s.id === id);
   if (!show) return;
-  if (newStatus === "Watching") {
-    setState({
-      platformModalShow: show,
-      platformModalTitle: "Start Watching",
-      platformSelected: show.watchingOn || "",
-      platformCustom: "",
-      platformModalCallback: (platform) => upsertShow({ ...show, status: "Watching", watchingOn: platform }),
-    });
+  const result = await pauseModal(show);
+  if (result === null) return;
+  const next = getNextEpisode(show);
+  const pauseEp = next ? { season: next.season, episode: next.episode, title: next.title } : null;
+  await upsertShow({ ...show, status: 'Paused', pauseNote: result.note, pauseEpisode: pauseEp });
+};
+
+window.handleResume = async (id) => {
+  const show = state.shows.find(s => s.id === id);
+  if (!show) return;
+  const platform = await platformModal(show, 'Resume Watching');
+  if (platform === null) return;
+  await upsertShow({ ...show, status: 'Watching', watchingOn: platform, pauseEpisode: null, pauseNote: '' });
+};
+
+window.handleRemove = async (id) => {
+  if (!confirm('Remove this show?')) return;
+  await removeShow(id);
+};
+
+window.handleStartFromWatchlist = async (id) => {
+  const show = state.shows.find(s => s.id === id);
+  if (!show) return;
+  const platform = await platformModal(show, 'Start Watching');
+  if (platform === null) return;
+  await upsertShow({ ...show, status: 'Watching', watchingOn: platform });
+};
+
+window.handleStatusChange = async (id, newStatus) => {
+  const show = state.shows.find(s => s.id === id);
+  if (!show) return;
+  if (newStatus === 'Watching') {
+    const platform = await platformModal(show, 'Start Watching');
+    if (platform === null) { render(); return; }
+    await upsertShow({ ...show, status: 'Watching', watchingOn: platform });
   } else {
-    upsertShow({ ...show, status: newStatus });
+    await upsertShow({ ...show, status: newStatus });
   }
+};
+
+window.handleToggleEp = async (showId, sn, en) => {
+  const show = state.shows.find(s => s.id === showId);
+  if (!show) return;
+  const key = `${sn}-${en}`;
+  const watchedEps = { ...show.watchedEps, [key]: !show.watchedEps?.[key] };
+  await upsertShow({ ...show, watchedEps, episodesWatched: Object.values(watchedEps).filter(Boolean).length });
+};
+
+window.handleToggleAllEps = async (showId, seasonNum) => {
+  const show = state.shows.find(s => s.id === showId);
+  if (!show) return;
+  const season = show.episodeData.find(s => s.number === seasonNum);
+  if (!season) return;
+  const nw = { ...show.watchedEps };
+  const allW = season.episodes.every((_,i) => show.watchedEps?.[`${seasonNum}-${i+1}`]);
+  season.episodes.forEach((_,i) => { nw[`${seasonNum}-${i+1}`] = !allW; });
+  await upsertShow({ ...show, watchedEps: nw, episodesWatched: Object.values(nw).filter(Boolean).length });
+};
+
+window.handleLoadEpsDetail = async (showId) => {
+  const show = state.shows.find(s => s.id === showId);
+  if (!show) return;
+  const btn = document.getElementById('load-eps-btn');
+  if (btn) { btn.textContent = '⟳ Loading…'; btn.disabled = true; }
+  const errEl = document.getElementById('ep-error');
+  if (errEl) errEl.textContent = '';
+  try {
+    const updates = await loadEpisodesForShow(show);
+    await upsertShow({ ...show, ...updates });
+  } catch {
+    if (errEl) errEl.textContent = 'Failed to load. Try again.';
+    if (btn) { btn.textContent = 'Load Episodes'; btn.disabled = false; }
+  }
+};
+
+window.handleSetSeason = (n) => { state.activeSeason = n; render(); };
+
+window.handleSetDetailShow = (id) => { state.detailShowId = id; state.activeSeason = 1; render(); };
+
+window.handleDetailSearch = async () => {
+  const q = document.getElementById('detail-search-input')?.value?.trim();
+  if (!q) return;
+  const btn = document.getElementById('detail-search-btn');
+  if (btn) { btn.textContent = '…'; btn.disabled = true; }
+  try {
+    const raw = await askClaude(`List 5 TV shows matching "${q}". Return ONLY a valid JSON array, no markdown: [{"title":"...","years":"...","genre":"...","network":"...","description":"one sentence"}]`);
+    state.detailSearchResults = parseJSON(raw) || [];
+  } catch { state.detailSearchResults = []; }
+  if (btn) { btn.textContent = 'Search'; btn.disabled = false; }
+  render();
+};
+
+window.handleDetailAddShow = async (i) => {
+  const r = state.detailSearchResults[i];
+  if (!r) return;
+  const existing = state.shows.find(s => s.title.toLowerCase()===r.title.toLowerCase() && s.years===r.years);
+  if (existing) { state.detailShowId = existing.id; state.activeSeason = 1; state.detailSearchResults = []; render(); return; }
+  const show = { id: Date.now().toString(), title: r.title, genre: r.genre||'', network: r.network||'', years: r.years||'', description: r.description||'', status: 'Watchlist', totalEpisodes: '', episodesWatched: 0, episodeData: null, watchedEps: {}, pauseNote: '', pauseEpisode: null, watchingOn: '' };
+  await upsertShow(show);
+  state.detailShowId = show.id; state.activeSeason = 1; state.detailSearchResults = [];
+  render();
+  handleLoadEpsDetail(show.id);
+};
+
+window.handleSignOut = async () => { await sb.auth.signOut(); };
+window.handleSetApiKey = async () => { await apiKeyModal(); };
+
+// ── Auth UI ───────────────────────────────────────────────────────────────────
+function renderAuth() {
+  let mode = 'login';
+  const app = document.getElementById('app');
+  app.innerHTML = `<div class="auth-wrap">
+    <div class="auth-box fade">
+      <h1 style="font-family:'Playfair Display',serif;font-size:28px;color:#e94560;letter-spacing:1px;margin-bottom:4px;">SHOWLY</h1>
+      <p style="color:#6060a0;font-size:13px;margin-bottom:28px;">Track every episode.</p>
+      <div style="display:flex;gap:0;margin-bottom:24px;border-radius:8px;overflow:hidden;border:1px solid #252540;">
+        <button id="mode-login" onclick="setAuthMode('login')" style="flex:1;padding:10px;background:#e94560;color:#fff;border:none;cursor:pointer;font-size:13px;font-weight:600;">Sign In</button>
+        <button id="mode-signup" onclick="setAuthMode('signup')" style="flex:1;padding:10px;background:#1a1a2e;color:#6060a0;border:none;cursor:pointer;font-size:13px;">Sign Up</button>
+      </div>
+      <input class="input" id="auth-email" type="email" placeholder="Email" style="margin-bottom:10px;" />
+      <input class="input" id="auth-password" type="password" placeholder="Password" style="margin-bottom:10px;" />
+      <div id="auth-error" style="color:#e94560;font-size:12px;min-height:16px;margin-bottom:10px;"></div>
+      <button class="btn btn-accent" id="auth-submit" style="width:100%;padding:11px;" onclick="handleAuth()">Sign In</button>
+    </div>
+  </div>`;
+
+  window.setAuthMode = (m) => {
+    mode = m;
+    document.getElementById('mode-login').style.background = m==='login' ? '#e94560' : '#1a1a2e';
+    document.getElementById('mode-login').style.color = m==='login' ? '#fff' : '#6060a0';
+    document.getElementById('mode-signup').style.background = m==='signup' ? '#e94560' : '#1a1a2e';
+    document.getElementById('mode-signup').style.color = m==='signup' ? '#fff' : '#6060a0';
+    document.getElementById('auth-submit').textContent = m==='login' ? 'Sign In' : 'Create Account';
+  };
+
+  window.handleAuth = async () => {
+    const email = document.getElementById('auth-email').value.trim();
+    const password = document.getElementById('auth-password').value;
+    const btn = document.getElementById('auth-submit');
+    const err = document.getElementById('auth-error');
+    if (!email || !password) { err.textContent = 'Please fill in all fields.'; return; }
+    btn.disabled = true; btn.textContent = '…'; err.textContent = '';
+    const fn = mode==='login' ? sb.auth.signInWithPassword.bind(sb.auth) : sb.auth.signUp.bind(sb.auth);
+    const { error } = await fn({ email, password });
+    if (error) { err.textContent = error.message; btn.disabled = false; btn.textContent = mode==='login' ? 'Sign In' : 'Create Account'; }
+  };
+
+  document.getElementById('auth-email').addEventListener('keydown', e => { if(e.key==='Enter') document.getElementById('auth-password').focus(); });
+  document.getElementById('auth-password').addEventListener('keydown', e => { if(e.key==='Enter') window.handleAuth(); });
 }
 
-// ── Show Detail Tab ───────────────────────────────────────────────────────────
-function renderDetail() {
-  const { shows, detailShowId, detailQuery, detailSearching, detailResults, detailActiveSeason, detailLoadingEps, detailEpError } = state;
-  const selected = shows.find(s => s.id === detailShowId);
-  const seasonData = selected?.episodeData?.find(s => s.number === detailActiveSeason);
+// ── Main Render ───────────────────────────────────────────────────────────────
+function render() {
+  if (!state.user) { renderAuth(); return; }
+  const { tab, shows } = state;
+  const watchingCount = shows.filter(s => s.status==='Watching').length;
+  const pausedCount = shows.filter(s => s.status==='Paused').length;
 
-  return `<div class="fade">
-    <h2 style="font-family:'Playfair Display',serif;font-size:26px;margin-bottom:18px">Show Detail</h2>
-    <div style="display:flex;gap:10px;margin-bottom:18px;flex-wrap:wrap">
-      <select onchange="setState({detailShowId:this.value,detailResults:[]})" style="background:${C.card};border:1px solid ${C.border};color:${C.text};padding:9px 14px;border-radius:7px;font-size:14px;cursor:pointer;min-width:220px">
-        <option value="">— Pick a show —</option>
-        ${shows.map(s=>`<option value="${s.id}" ${detailShowId===s.id?"selected":""}>${s.title}${s.years?` (${s.years})`:""}</option>`).join("")}
-      </select>
-      <span style="color:${C.muted};align-self:center;font-size:12px">or search</span>
-      <div style="display:flex;gap:8px;flex:1;max-width:360px">
-        <input placeholder="Search any show…" value="${detailQuery}" oninput="setState({detailQuery:this.value})" onkeydown="if(event.key==='Enter')detailSearch()"
-          style="flex:1;background:${C.card};border:1px solid ${C.border};color:${C.text};padding:9px 14px;border-radius:7px;font-size:13px;outline:none" />
-        <button class="btn btn-accent" onclick="detailSearch()" ${detailSearching?"disabled":""} style="padding:9px 16px">${detailSearching?"…":"Search"}</button>
-      </div>
-    </div>
-    ${detailResults.length > 0 ? `<div style="margin-bottom:18px;display:grid;gap:8px">
-      ${detailResults.map((r,i)=>`
-        <div onclick="detailAddAndView(${i})" class="card" style="padding:12px 16px;cursor:pointer;display:flex;gap:12px;align-items:center">
-          ${coverHTML(r, 32)}
-          <div style="flex:1">
-            <div style="font-family:'Playfair Display',serif;font-size:15px;margin-bottom:2px">${r.title}</div>
-            <div style="font-size:12px;color:${C.muted}">${[r.network,r.genre,r.years].filter(Boolean).join(" · ")}</div>
+  const tabs = [
+    { id:'watching', label:'▶ Watching', badge: watchingCount },
+    { id:'paused',   label:'⏸ Paused',   badge: pausedCount },
+    { id:'shows',    label:'📺 All Shows' },
+    { id:'detail',   label:'🔍 Show Detail' },
+    { id:'watchlist',label:'🔖 Watchlist' },
+    { id:'stats',    label:'📊 Stats' },
+  ];
+
+  const tabNav = tabs.map(t => `
+    <button class="tab-btn ${tab===t.id?'active':''}" onclick="setState({tab:'${t.id}'})">
+      ${t.label}
+      ${t.badge ? `<span style="background:${t.id==='paused'?'#3d1f5e':'#e94560'};color:${t.id==='paused'?'#c39bd3':'#fff'};border-radius:10px;font-size:10px;font-weight:700;padding:1px 6px;">${t.badge}</span>` : ''}
+    </button>`).join('');
+
+  let content = '';
+  if (tab==='watching') content = renderWatchingTab();
+  else if (tab==='paused') content = renderPausedTab();
+  else if (tab==='shows') content = renderAllShowsTab();
+  else if (tab==='detail') content = renderDetailTab();
+  else if (tab==='watchlist') content = renderWatchlistTab();
+  else if (tab==='stats') content = renderStatsTab();
+
+  document.getElementById('app').innerHTML = `
+    <div style="min-height:100vh;">
+      <div style="background:#13131f;border-bottom:1px solid #252540;position:sticky;top:0;z-index:100;">
+        <div style="max-width:1100px;margin:0 auto;padding:0 20px;display:flex;align-items:center;overflow-x:auto;">
+          <h1 style="font-family:'Playfair Display',serif;font-size:20px;color:#e94560;letter-spacing:1px;padding:14px 20px 14px 0;flex-shrink:0;border-right:1px solid #252540;margin-right:4px;">SHOWLY</h1>
+          ${tabNav}
+          <div style="margin-left:auto;display:flex;gap:8px;padding-left:12px;flex-shrink:0;">
+            <button class="btn btn-ghost" style="font-size:11px;padding:5px 10px;" onclick="handleSetApiKey()">🔑 API Key</button>
+            <button class="btn btn-ghost" style="font-size:11px;padding:5px 10px;" onclick="handleSignOut()">Sign Out</button>
           </div>
-          <span style="color:${C.accent};font-size:18px">→</span>
-        </div>`).join("")}
-    </div>` : ""}
-    ${selected ? `
-      <div style="background:${C.card};border:1px solid ${C.border};border-radius:10px;padding:18px 22px;margin-bottom:16px;display:flex;gap:16px;align-items:flex-start">
+        </div>
+      </div>
+      <div style="max-width:1100px;margin:0 auto;padding:28px 20px 60px;" class="fade">${content}</div>
+    </div>`;
+}
+
+function renderWatchingTab() {
+  const watching = state.shows.filter(s => s.status==='Watching');
+  return `
+    <div class="section-header">
+      <div>
+        <h2 style="font-family:'Playfair Display',serif;font-size:28px;margin-bottom:4px;">Currently Watching</h2>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div style="width:8px;height:8px;border-radius:50%;background:#e94560;animation:pulse 1.5s ease-in-out infinite;"></div>
+          <span style="color:#6060a0;font-size:13px;">${watching.length} active ${watching.length===1?'show':'shows'}</span>
+        </div>
+      </div>
+      <button class="btn btn-accent" onclick="addShowFlow('Watching').then(s=>{if(s)render()})">+ Add Show</button>
+    </div>
+    ${watching.length===0 ? `<div class="empty-state"><div style="font-size:56px;margin-bottom:16px;">📺</div><div style="font-family:'Playfair Display',serif;font-size:20px;color:#e8e8f0;margin-bottom:8px;">Nothing playing right now</div><div style="font-size:14px;margin-bottom:24px;">Start a show from your watchlist</div><button class="btn btn-accent" onclick="setState({tab:'watchlist'})">Browse Watchlist</button></div>`
+    : `<div style="display:grid;gap:14px;">${watching.map(renderWatchingCard).join('')}</div>`}`;
+}
+
+function renderPausedTab() {
+  const paused = state.shows.filter(s => s.status==='Paused');
+  return `
+    <div class="section-header">
+      <div>
+        <h2 style="font-family:'Playfair Display',serif;font-size:28px;margin-bottom:4px;">Paused Shows</h2>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span style="font-size:14px;">⏸</span>
+          <span style="color:#6060a0;font-size:13px;">${paused.length} ${paused.length===1?'show':'shows'} on hold</span>
+        </div>
+      </div>
+      ${paused.length>1 ? `<button class="btn btn-blue" onclick="Promise.all(${JSON.stringify(paused.map(s=>s.id))}.map(id=>{const s=state.shows.find(x=>x.id===id);return upsertShow({...s,status:'Watching',pauseEpisode:null,pauseNote:''})}))">▶ Resume All</button>` : ''}
+    </div>
+    ${paused.length===0 ? `<div class="empty-state"><div style="font-size:56px;margin-bottom:16px;">⏸</div><div style="font-family:'Playfair Display',serif;font-size:20px;color:#e8e8f0;margin-bottom:8px;">No paused shows</div></div>`
+    : `<div style="display:grid;gap:14px;">${paused.map(renderPausedCard).join('')}</div>`}`;
+}
+
+function renderAllShowsTab() {
+  const filter = state.showsFilter || 'All';
+  const filtered = filter==='All' ? state.shows : state.shows.filter(s => s.status===filter);
+  const statusBtns = ['All', ...Object.keys(STATUS_META)].map(s => {
+    const count = s==='All' ? state.shows.length : state.shows.filter(x=>x.status===s).length;
+    const sm = STATUS_META[s];
+    const active = filter===s;
+    return `<button onclick="setState({showsFilter:'${s}'})" style="background:${active?(sm?sm.color:'#e94560'):'#1a1a2e'};border:1px solid ${active?(sm?sm.bright:'#e94560'):'#252540'};color:${active?(sm?sm.bright:'#fff'):'#6060a0'};padding:5px 13px;border-radius:20px;cursor:pointer;font-size:12px;font-weight:${active?700:400};transition:all 0.2s;">${sm?sm.icon+' ':''}${s} (${count})</button>`;
+  }).join('');
+  const cards = filtered.map(show => {
+    const sm = STATUS_META[show.status]||STATUS_META.Watching;
+    return `<div class="card" style="padding:12px 16px;display:flex;gap:12px;align-items:center;border-radius:10px;">
+      ${coverHTML(show,48)}
+      <div style="flex:1;display:flex;flex-direction:column;gap:4px;min-width:0;">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          <span style="font-family:'Playfair Display',serif;font-size:15px;font-weight:700;cursor:pointer;" onclick="setState({tab:'detail',detailShowId:'${show.id}',activeSeason:1})">${show.title}</span>
+          ${badge(`${sm.icon} ${show.status}`,sm.color,sm.bright)}
+          ${show.years ? `<span style="color:#6060a0;font-size:11px;">${show.years}</span>` : ''}
+        </div>
+        <div style="display:flex;gap:12px;font-size:12px;color:#6060a0;flex-wrap:wrap;">
+          ${show.watchingOn ? `<span style="color:#4a9eff;">📡 ${show.watchingOn}</span>` : ''}
+          ${show.genre ? `<span>🎭 ${show.genre}</span>` : ''}
+          ${show.totalEpisodes ? `<span>🎬 ${show.episodesWatched||0}/${show.totalEpisodes}</span>` : ''}
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:5px;align-items:flex-end;flex-shrink:0;">
+        ${show.status==='Watching'?`<button class="btn btn-purple" style="font-size:11px;padding:4px 10px;" onclick="handlePause('${show.id}')">⏸</button>`:''}
+        <select onchange="handleStatusChange('${show.id}',this.value)" style="background:#13131f;border:1px solid #252540;color:#e8e8f0;padding:4px 8px;border-radius:5px;font-size:11px;cursor:pointer;">
+          ${Object.keys(STATUS_META).map(s=>`<option ${show.status===s?'selected':''}>${s}</option>`).join('')}
+        </select>
+        <button class="btn btn-ghost" style="font-size:10px;padding:3px 8px;" onclick="handleRemove('${show.id}')">Remove</button>
+      </div>
+    </div>`;
+  }).join('');
+  return `
+    <div class="section-header">
+      <h2 style="font-family:'Playfair Display',serif;font-size:26px;">All Shows <span style="color:#6060a0;font-size:16px;font-weight:400;">(${state.shows.length})</span></h2>
+      <button class="btn btn-accent" onclick="addShowFlow('Watching').then(s=>{if(s)render()})">+ Add Show</button>
+    </div>
+    <div style="display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap;">${statusBtns}</div>
+    ${filtered.length===0 ? `<div class="empty-state"><div style="font-size:40px;margin-bottom:10px;">📭</div><div>No shows here yet</div></div>` : `<div style="display:grid;gap:10px;">${cards}</div>`}`;
+}
+
+function renderDetailTab() {
+  const showId = state.detailShowId || '';
+  const selected = state.shows.find(s => s.id===showId);
+  const activeSeason = state.activeSeason || 1;
+  const results = state.detailSearchResults || [];
+
+  const selectOptions = state.shows.map(s => `<option value="${s.id}" ${s.id===showId?'selected':''}>${s.title}${s.years?` (${s.years})`:''}</option>`).join('');
+
+  let detailContent = '';
+  if (selected) {
+    const seasonBtns = (selected.episodeData||[]).map(s => {
+      const wc = s.episodes.filter((_,i) => selected.watchedEps?.[`${s.number}-${i+1}`]).length;
+      const pct = Math.round(wc/s.episodes.length*100);
+      return `<button onclick="handleSetSeason(${s.number})" style="background:${activeSeason===s.number?'#e94560':'#1a1a2e'};border:1px solid ${activeSeason===s.number?'#e94560':'#252540'};color:${activeSeason===s.number?'#fff':'#6060a0'};padding:6px 14px;border-radius:20px;cursor:pointer;font-size:12px;font-weight:600;transition:all 0.2s;display:flex;flex-direction:column;align-items:center;gap:2px;"><span>S${pad(s.number)}</span><span style="font-size:10px;opacity:0.7;">${pct}%</span></button>`;
+    }).join('');
+
+    const seasonData = (selected.episodeData||[]).find(s => s.number===activeSeason);
+    const epRows = seasonData ? seasonData.episodes.map((ep,i) => {
+      const epNum = i+1;
+      const key = `${seasonData.number}-${epNum}`;
+      const watched = !!selected.watchedEps?.[key];
+      return `<div class="ep-row ${watched?'watched':''}" onclick="handleToggleEp('${selected.id}',${seasonData.number},${epNum})">
+        <div class="ep-check ${watched?'watched':'}">${watched?'✓':'○'}</div>
+        <span style="font-size:11px;color:#6060a0;font-weight:600;">E${pad(epNum)}</span>
+        <div>
+          <div style="font-size:13px;color:${watched?'#6060a0':'#e8e8f0'};font-weight:500;">${ep.title}</div>
+          ${ep.runtime ? `<div style="font-size:11px;color:#6060a0;">${ep.runtime} min</div>` : ''}
+        </div>
+      </div>`;
+    }).join('') : '';
+
+    detailContent = `
+      <div style="background:#1a1a2e;border:1px solid #252540;border-radius:10px;padding:18px 22px;margin-bottom:16px;display:flex;gap:16px;align-items:flex-start;">
         ${coverHTML(selected, 80)}
-        <div style="flex:1">
-          <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px">
+        <div style="flex:1;">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;">
             <div>
-              <h3 style="font-family:'Playfair Display',serif;font-size:22px;margin-bottom:6px">${selected.title}</h3>
-              <div style="display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:${C.muted}">
-                ${selected.watchingOn?`<span style="color:#4a9eff">📡 ${selected.watchingOn}</span>`:""}
-                ${selected.genre?`<span>🎭 ${selected.genre}</span>`:""}
-                ${selected.years?`<span>📅 ${selected.years}</span>`:""}
-                ${selected.totalEpisodes?`<span style="color:${C.accent}">${selected.episodesWatched||0} / ${selected.totalEpisodes} watched</span>`:""}
+              <h3 style="font-family:'Playfair Display',serif;font-size:22px;margin-bottom:6px;">${selected.title}</h3>
+              <div style="display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:#6060a0;">
+                ${selected.watchingOn ? `<span style="color:#4a9eff;">📡 ${selected.watchingOn}</span>` : ''}
+                ${selected.genre ? `<span>🎭 ${selected.genre}</span>` : ''}
+                ${selected.years ? `<span>📅 ${selected.years}</span>` : ''}
+                ${selected.totalEpisodes ? `<span style="color:#e94560;">${selected.episodesWatched||0} / ${selected.totalEpisodes} watched</span>` : ''}
               </div>
-              ${selected.description?`<div style="font-size:12px;color:${C.muted};font-style:italic;margin-top:6px;max-width:500px">${selected.description}</div>`:""}
+              ${selected.description ? `<div style="font-size:12px;color:#6060a0;font-style:italic;margin-top:6px;max-width:500px;">${selected.description}</div>` : ''}
             </div>
             <div>
-              ${!selected.episodeData && !detailLoadingEps ? `<button class="btn btn-accent" onclick="detailLoadEps()" style="padding:9px 18px">Load Episodes</button>` : ""}
-              ${detailLoadingEps ? spinnerHTML("Loading episodes…") : ""}
-              ${detailEpError ? `<div style="color:${C.accent};font-size:12px;margin-top:6px">${detailEpError}</div>` : ""}
+              ${!selected.episodeData ? `<button class="btn btn-accent" id="load-eps-btn" onclick="handleLoadEpsDetail('${selected.id}')">Load Episodes</button>` : ''}
+              <div id="ep-error" style="color:#e94560;font-size:12px;margin-top:6px;"></div>
             </div>
           </div>
         </div>
       </div>
       ${selected.episodeData ? `
-        <div style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap">
-          ${selected.episodeData.map(s => {
-            const wc = s.episodes.filter((_,i)=>selected.watchedEps?.[`${s.number}-${i+1}`]).length;
-            const pct = Math.round(wc/s.episodes.length*100);
-            return `<button onclick="setState({detailActiveSeason:${s.number}})" style="background:${detailActiveSeason===s.number?C.accent:C.card};border:1px solid ${detailActiveSeason===s.number?C.accent:C.border};color:${detailActiveSeason===s.number?'#fff':C.muted};padding:6px 14px;border-radius:20px;cursor:pointer;font-size:12px;font-weight:600;transition:all 0.2s;display:flex;flex-direction:column;align-items:center;gap:2px">
-              <span>S${pad(s.number)}</span><span style="font-size:10px;opacity:0.7">${pct}%</span>
-            </button>`;
-          }).join("")}
-        </div>
+        <div style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap;">${seasonBtns}</div>
         ${seasonData ? `
-          <div style="background:${C.card};border:1px solid ${C.border};border-radius:10px;overflow:hidden">
-            <div style="padding:12px 18px;border-bottom:1px solid ${C.border};display:flex;justify-content:space-between;align-items:center">
-              <span style="font-family:'Playfair Display',serif;font-size:16px">Season ${seasonData.number}</span>
-              <div style="display:flex;gap:10px;align-items:center">
-                <span style="font-size:12px;color:${C.muted}">${seasonData.episodes.filter((_,i)=>selected.watchedEps?.[`${seasonData.number}-${i+1}`]).length}/${seasonData.episodes.length}</span>
-                <button onclick="toggleAllEps()" style="background:${C.surface};border:1px solid ${C.border};color:${C.muted};padding:4px 10px;border-radius:5px;cursor:pointer;font-size:11px">Toggle All</button>
+          <div style="background:#1a1a2e;border:1px solid #252540;border-radius:10px;overflow:hidden;">
+            <div style="padding:12px 18px;border-bottom:1px solid #252540;display:flex;justify-content:space-between;align-items:center;">
+              <span style="font-family:'Playfair Display',serif;font-size:16px;">Season ${seasonData.number}</span>
+              <div style="display:flex;gap:10px;align-items:center;">
+                <span style="font-size:12px;color:#6060a0;">${seasonData.episodes.filter((_,i)=>selected.watchedEps?.[`${seasonData.number}-${i+1}`]).length}/${seasonData.episodes.length}</span>
+                <button class="btn btn-ghost" style="font-size:11px;padding:4px 10px;" onclick="handleToggleAllEps('${selected.id}',${seasonData.number})">Toggle All</button>
               </div>
             </div>
-            ${seasonData.episodes.map((ep,i) => {
-              const epNum = i+1;
-              const key = `${seasonData.number}-${epNum}`;
-              const watched = !!selected.watchedEps?.[key];
-              return `<div class="ep-row ${watched?'watched':''}">
-                <button class="check-btn ${watched?'watched':''}" onclick="toggleEp('${selected.id}','${seasonData.number}','${epNum}')">${watched?"✓":"○"}</button>
-                <span style="font-size:11px;color:${C.muted};font-weight:600">E${pad(epNum)}</span>
-                <div>
-                  <div style="font-size:13px;color:${watched?C.muted:C.text};font-weight:500">${ep.title}</div>
-                  ${ep.runtime?`<div style="font-size:11px;color:${C.muted}">${ep.runtime} min</div>`:""}
-                </div>
-              </div>`;
-            }).join("")}
-          </div>` : ""}
-      ` : ""}
-    ` : `
-      <div style="text-align:center;padding:60px 0;color:${C.muted}">
-        <div style="font-size:48px;margin-bottom:12px">🔍</div>
-        <div style="font-size:15px">Select a show or search for any title</div>
-      </div>`}
-  </div>`;
-}
+            ${epRows}
+          </div>` : ''}` : ''}`;
+  }
 
-async function detailSearch() {
-  const q = state.detailQuery.trim();
-  if (!q) return;
-  setState({ detailSearching: true });
-  try {
-    const raw = await askClaude(`List 5 TV shows matching "${q}". Return ONLY a valid JSON array, no markdown: [{"title":"...","years":"...","genre":"...","network":"...","description":"one sentence"}]`);
-    setState({ detailSearching: false, detailResults: parseJSON(raw) || [] });
-  } catch { setState({ detailSearching: false, detailResults: [] }); }
-}
+  const searchResultsHTML = results.map((r,i) => `
+    <div class="card" style="padding:12px 16px;cursor:pointer;display:flex;gap:12px;align-items:center;border-radius:8px;" onclick="handleDetailAddShow(${i})">
+      ${coverHTML(r, 32)}
+      <div style="flex:1;">
+        <div style="font-family:'Playfair Display',serif;font-size:15px;margin-bottom:2px;">${r.title}</div>
+        <div style="font-size:12px;color:#6060a0;">${[r.network,r.genre,r.years].filter(Boolean).join(' · ')}</div>
+      </div>
+      <span style="color:#e94560;font-size:18px;">→</span>
+    </div>`).join('');
 
-function detailAddAndView(i) {
-  const r = state.detailResults[i];
-  const existing = state.shows.find(s => s.title.toLowerCase()===r.title.toLowerCase() && s.years===r.years);
-  if (existing) { setState({ detailShowId: existing.id, detailResults: [] }); return; }
-  const show = { id: Date.now().toString(), title: r.title, genre: r.genre||"", network: r.network||"", years: r.years||"", description: r.description||"", status: "Watchlist", totalEpisodes: "", episodesWatched: 0, episodeData: null, watchedEps: {}, pauseNote: "", pauseEpisode: null, watchingOn: "" };
-  upsertShow(show);
-  setState({ detailShowId: show.id, detailResults: [] });
-  detailLoadEpsFor(show);
-}
-
-async function detailLoadEps() {
-  const show = state.shows.find(s => s.id === state.detailShowId);
-  if (!show) return;
-  await detailLoadEpsFor(show);
-}
-
-async function detailLoadEpsFor(show) {
-  setState({ detailLoadingEps: true, detailEpError: "" });
-  try {
-    const updates = await loadEpisodesForShow(show);
-    upsertShow({ ...show, ...updates });
-    setState({ detailLoadingEps: false, detailActiveSeason: 1 });
-  } catch { setState({ detailLoadingEps: false, detailEpError: "Failed to load. Try again." }); }
-}
-
-function toggleEp(showId, sn, en) {
-  const show = state.shows.find(s => s.id === showId);
-  if (!show) return;
-  const key = `${sn}-${en}`;
-  const watchedEps = { ...show.watchedEps, [key]: !show.watchedEps?.[key] };
-  upsertShow({ ...show, watchedEps, episodesWatched: Object.values(watchedEps).filter(Boolean).length });
-}
-
-function toggleAllEps() {
-  const show = state.shows.find(s => s.id === state.detailShowId);
-  if (!show) return;
-  const seasonData = show.episodeData?.find(s => s.number === state.detailActiveSeason);
-  if (!seasonData) return;
-  const nw = { ...show.watchedEps };
-  const allW = seasonData.episodes.every((_,i) => show.watchedEps?.[`${seasonData.number}-${i+1}`]);
-  seasonData.episodes.forEach((_,i) => { nw[`${seasonData.number}-${i+1}`] = !allW; });
-  upsertShow({ ...show, watchedEps: nw, episodesWatched: Object.values(nw).filter(Boolean).length });
-}
-
-function viewDetail(id) { setState({ tab: "detail", detailShowId: id }); }
-
-// ── Watchlist Tab ─────────────────────────────────────────────────────────────
-function renderWatchlist() {
-  const { shows, adding } = state;
-  const watchlist = shows.filter(s => s.status === "Watchlist");
-  return `<div class="fade">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
-      <h2 style="font-family:'Playfair Display',serif;font-size:26px">Watchlist <span style="color:${C.muted};font-size:16px">(${watchlist.length})</span></h2>
-      <button class="btn ${adding.watchlist?'btn-ghost':'btn-accent'}" onclick="setState({adding:{...state.adding,watchlist:!state.adding.watchlist},addDefaultStatus:'Watchlist'})">${adding.watchlist?"✕ Cancel":"+ Add"}</button>
+  return `
+    <h2 style="font-family:'Playfair Display',serif;font-size:26px;margin-bottom:18px;">Show Detail</h2>
+    <div style="display:flex;gap:10px;margin-bottom:18px;flex-wrap:wrap;">
+      <select onchange="handleSetDetailShow(this.value)" style="background:#1a1a2e;border:1px solid #252540;color:#e8e8f0;padding:9px 14px;border-radius:7px;font-size:14px;cursor:pointer;min-width:220px;">
+        <option value="">— Pick a show —</option>${selectOptions}
+      </select>
+      <span style="color:#6060a0;align-self:center;font-size:12px;">or search</span>
+      <div style="display:flex;gap:8px;flex:1;max-width:360px;">
+        <input class="input" id="detail-search-input" placeholder="Search any show…" style="flex:1;" onkeydown="if(event.key==='Enter')handleDetailSearch()" />
+        <button class="btn btn-accent" id="detail-search-btn" onclick="handleDetailSearch()">Search</button>
+      </div>
     </div>
-    ${adding.watchlist ? renderAddFlow("watchlist") : ""}
-    ${watchlist.length===0&&!adding.watchlist ? `<div style="text-align:center;padding:60px 0;color:${C.muted}"><div style="font-size:48px;margin-bottom:12px">🔖</div><div>Your watchlist is empty</div></div>` :
-      `<div style="display:grid;gap:10px">${watchlist.map(show=>`
-        <div class="card" style="padding:14px 18px;display:flex;gap:14px;align-items:center">
-          ${coverHTML(show, 56)}
-          <div style="flex:1">
-            <div style="display:flex;gap:10px;align-items:center;margin-bottom:4px;flex-wrap:wrap">
-              <span style="font-family:'Playfair Display',serif;font-size:16px;font-weight:700">${show.title}</span>
-              ${show.years?`<span style="color:${C.muted};font-size:11px">${show.years}</span>`:""}
-            </div>
-            <div style="font-size:12px;color:${C.muted};display:flex;gap:12px;flex-wrap:wrap">
-              ${show.network?`<span>📡 ${show.network}</span>`:""}
-              ${show.genre?`<span>🎭 ${show.genre}</span>`:""}
-            </div>
-            ${show.description?`<div style="font-size:11px;color:${C.muted};font-style:italic;margin-top:4px;max-width:500px">${show.description}</div>`:""}
-          </div>
-          <div style="display:flex;gap:6px;align-items:center;flex-shrink:0">
-            <button class="btn btn-blue" onclick="startFromWatchlist('${show.id}')" style="padding:6px 12px;font-size:12px">▶ Start</button>
-            <button class="btn btn-ghost" onclick="removeShow('${show.id}')" style="padding:6px 10px;font-size:11px">✕</button>
-          </div>
-        </div>`).join("")}
-      </div>`}
-  </div>`;
+    ${results.length ? `<div style="margin-bottom:18px;display:grid;gap:8px;">${searchResultsHTML}</div>` : ''}
+    ${selected ? detailContent : `<div class="empty-state"><div style="font-size:48px;margin-bottom:12px;">🔍</div><div>Select a show or search for any title</div></div>`}`;
 }
 
-function startFromWatchlist(id) {
-  const show = state.shows.find(s => s.id === id);
-  if (!show) return;
-  setState({
-    platformModalShow: show,
-    platformModalTitle: "Start Watching",
-    platformSelected: "",
-    platformCustom: "",
-    platformModalCallback: (platform) => upsertShow({ ...show, status: "Watching", watchingOn: platform }),
-  });
+function renderWatchlistTab() {
+  const watchlist = state.shows.filter(s => s.status==='Watchlist');
+  const cards = watchlist.map(show => `
+    <div class="card" style="padding:14px 18px;display:flex;gap:14px;align-items:center;border-radius:10px;">
+      ${coverHTML(show,56)}
+      <div style="flex:1;">
+        <div style="display:flex;gap:10px;align-items:center;margin-bottom:4px;flex-wrap:wrap;">
+          <span style="font-family:'Playfair Display',serif;font-size:16px;font-weight:700;">${show.title}</span>
+          ${show.years ? `<span style="color:#6060a0;font-size:11px;">${show.years}</span>` : ''}
+        </div>
+        <div style="font-size:12px;color:#6060a0;display:flex;gap:12px;flex-wrap:wrap;">
+          ${show.network ? `<span>📡 ${show.network}</span>` : ''}
+          ${show.genre ? `<span>🎭 ${show.genre}</span>` : ''}
+        </div>
+        ${show.description ? `<div style="font-size:11px;color:#6060a0;font-style:italic;margin-top:4px;max-width:500px;">${show.description}</div>` : ''}
+      </div>
+      <div style="display:flex;gap:6px;align-items:center;flex-shrink:0;">
+        <button class="btn btn-blue" onclick="handleStartFromWatchlist('${show.id}')">▶ Start</button>
+        <button class="btn btn-ghost" style="font-size:11px;padding:6px 10px;" onclick="handleRemove('${show.id}')">✕</button>
+      </div>
+    </div>`).join('');
+  return `
+    <div class="section-header">
+      <h2 style="font-family:'Playfair Display',serif;font-size:26px;">Watchlist <span style="color:#6060a0;font-size:16px;">(${watchlist.length})</span></h2>
+      <button class="btn btn-accent" onclick="addShowFlow('Watchlist').then(s=>{if(s)render()})">+ Add</button>
+    </div>
+    ${watchlist.length===0 ? `<div class="empty-state"><div style="font-size:48px;margin-bottom:12px;">🔖</div><div>Your watchlist is empty</div></div>` : `<div style="display:grid;gap:10px;">${cards}</div>`}`;
 }
 
-// ── Stats Tab ─────────────────────────────────────────────────────────────────
-function renderStats() {
+function renderStatsTab() {
   const { shows } = state;
-  const totalEps = shows.reduce((a,s)=>a+(s.episodesWatched||0),0);
+  const totalEps = shows.reduce((a,s) => a+(s.episodesWatched||0),0);
   const topWatched = shows.filter(s=>(s.episodesWatched||0)>0).sort((a,b)=>(b.episodesWatched||0)-(a.episodesWatched||0)).slice(0,5);
   const statCards = [
-    { label:"Total Shows", value:shows.length, icon:"📺" },
-    { label:"Watching", value:shows.filter(s=>s.status==="Watching").length, icon:"▶" },
-    { label:"Paused", value:shows.filter(s=>s.status==="Paused").length, icon:"⏸" },
-    { label:"Completed", value:shows.filter(s=>s.status==="Watched").length, icon:"✅" },
-    { label:"Eps Watched", value:totalEps, icon:"🎬" },
-  ];
-  return `<div class="fade">
-    <h2 style="font-family:'Playfair Display',serif;font-size:26px;margin-bottom:20px">Stats</h2>
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:24px">
-      ${statCards.map(s=>`
-        <div style="background:${C.card};border:1px solid ${C.border};border-radius:10px;padding:16px;text-align:center">
-          <div style="font-size:22px;margin-bottom:4px">${s.icon}</div>
-          <div style="font-family:'Playfair Display',serif;font-size:24px;color:${C.accent};margin-bottom:4px">${s.value}</div>
-          <div style="font-size:11px;color:${C.muted}">${s.label}</div>
-        </div>`).join("")}
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
-      <div style="background:${C.card};border:1px solid ${C.border};border-radius:10px;padding:18px">
-        <h3 style="font-family:'Playfair Display',serif;font-size:16px;margin-bottom:14px">By Status</h3>
-        ${Object.entries(STATUS_META).map(([status,sm])=>{
-          const count = shows.filter(s=>s.status===status).length;
-          const pct = shows.length ? Math.round((count/shows.length)*100) : 0;
-          return `<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid rgba(37,37,64,0.2)">
-            ${badgeHTML(`${sm.icon} ${status}`, sm.color, sm.bright)}
-            <div class="progress-bar" style="flex:1"><div class="progress-fill" style="width:${pct}%;background:${sm.bright}"></div></div>
-            <span style="font-family:'Playfair Display',serif;font-size:15px;min-width:20px;text-align:right">${count}</span>
-          </div>`;
-        }).join("")}
+    { label:'Total Shows', value:shows.length, icon:'📺' },
+    { label:'Watching', value:shows.filter(s=>s.status==='Watching').length, icon:'▶' },
+    { label:'Paused', value:shows.filter(s=>s.status==='Paused').length, icon:'⏸' },
+    { label:'Completed', value:shows.filter(s=>s.status==='Watched').length, icon:'✅' },
+    { label:'Eps Watched', value:totalEps, icon:'🎬' },
+  ].map(s => `<div style="background:#1a1a2e;border:1px solid #252540;border-radius:10px;padding:16px;text-align:center;"><div style="font-size:22px;margin-bottom:4px;">${s.icon}</div><div style="font-family:'Playfair Display',serif;font-size:24px;color:#e94560;margin-bottom:4px;">${s.value}</div><div style="font-size:11px;color:#6060a0;">${s.label}</div></div>`).join('');
+  const statusRows = Object.entries(STATUS_META).map(([status,sm]) => {
+    const count = shows.filter(s=>s.status===status).length;
+    const pct = shows.length ? Math.round((count/shows.length)*100) : 0;
+    return `<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid #25254020;">
+      ${badge(`${sm.icon} ${status}`,sm.color,sm.bright)}
+      <div class="progress-bar-track"><div class="progress-bar-fill" style="width:${pct}%;background:${sm.bright};"></div></div>
+      <span style="font-family:'Playfair Display',serif;font-size:15px;min-width:20px;text-align:right;">${count}</span>
+    </div>`;
+  }).join('');
+  const topRows = topWatched.length===0
+    ? `<div style="color:#6060a0;font-size:13px;text-align:center;padding-top:20px;">Mark episodes as watched to see rankings</div>`
+    : topWatched.map((s,i) => `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #25254020;">
+        <span style="font-size:${i===0?18:13}px;width:22px;text-align:center;">${i===0?'🏆':i+1}</span>
+        ${coverHTML(s,20)}
+        <div style="flex:1;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${s.title}</div>
+        <span style="color:#e94560;font-size:13px;font-weight:700;white-space:nowrap;">${s.episodesWatched} eps</span>
+      </div>`).join('');
+  return `
+    <h2 style="font-family:'Playfair Display',serif;font-size:26px;margin-bottom:20px;">Stats</h2>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:24px;">${statCards}</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+      <div style="background:#1a1a2e;border:1px solid #252540;border-radius:10px;padding:18px;">
+        <h3 style="font-family:'Playfair Display',serif;font-size:16px;margin-bottom:14px;">By Status</h3>${statusRows}
       </div>
-      <div style="background:${C.card};border:1px solid ${C.border};border-radius:10px;padding:18px">
-        <h3 style="font-family:'Playfair Display',serif;font-size:16px;margin-bottom:14px">🏆 Most Watched</h3>
-        ${topWatched.length===0
-          ? `<div style="color:${C.muted};font-size:13px;text-align:center;padding-top:20px">Mark episodes as watched to see rankings</div>`
-          : topWatched.map((s,i)=>`
-            <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(37,37,64,0.2)">
-              <span style="font-size:${i===0?18:13}px;width:22px;text-align:center">${i===0?"🏆":i+1}</span>
-              ${coverHTML(s, 20)}
-              <div style="flex:1;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.title}</div>
-              <span style="color:${C.accent};font-size:13px;font-weight:700;white-space:nowrap">${s.episodesWatched} eps</span>
-            </div>`).join("")}
+      <div style="background:#1a1a2e;border:1px solid #252540;border-radius:10px;padding:18px;">
+        <h3 style="font-family:'Playfair Display',serif;font-size:16px;margin-bottom:14px;">🏆 Most Watched</h3>${topRows}
       </div>
-    </div>
-  </div>`;
-}
-
-// ── Main Render ───────────────────────────────────────────────────────────────
-function render() {
-  const { user, tab, shows, addStep, disambigMatches } = state;
-  const app = document.getElementById("app");
-  if (!app) return;
-
-  if (!user) { app.innerHTML = renderAuth(); return; }
-
-  const watchingCount = shows.filter(s=>s.status==="Watching").length;
-  const pausedCount = shows.filter(s=>s.status==="Paused").length;
-
-  const tabs = [
-    { id:"watching", label:"▶ Watching", badge: watchingCount },
-    { id:"paused",   label:"⏸ Paused",   badge: pausedCount },
-    { id:"shows",    label:"📺 All Shows", badge: 0 },
-    { id:"detail",   label:"🔍 Show Detail", badge: 0 },
-    { id:"watchlist",label:"🔖 Watchlist", badge: 0 },
-    { id:"stats",    label:"📊 Stats", badge: 0 },
-  ];
-
-  let content = "";
-  if (tab==="watching")  content = renderWatching();
-  if (tab==="paused")    content = renderPaused();
-  if (tab==="shows")     content = renderAllShows();
-  if (tab==="detail")    content = renderDetail();
-  if (tab==="watchlist") content = renderWatchlist();
-  if (tab==="stats")     content = renderStats();
-
-  app.innerHTML = `
-    <div class="tab-bar">
-      <div class="tab-inner">
-        <span style="font-family:'Playfair Display',serif;font-size:20px;color:${C.accent};letter-spacing:1px;padding:14px 20px 14px 0;flex-shrink:0;border-right:1px solid ${C.border};margin-right:4px">SHOWLY</span>
-        ${tabs.map(t=>`
-          <button class="tab-btn ${tab===t.id?'active':''}" onclick="setState({tab:'${t.id}'})">
-            ${t.label}
-            ${t.badge>0?`<span class="tab-badge" style="background:${t.id==='paused'?C.purpleDim:C.accent};color:${t.id==='paused'?'#c39bd3':'#fff'}">${t.badge}</span>`:""}
-          </button>`).join("")}
-        <button onclick="signOut()" style="margin-left:auto;background:none;border:none;color:${C.muted};cursor:pointer;font-size:12px;padding:14px 8px;white-space:nowrap">Sign Out</button>
-      </div>
-    </div>
-    <div class="content">${content}</div>
-    ${renderPlatformModal()}
-    ${renderPauseModal()}
-    ${addStep==="disambig" ? renderAddFlow("") : ""}
-  `;
-}
-
-async function signOut() {
-  await sb.auth.signOut();
-  setState({ user: null, shows: [] });
+    </div>`;
 }
 
 // ── Boot ──────────────────────────────────────────────────────────────────────
-sb.auth.getSession().then(({ data }) => {
-  if (data.session?.user) {
-    setState({ user: data.session.user });
-    loadShows();
-  } else {
-    render();
-  }
+state.apiKey = localStorage.getItem('showly_api_key') || '';
+state.detailSearchResults = [];
+state.activeSeason = 1;
+
+sb.auth.getSession().then(({ data: { session } }) => {
+  if (session) { state.user = session.user; state.session = session; loadShows().then(render); }
+  else render();
 });
 
 sb.auth.onAuthStateChange((_event, session) => {
-  if (session?.user) {
-    setState({ user: session.user });
-    loadShows();
-  } else {
-    setState({ user: null, shows: [] });
-  }
+  state.user = session?.user || null;
+  state.session = session;
+  state.shows = [];
+  state.loaded = false;
+  if (state.user) loadShows().then(render);
+  else render();
 });
 </script>
 </body>
