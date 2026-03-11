@@ -1,919 +1,1024 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Showly</title>
-  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
-  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    body { background: #0d0d14; color: #e8e8f0; font-family: 'DM Sans', sans-serif; }
-    ::-webkit-scrollbar { width: 6px; }
-    ::-webkit-scrollbar-track { background: #0d0d14; }
-    ::-webkit-scrollbar-thumb { background: #252540; border-radius: 3px; }
-    input, select, textarea { font-family: 'DM Sans', sans-serif; }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    @keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
-    @keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:.4;} }
-  </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Showly</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0d0d14; color: #e8e8f0; font-family: 'DM Sans', sans-serif; min-height: 100vh; }
+  input, select, button { font-family: 'DM Sans', sans-serif; }
+  ::-webkit-scrollbar { width: 6px; } ::-webkit-scrollbar-track { background: #0d0d14; } ::-webkit-scrollbar-thumb { background: #252540; border-radius: 3px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+  @keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:.4;} }
+  .fade { animation: fadeIn 0.3s ease; }
+  .card { background: #1a1a2e; border: 1px solid #252540; border-radius: 12px; transition: border-color 0.2s, transform 0.2s; }
+  .card:hover { border-color: rgba(233,69,96,0.4); transform: translateY(-1px); }
+  .btn { border: none; cursor: pointer; font-weight: 600; border-radius: 6px; padding: 8px 18px; font-size: 13px; transition: opacity 0.15s; }
+  .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+  .btn-accent { background: #e94560; color: #fff; }
+  .btn-blue { background: #0f3460; color: #fff; }
+  .btn-ghost { background: none; border: 1px solid #252540; color: #6060a0; }
+  .btn-purple { background: #3d1f5e; border: 1px solid rgba(155,89,182,0.4); color: #c39bd3; }
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 200; display: flex; align-items: center; justify-content: center; animation: fadeIn 0.15s ease; }
+  .modal { background: #13131f; border: 1px solid #252540; border-radius: 12px; padding: 24px; width: 380px; max-width: 92vw; box-shadow: 0 20px 60px rgba(0,0,0,0.6); max-height: 88vh; overflow-y: auto; }
+  .tab-bar { background: #13131f; border-bottom: 1px solid #252540; position: sticky; top: 0; z-index: 100; }
+  .tab-inner { max-width: 1100px; margin: 0 auto; padding: 0 20px; display: flex; align-items: center; overflow-x: auto; }
+  .tab-btn { background: none; border: none; cursor: pointer; color: #6060a0; border-bottom: 2px solid transparent; padding: 14px 13px; font-size: 12.5px; font-weight: 400; white-space: nowrap; display: flex; align-items: center; gap: 5px; transition: all 0.2s; }
+  .tab-btn.active { color: #e8e8f0; border-bottom-color: #e94560; font-weight: 600; }
+  .tab-badge { border-radius: 10px; font-size: 10px; font-weight: 700; padding: 1px 6px; min-width: 18px; text-align: center; }
+  .content { max-width: 1100px; margin: 0 auto; padding: 28px 20px 60px; }
+  .ep-banner { padding: 10px 18px; border-bottom: 1px solid #252540; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .progress-bar { height: 3px; background: #252540; border-radius: 2px; overflow: hidden; }
+  .progress-fill { height: 100%; border-radius: 2px; transition: width 0.4s; }
+  .badge { border-radius: 4px; padding: 1px 6px; font-size: 10px; font-weight: 700; letter-spacing: 0.4px; white-space: nowrap; }
+  .platform-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
+  .platform-btn { padding: 8px 10px; border-radius: 7px; cursor: pointer; font-size: 12px; font-weight: 400; text-align: left; transition: all 0.15s; background: #1a1a2e; border: 1px solid #252540; color: #6060a0; }
+  .platform-btn.selected { background: #0f3460; border-color: #1a5296; color: #fff; font-weight: 600; }
+  .ep-row { display: grid; grid-template-columns: 36px 50px 1fr; align-items: center; gap: 12px; padding: 10px 18px; border-bottom: 1px solid rgba(37,37,64,0.15); cursor: default; transition: background 0.15s; }
+  .ep-row:hover { background: rgba(37,37,64,0.2); }
+  .ep-row.watched { background: rgba(26,46,26,0.12); }
+  .ep-row.watched:hover { background: rgba(26,46,26,0.25); }
+  .check-btn { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 13px; transition: all 0.2s; border: 2px solid #252540; background: transparent; color: #6060a0; }
+  .check-btn.watched { border-color: #2ecc71; background: rgba(46,204,113,0.15); color: #2ecc71; }
+  .cover { border-radius: 6px; flex-shrink: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; overflow: hidden; position: relative; }
+  .spinner { animation: spin 1s linear infinite; display: inline-block; }
+</style>
 </head>
 <body>
-  <div id="root"></div>
-  <script type="text/babel">
-    const { useState, useEffect, useCallback, useRef } = React;
 
-    // ── Config ───────────────────────────────────────────────────────────────
-    const SUPABASE_URL = "https://jtnkwzzaubkvqszjrrak.supabase.co";
-    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp0bmt3enphdWJrdnFzempycmFrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMyMzgxMjYsImV4cCI6MjA4ODgxNDEyNn0.UhKOw3DulX38GvYErlAo0gejoFtWfn1_bpHRPOrw8-4";
-    const ANTHROPIC_KEY = "YOUR_ANTHROPIC_API_KEY"; // <-- replace this
+<div id="app"></div>
 
-    const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+<script>
+const SUPABASE_URL = 'https://jtnkwzzaubkvqszjrrak.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp0bmt3enphdWJrdnFzempycmFrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMyMzgxMjYsImV4cCI6MjA4ODgxNDEyNn0.UhKOw3DulX38GvYErlAo0gejoFtWfn1_bpHRPOrw8-4';
+const ANTHROPIC_KEY = prompt("Enter your Anthropic API key (sk-ant-...):") || "";
 
-    // ── Colors ───────────────────────────────────────────────────────────────
-    const C = {
-      bg: "#0d0d14", surface: "#13131f", card: "#1a1a2e", border: "#252540",
-      accent: "#e94560", blue: "#0f3460", blueBright: "#1a5296",
-      text: "#e8e8f0", muted: "#6060a0", green: "#2ecc71", amber: "#f39c12",
-      purple: "#9b59b6", purpleDim: "#3d1f5e",
-    };
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    const STATUS_META = {
-      Watching:  { color: "#0f3460", bright: "#4a9eff", icon: "▶" },
-      Watched:   { color: "#1a3d2b", bright: "#2ecc71", icon: "✓" },
-      Paused:    { color: "#2e1a3e", bright: "#c39bd3", icon: "⏸" },
-      Watchlist: { color: "#3d2b00", bright: "#f39c12", icon: "◉" },
-      Dropped:   { color: "#3a0a0a", bright: "#e94560", icon: "✕" },
-    };
+const C = {
+  bg:"#0d0d14", surface:"#13131f", card:"#1a1a2e", border:"#252540",
+  accent:"#e94560", blue:"#0f3460", blueBright:"#1a5296",
+  text:"#e8e8f0", muted:"#6060a0", green:"#2ecc71", amber:"#f39c12",
+  purple:"#9b59b6", purpleDim:"#3d1f5e",
+};
 
-    const PLATFORMS = [
-      "Netflix","HBO / Max","Disney+","Apple TV+","Hulu","Amazon Prime Video",
-      "Peacock","Paramount+","AMC+","Showtime","Crunchyroll","YouTube Premium","Other",
-    ];
+const STATUS_META = {
+  Watching:  { color:"#0f3460", bright:"#4a9eff", icon:"▶" },
+  Watched:   { color:"#1a3d2b", bright:"#2ecc71", icon:"✓" },
+  Paused:    { color:"#2e1a3e", bright:"#c39bd3", icon:"⏸" },
+  Watchlist: { color:"#3d2b00", bright:"#f39c12", icon:"◉" },
+  Dropped:   { color:"#3a0a0a", bright:"#e94560", icon:"✕" },
+};
 
-    const TABS = [
-      { id: "watching",  label: "▶ Watching" },
-      { id: "paused",    label: "⏸ Paused" },
-      { id: "shows",     label: "📺 All Shows" },
-      { id: "detail",    label: "🔍 Show Detail" },
-      { id: "watchlist", label: "🔖 Watchlist" },
-      { id: "stats",     label: "📊 Stats" },
-    ];
+const PLATFORMS = ["Netflix","HBO / Max","Disney+","Apple TV+","Hulu","Amazon Prime Video","Peacock","Paramount+","AMC+","Showtime","Crunchyroll","YouTube Premium","Other"];
 
-    const COVER_PALETTES = [
-      ["#e94560","#0f3460"],["#9b59b6","#1a0a2e"],["#2ecc71","#0a2e1a"],
-      ["#f39c12","#2e1a00"],["#4a9eff","#0a1a2e"],["#e67e22","#2e0f00"],
-      ["#1abc9c","#002e28"],["#e91e8c","#2e0020"],
-    ];
+const COVER_PALETTES = [
+  ["#e94560","#0f3460"],["#9b59b6","#1a0a2e"],["#2ecc71","#0a2e1a"],
+  ["#f39c12","#2e1a00"],["#4a9eff","#0a1a2e"],["#e67e22","#2e0f00"],
+  ["#1abc9c","#002e28"],["#e91e8c","#2e0020"],
+];
 
-    // ── Helpers ──────────────────────────────────────────────────────────────
-    function hashStr(s) {
-      let h = 0;
-      for (let i = 0; i < s.length; i++) h = (Math.imul(31, h) + s.charCodeAt(i)) | 0;
-      return Math.abs(h);
+function hashStr(s) {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (Math.imul(31,h) + s.charCodeAt(i)) | 0;
+  return Math.abs(h);
+}
+
+// ── State ────────────────────────────────────────────────────────────────────
+let state = {
+  tab: "watching",
+  shows: [],
+  user: null,
+  authMode: "login",
+  authEmail: "", authPassword: "", authError: "", authLoading: false,
+  adding: { watching: false, watchlist: false, shows: false },
+  addTitle: "",
+  addLoading: false,
+  addError: "",
+  addStep: "name", // name | disambig | platform
+  addMatches: [],
+  addPending: null,
+  addDefaultStatus: "Watching",
+  filter: "All",
+  detailShowId: "",
+  detailQuery: "",
+  detailSearching: false,
+  detailResults: [],
+  detailActiveSeason: 1,
+  detailLoadingEps: false,
+  detailEpError: "",
+  pauseModalShow: null,
+  platformModalShow: null,
+  platformModalTitle: "Start Watching",
+  platformModalCallback: null,
+  platformSelected: "",
+  platformCustom: "",
+  resumeModalShow: null,
+  disambigMatches: [],
+  disambigCallback: null,
+};
+
+function setState(patch) {
+  state = { ...state, ...patch };
+  render();
+}
+
+// ── Supabase ─────────────────────────────────────────────────────────────────
+async function loadShows() {
+  if (!state.user) return;
+  const { data, error } = await sb.from("shows").select("id, data").eq("user_id", state.user.id);
+  if (!error && data) {
+    setState({ shows: data.map(r => r.data) });
+  }
+}
+
+async function saveShow(show) {
+  if (!state.user) return;
+  await sb.from("shows").upsert({ id: show.id, user_id: state.user.id, data: show, updated_at: new Date().toISOString() });
+}
+
+async function deleteShow(id) {
+  if (!state.user) return;
+  await sb.from("shows").delete().eq("id", id).eq("user_id", state.user.id);
+}
+
+function upsertShow(show) {
+  const shows = state.shows;
+  const idx = shows.findIndex(s => s.id === show.id);
+  const next = idx >= 0 ? [...shows.slice(0,idx), show, ...shows.slice(idx+1)] : [...shows, show];
+  setState({ shows: next });
+  saveShow(show);
+}
+
+function removeShow(id) {
+  setState({ shows: state.shows.filter(s => s.id !== id) });
+  deleteShow(id);
+}
+
+// ── Claude ───────────────────────────────────────────────────────────────────
+async function askClaude(prompt) {
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "x-api-key": ANTHROPIC_KEY, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" },
+    body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 4000, messages: [{ role: "user", content: prompt }] }),
+  });
+  const data = await res.json();
+  if (data.error) throw new Error(data.error.message);
+  const text = data.content?.map(b => b.text || "").join("") || "";
+  return text.replace(/^```json\s*/i,"").replace(/^```\s*/i,"").replace(/```\s*$/,"").trim();
+}
+
+function parseJSON(raw) {
+  try { return JSON.parse(raw); } catch {
+    const m = raw.match(/(\[[\s\S]*\]|\{[\s\S]*\})/);
+    if (m) try { return JSON.parse(m[1]); } catch {}
+    return null;
+  }
+}
+
+async function loadEpisodesForShow(show) {
+  const raw = await askClaude(
+    `List every season and episode of the TV show "${show.title}"${show.years ? ` (${show.years})` : ""}. ` +
+    `Return ONLY valid JSON, no markdown, no explanation. Use this exact format: ` +
+    `{"seasons":[{"number":1,"episodes":[{"number":1,"title":"Pilot","runtime":47},{"number":2,"title":"Cat's in the Bag","runtime":48}]},{"number":2,"episodes":[{"number":1,"title":"Seven Thirty-Seven","runtime":47}]}]}`
+  );
+  const data = parseJSON(raw);
+  if (!data?.seasons) throw new Error("Bad response");
+  return { episodeData: data.seasons, totalEpisodes: data.seasons.reduce((a,s) => a + s.episodes.length, 0) };
+}
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+function getNextEpisode(show) {
+  if (!show.episodeData) return null;
+  for (const season of show.episodeData) {
+    for (let i = 0; i < season.episodes.length; i++) {
+      const key = `${season.number}-${i+1}`;
+      if (!show.watchedEps?.[key]) return { season: season.number, episode: i+1, title: season.episodes[i].title, runtime: season.episodes[i].runtime };
     }
+  }
+  return null;
+}
 
-    function parseJSON(raw) {
-      try { return JSON.parse(raw); } catch {
-        const m = raw.match(/(\[[\s\S]*\]|\{[\s\S]*\})/);
-        if (m) try { return JSON.parse(m[1]); } catch {}
-        return null;
-      }
+function getPausedAt(show) {
+  if (show.pauseEpisode) return show.pauseEpisode;
+  if (!show.episodeData) return null;
+  let last = null;
+  for (const season of show.episodeData) {
+    for (let i = 0; i < season.episodes.length; i++) {
+      const key = `${season.number}-${i+1}`;
+      if (show.watchedEps?.[key]) last = { season: season.number, episode: i+1, title: season.episodes[i].title };
     }
+  }
+  return last;
+}
 
-    async function askClaude(prompt) {
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "x-api-key": ANTHROPIC_KEY, "anthropic-version": "2023-06-01" },
-        body: JSON.stringify({ model: "claude-opus-4-5", max_tokens: 4000, messages: [{ role: "user", content: prompt }] }),
-      });
-      const data = await res.json();
-      const text = data.content?.map(b => b.text || "").join("") || "";
-      return text.replace(/^```json\s*/i,"").replace(/^```\s*/i,"").replace(/```\s*$/,"").trim();
-    }
+function pad(n) { return String(n).padStart(2,"0"); }
 
-    async function loadEpisodesForShow(show) {
-      const raw = await askClaude(
-        `List every season and episode of the TV show "${show.title}"${show.years ? ` (${show.years})` : ""}. ` +
-        `Return ONLY valid JSON, no markdown, no explanation. Format: ` +
-        `{"seasons":[{"number":1,"episodes":[{"number":1,"title":"Pilot","runtime":47},{"number":2,"title":"Episode Title","runtime":45}]},{"number":2,"episodes":[...]}]}`
-      );
-      const data = parseJSON(raw);
-      if (!data || !data.seasons) throw new Error("Bad response");
-      return { episodeData: data.seasons, totalEpisodes: data.seasons.reduce((a, s) => a + s.episodes.length, 0) };
-    }
+// ── Cover Art ─────────────────────────────────────────────────────────────────
+function coverHTML(show, size) {
+  const [a,b] = COVER_PALETTES[hashStr(show.title) % COVER_PALETTES.length];
+  const words = show.title.trim().split(/\s+/);
+  const initials = words.length === 1 ? words[0].slice(0,2).toUpperCase() : words.slice(0,2).map(w=>w[0].toUpperCase()).join("");
+  const fs = size * 0.28;
+  const h = size * 1.5;
+  return `<div class="cover" style="width:${size}px;height:${h}px;background:linear-gradient(145deg,${a},${b});">
+    <span style="font-size:${fs*1.3}px;font-weight:900;color:#fff;letter-spacing:1px;font-family:'Playfair Display',serif;text-shadow:0 2px 8px #0008;z-index:1">${initials}</span>
+    <span style="font-size:${fs*0.6}px;color:rgba(255,255,255,0.7);font-weight:600;z-index:1;text-align:center;padding:0 ${size*0.08}px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${show.title}</span>
+    ${show.years ? `<span style="font-size:${fs*0.5}px;color:rgba(255,255,255,0.45);z-index:1">${show.years}</span>` : ""}
+  </div>`;
+}
 
-    function getNextEpisode(show) {
-      if (!show.episodeData) return null;
-      for (const season of show.episodeData) {
-        for (let i = 0; i < season.episodes.length; i++) {
-          const key = `${season.number}-${i + 1}`;
-          if (!show.watchedEps?.[key]) return { season: season.number, episode: i + 1, title: season.episodes[i].title, runtime: season.episodes[i].runtime };
-        }
-      }
-      return null;
-    }
+// ── HTML Builders ─────────────────────────────────────────────────────────────
+function progressHTML(watched, total) {
+  if (!total) return "";
+  const pct = Math.min(100, Math.round((watched/total)*100));
+  const color = pct===100 ? C.green : C.accent;
+  return `<div style="display:flex;align-items:center;gap:8px;">
+    <div class="progress-bar" style="flex:1"><div class="progress-fill" style="width:${pct}%;background:${color}"></div></div>
+    <span style="font-size:11px;color:${C.muted};min-width:32px;text-align:right">${pct}%</span>
+  </div>`;
+}
 
-    function getPausedAt(show) {
-      if (show.pauseEpisode) return show.pauseEpisode;
-      if (!show.episodeData) return null;
-      let last = null;
-      for (const season of show.episodeData) {
-        for (let i = 0; i < season.episodes.length; i++) {
-          const key = `${season.number}-${i + 1}`;
-          if (show.watchedEps?.[key]) last = { season: season.number, episode: i + 1, title: season.episodes[i].title };
-        }
-      }
-      return last;
-    }
+function badgeHTML(label, color, bright) {
+  return `<span class="badge" style="background:${color};color:${bright};border:1px solid ${bright}50">${label}</span>`;
+}
 
-    // ── Supabase DB ──────────────────────────────────────────────────────────
-    async function dbLoad(userId) {
-      const { data, error } = await sb.from("shows").select("id, data").eq("user_id", userId);
-      if (error) throw error;
-      return (data || []).map(row => ({ ...row.data, id: row.id }));
-    }
+function spinnerHTML(text="Loading…") {
+  return `<span style="display:flex;align-items:center;gap:8px;color:${C.muted};font-size:12px"><span class="spinner">⟳</span>${text}</span>`;
+}
 
-    async function dbUpsert(userId, show) {
-      const { error } = await sb.from("shows").upsert({ id: show.id, user_id: userId, data: show, updated_at: new Date().toISOString() }, { onConflict: "id,user_id" });
-      if (error) console.error("upsert error", error);
-    }
-
-    async function dbDelete(userId, showId) {
-      const { error } = await sb.from("shows").delete().eq("id", showId).eq("user_id", userId);
-      if (error) console.error("delete error", error);
-    }
-
-    // ── UI Components ─────────────────────────────────────────────────────────
-    function CoverArt({ show, size = 80 }) {
-      const [a, b] = COVER_PALETTES[hashStr(show.title) % COVER_PALETTES.length];
-      const words = show.title.trim().split(/\s+/);
-      const initials = words.length === 1 ? words[0].slice(0, 2).toUpperCase() : words.slice(0, 2).map(w => w[0].toUpperCase()).join("");
-      const fs = size * 0.28;
-      return (
-        <div style={{ width: size, height: size * 1.5, borderRadius: 6, flexShrink: 0, background: `linear-gradient(145deg, ${a}, ${b})`, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: size * 0.06, overflow: "hidden", position: "relative" }}>
-          <span style={{ fontSize: fs * 1.3, fontWeight: 900, color: "#fff", letterSpacing: 1, fontFamily: "'Playfair Display', serif", zIndex: 1, textShadow: "0 2px 8px #0008" }}>{initials}</span>
-          <span style={{ fontSize: fs * 0.65, color: "rgba(255,255,255,0.7)", fontFamily: "'DM Sans', sans-serif", fontWeight: 600, zIndex: 1, textAlign: "center", padding: `0 ${size*0.08}px`, lineHeight: 1.2, maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{show.title}</span>
-          {show.years && <span style={{ fontSize: fs * 0.55, color: "rgba(255,255,255,0.45)", fontFamily: "'DM Sans', sans-serif", zIndex: 1 }}>{show.years}</span>}
+// ── Auth Screen ───────────────────────────────────────────────────────────────
+function renderAuth() {
+  const { authMode, authEmail, authPassword, authError, authLoading } = state;
+  return `<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px">
+    <div style="width:380px;max-width:100%">
+      <h1 style="font-family:'Playfair Display',serif;font-size:36px;color:${C.accent};letter-spacing:2px;text-align:center;margin-bottom:8px">SHOWLY</h1>
+      <p style="text-align:center;color:${C.muted};font-size:13px;margin-bottom:32px">Track every show. Never lose your place.</p>
+      <div style="background:${C.surface};border:1px solid ${C.border};border-radius:12px;padding:28px">
+        <div style="display:flex;gap:0;margin-bottom:24px;border:1px solid ${C.border};border-radius:8px;overflow:hidden">
+          <button onclick="setState({authMode:'login'})" style="flex:1;padding:9px;background:${authMode==='login'?C.accent:'transparent'};color:${authMode==='login'?'#fff':C.muted};border:none;cursor:pointer;font-size:13px;font-weight:600;transition:all 0.2s">Log In</button>
+          <button onclick="setState({authMode:'signup'})" style="flex:1;padding:9px;background:${authMode==='signup'?C.accent:'transparent'};color:${authMode==='signup'?'#fff':C.muted};border:none;cursor:pointer;font-size:13px;font-weight:600;transition:all 0.2s">Sign Up</button>
         </div>
-      );
-    }
-
-    function Badge({ label, color, bright, small }) {
-      return <span style={{ background: color, color: bright, border: `1px solid ${bright}50`, borderRadius: 4, padding: small ? "1px 6px" : "2px 9px", fontSize: small ? 10 : 11, fontWeight: 700, letterSpacing: 0.4, whiteSpace: "nowrap" }}>{label}</span>;
-    }
-
-    function Spinner({ text = "Loading…" }) {
-      return <div style={{ display: "flex", alignItems: "center", gap: 8, color: C.muted, fontSize: 12 }}><span style={{ animation: "spin 1s linear infinite", display: "inline-block", fontSize: 16 }}>⟳</span>{text}</div>;
-    }
-
-    function ProgressBar({ watched, total }) {
-      if (!total) return null;
-      const pct = Math.min(100, Math.round((watched / total) * 100));
-      return (
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <div style={{ flex: 1, height: 3, background: C.border, borderRadius: 2 }}>
-            <div style={{ width: `${pct}%`, height: "100%", borderRadius: 2, background: pct === 100 ? C.green : C.accent, transition: "width 0.4s" }} />
-          </div>
-          <span style={{ fontSize: 11, color: C.muted, minWidth: 32, textAlign: "right" }}>{pct}%</span>
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <input id="auth-email" type="email" placeholder="Email" value="${authEmail}"
+            oninput="setState({authEmail:this.value})"
+            onkeydown="if(event.key==='Enter')handleAuth()"
+            style="background:${C.bg};border:1px solid ${C.border};color:${C.text};padding:10px 14px;border-radius:7px;font-size:13px;outline:none;width:100%" />
+          <input id="auth-password" type="password" placeholder="Password" value="${authPassword}"
+            oninput="setState({authPassword:this.value})"
+            onkeydown="if(event.key==='Enter')handleAuth()"
+            style="background:${C.bg};border:1px solid ${C.border};color:${C.text};padding:10px 14px;border-radius:7px;font-size:13px;outline:none;width:100%" />
+          ${authError ? `<div style="color:${C.accent};font-size:12px;text-align:center">${authError}</div>` : ""}
+          <button class="btn btn-accent" onclick="handleAuth()" ${authLoading?"disabled":""} style="width:100%;padding:11px;font-size:14px">
+            ${authLoading ? spinnerHTML(authMode==='login'?'Logging in…':'Creating account…') : (authMode==='login'?'Log In':'Create Account')}
+          </button>
         </div>
-      );
+      </div>
+    </div>
+  </div>`;
+}
+
+async function handleAuth() {
+  const { authMode, authEmail, authPassword } = state;
+  if (!authEmail || !authPassword) return setState({ authError: "Please fill in all fields." });
+  setState({ authLoading: true, authError: "" });
+  try {
+    let result;
+    if (authMode === "login") {
+      result = await sb.auth.signInWithPassword({ email: authEmail, password: authPassword });
+    } else {
+      result = await sb.auth.signUp({ email: authEmail, password: authPassword });
     }
+    if (result.error) setState({ authError: result.error.message, authLoading: false });
+    else { setState({ authLoading: false }); }
+  } catch(e) { setState({ authError: e.message, authLoading: false }); }
+}
 
-    // ── Auth Screen ───────────────────────────────────────────────────────────
-    function AuthScreen({ onAuth }) {
-      const [mode, setMode] = useState("login");
-      const [email, setEmail] = useState("");
-      const [password, setPassword] = useState("");
-      const [loading, setLoading] = useState(false);
-      const [error, setError] = useState("");
-      const [message, setMessage] = useState("");
+// ── Add Show ──────────────────────────────────────────────────────────────────
+function renderAddFlow(tabKey) {
+  const { addStep, addTitle, addLoading, addError, addMatches, addPending } = state;
 
-      async function handleSubmit() {
-        setLoading(true); setError(""); setMessage("");
-        try {
-          if (mode === "login") {
-            const { data, error } = await sb.auth.signInWithPassword({ email, password });
-            if (error) throw error;
-            onAuth(data.user);
-          } else if (mode === "signup") {
-            const { data, error } = await sb.auth.signUp({ email, password });
-            if (error) throw error;
-            setMessage("Check your email to confirm your account, then log in.");
-            setMode("login");
-          } else {
-            const { error } = await sb.auth.resetPasswordForEmail(email);
-            if (error) throw error;
-            setMessage("Password reset email sent.");
-          }
-        } catch (e) { setError(e.message); }
-        setLoading(false);
-      }
-
-      return (
-        <div style={{ minHeight: "100vh", background: C.bg, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
-          <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 16, padding: 40, width: 380, maxWidth: "100%", boxShadow: "0 20px 60px #00000080" }}>
-            <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: 28, color: C.accent, letterSpacing: 1, marginBottom: 6 }}>SHOWLY</h1>
-            <p style={{ color: C.muted, fontSize: 13, marginBottom: 32 }}>Your personal TV tracker</p>
-            <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: 20, marginBottom: 20 }}>
-              {mode === "login" ? "Sign In" : mode === "signup" ? "Create Account" : "Reset Password"}
-            </h2>
-            {message && <div style={{ background: "#1a3d2b", border: `1px solid ${C.green}40`, color: C.green, padding: "10px 14px", borderRadius: 7, fontSize: 13, marginBottom: 16 }}>{message}</div>}
-            {error && <div style={{ background: "#3a0a0a", border: `1px solid ${C.accent}40`, color: C.accent, padding: "10px 14px", borderRadius: 7, fontSize: 13, marginBottom: 16 }}>{error}</div>}
-            <input placeholder="Email" type="email" value={email} onChange={e => setEmail(e.target.value)}
-              style={{ width: "100%", background: C.card, border: `1px solid ${C.border}`, color: C.text, padding: "11px 14px", borderRadius: 8, fontSize: 14, outline: "none", marginBottom: 12 }} />
-            {mode !== "reset" && (
-              <input placeholder="Password" type="password" value={password} onChange={e => setPassword(e.target.value)}
-                onKeyDown={e => e.key === "Enter" && handleSubmit()}
-                style={{ width: "100%", background: C.card, border: `1px solid ${C.border}`, color: C.text, padding: "11px 14px", borderRadius: 8, fontSize: 14, outline: "none", marginBottom: 20 }} />
-            )}
-            <button onClick={handleSubmit} disabled={loading}
-              style={{ width: "100%", background: C.accent, border: "none", color: "#fff", padding: "12px", borderRadius: 8, cursor: "pointer", fontSize: 15, fontFamily: "'DM Sans', sans-serif", fontWeight: 700, marginBottom: 16, opacity: loading ? 0.7 : 1 }}>
-              {loading ? <Spinner text="Please wait…" /> : mode === "login" ? "Sign In" : mode === "signup" ? "Create Account" : "Send Reset Email"}
-            </button>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: "center" }}>
-              {mode === "login" && <>
-                <button onClick={() => { setMode("signup"); setError(""); setMessage(""); }} style={{ background: "none", border: "none", color: C.muted, cursor: "pointer", fontSize: 13 }}>Don't have an account? Sign up</button>
-                <button onClick={() => { setMode("reset"); setError(""); setMessage(""); }} style={{ background: "none", border: "none", color: C.muted, cursor: "pointer", fontSize: 12 }}>Forgot password?</button>
-              </>}
-              {mode !== "login" && <button onClick={() => { setMode("login"); setError(""); setMessage(""); }} style={{ background: "none", border: "none", color: C.muted, cursor: "pointer", fontSize: 13 }}>Back to sign in</button>}
-            </div>
-          </div>
+  if (addStep === "disambig") {
+    return `<div class="modal-overlay" onclick="cancelAdd()">
+      <div class="modal" onclick="event.stopPropagation()">
+        <h3 style="font-family:'Playfair Display',serif;font-size:18px;margin-bottom:6px">Multiple Matches Found</h3>
+        <p style="color:${C.muted};font-size:13px;margin-bottom:18px">Which show did you mean?</p>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          ${addMatches.map((m,i) => `
+            <div onclick="selectMatch(${i})" class="card" style="padding:12px 16px;cursor:pointer;display:flex;gap:12px;align-items:center">
+              ${coverHTML(m, 36)}
+              <div style="flex:1">
+                <div style="font-family:'Playfair Display',serif;font-size:15px;margin-bottom:3px">${m.title}</div>
+                <div style="font-size:12px;color:${C.muted}">${[m.years,m.genre,m.network].filter(Boolean).join(" · ")}</div>
+                ${m.description ? `<div style="font-size:11px;color:${C.muted};font-style:italic;margin-top:3px">${m.description}</div>` : ""}
+              </div>
+              <span style="color:${C.accent};font-size:18px">→</span>
+            </div>`).join("")}
         </div>
-      );
-    }
+        <button class="btn btn-ghost" onclick="cancelAdd()" style="width:100%;margin-top:14px">Cancel</button>
+      </div>
+    </div>`;
+  }
 
-    // ── Modals ────────────────────────────────────────────────────────────────
-    function DisambiguateModal({ matches, onSelect, onCancel }) {
-      return (
-        <div style={{ position: "fixed", inset: 0, background: "#00000088", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center" }} onClick={onCancel}>
-          <div onClick={e => e.stopPropagation()} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: 24, width: 420, maxWidth: "92vw", boxShadow: "0 20px 60px #00000080", maxHeight: "80vh", overflowY: "auto" }}>
-            <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: 18, marginBottom: 6 }}>Multiple Matches Found</h3>
-            <div style={{ color: C.muted, fontSize: 13, marginBottom: 18 }}>Which show did you mean?</div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {matches.map((m, i) => (
-                <div key={i} onClick={() => onSelect(m)} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 8, padding: "12px 16px", cursor: "pointer", display: "flex", gap: 12, alignItems: "center", transition: "border-color 0.2s" }}
-                  onMouseEnter={e => e.currentTarget.style.borderColor = `${C.accent}60`}
-                  onMouseLeave={e => e.currentTarget.style.borderColor = C.border}>
-                  <CoverArt show={m} size={36} />
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 15, marginBottom: 3 }}>{m.title}</div>
-                    <div style={{ fontSize: 12, color: C.muted }}>{[m.years, m.genre, m.network].filter(Boolean).join(" · ")}</div>
-                    {m.description && <div style={{ fontSize: 11, color: C.muted, fontStyle: "italic", marginTop: 3 }}>{m.description}</div>}
-                  </div>
-                  <span style={{ color: C.accent, fontSize: 18 }}>→</span>
-                </div>
-              ))}
-            </div>
-            <button onClick={onCancel} style={{ marginTop: 14, background: "none", border: `1px solid ${C.border}`, color: C.muted, padding: "8px 16px", borderRadius: 7, cursor: "pointer", fontSize: 13, width: "100%" }}>Cancel</button>
-          </div>
+  return `<div style="background:${C.card};border:1px solid ${C.border};border-radius:10px;padding:16px;margin-bottom:20px">
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      <input id="add-title-input" placeholder="Show title…" value="${addTitle}" autofocus
+        oninput="setState({addTitle:this.value})"
+        onkeydown="if(event.key==='Enter')submitAddName()"
+        style="flex:1;min-width:180px;background:${C.surface};border:1px solid ${C.border};color:${C.text};padding:9px 12px;border-radius:6px;font-size:13px;outline:none" />
+      <button class="btn btn-accent" onclick="submitAddName()" ${addLoading||!addTitle.trim()?"disabled":""}>
+        ${addLoading ? spinnerHTML("Searching…") : "Next →"}
+      </button>
+      <button class="btn btn-ghost" onclick="cancelAdd()">✕</button>
+    </div>
+    ${addError ? `<div style="color:${C.accent};font-size:12px;margin-top:8px">${addError}</div>` : ""}
+  </div>`;
+}
+
+async function submitAddName() {
+  const title = state.addTitle.trim();
+  if (!title) return;
+  setState({ addLoading: true, addError: "" });
+  try {
+    const raw = await askClaude(
+      `Are there multiple distinct TV shows named "${title}" (e.g. remakes, reboots, different countries or eras)? ` +
+      `Return ONLY a valid JSON array, no markdown, no explanation: [{"title":"...","years":"...","genre":"...","network":"...","description":"one sentence"}]. ` +
+      `If only one show matches return one item. Include 2-5 only if genuinely different shows share the name.`
+    );
+    const results = parseJSON(raw);
+    if (!results?.length) throw new Error("No results");
+    if (results.length > 1) {
+      setState({ addLoading: false, addStep: "disambig", addMatches: results });
+    } else {
+      setState({ addLoading: false, addPending: results[0] });
+      if (state.addDefaultStatus === "Watching") openPlatformForAdd(results[0]);
+      else finalizeAdd(results[0], "");
+    }
+  } catch(e) {
+    setState({ addLoading: false, addError: "Couldn't find that show. Try a different title." });
+  }
+}
+
+function selectMatch(i) {
+  const match = state.addMatches[i];
+  setState({ addStep: "name", addMatches: [], addPending: match });
+  if (state.addDefaultStatus === "Watching") openPlatformForAdd(match);
+  else finalizeAdd(match, "");
+}
+
+function openPlatformForAdd(meta) {
+  setState({
+    platformModalShow: meta,
+    platformModalTitle: "Start Watching",
+    platformSelected: "",
+    platformCustom: "",
+    platformModalCallback: (platform) => { finalizeAdd(meta, platform); },
+  });
+}
+
+function finalizeAdd(meta, platform) {
+  const show = {
+    id: Date.now().toString(),
+    title: meta.title || state.addTitle.trim(),
+    genre: meta.genre || "", network: meta.network || "",
+    years: meta.years || "", description: meta.description || "",
+    status: state.addDefaultStatus, watchingOn: platform || "",
+    totalEpisodes: "", episodesWatched: 0,
+    episodeData: null, watchedEps: {}, pauseNote: "", pauseEpisode: null,
+  };
+  upsertShow(show);
+  cancelAdd();
+}
+
+function cancelAdd() {
+  setState({ addStep: "name", addTitle: "", addLoading: false, addError: "", addMatches: [], addPending: null, platformModalShow: null, adding: { watching: false, watchlist: false, shows: false } });
+}
+
+// ── Platform Modal ────────────────────────────────────────────────────────────
+function renderPlatformModal() {
+  const { platformModalShow, platformModalTitle, platformSelected, platformCustom, platformModalCallback } = state;
+  if (!platformModalShow) return "";
+  return `<div class="modal-overlay" onclick="closePlatformModal()">
+    <div class="modal" onclick="event.stopPropagation()">
+      <h3 style="font-family:'Playfair Display',serif;font-size:18px;margin-bottom:6px">${platformModalTitle}</h3>
+      <p style="color:${C.muted};font-size:13px;margin-bottom:18px">Where are you watching <strong style="color:${C.text}">${platformModalShow.title}</strong>?</p>
+      <div class="platform-grid">
+        ${PLATFORMS.map(p => `<button class="platform-btn ${platformSelected===p?'selected':''}" onclick="setState({platformSelected:'${p}'})">${p}</button>`).join("")}
+      </div>
+      ${platformSelected==="Other" ? `<input placeholder="Platform name…" value="${platformCustom}" oninput="setState({platformCustom:this.value})" onkeydown="if(event.key==='Enter')confirmPlatform()" style="width:100%;background:${C.bg};border:1px solid ${C.border};color:${C.text};padding:9px 12px;border-radius:7px;font-size:13px;outline:none;margin-bottom:14px" />` : ""}
+      <div style="display:flex;gap:8px;margin-top:4px">
+        <button class="btn btn-accent" onclick="confirmPlatform()" style="flex:1;padding:10px;font-size:14px">▶ ${platformModalTitle}</button>
+        <button class="btn btn-ghost" onclick="closePlatformModal()" style="padding:10px 16px">Cancel</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function confirmPlatform() {
+  const { platformSelected, platformCustom, platformModalCallback } = state;
+  const platform = platformSelected === "Other" ? (platformCustom.trim() || "Other") : platformSelected;
+  if (platformModalCallback) platformModalCallback(platform);
+  setState({ platformModalShow: null, platformModalCallback: null });
+}
+
+function closePlatformModal() {
+  setState({ platformModalShow: null, platformModalCallback: null });
+  if (state.addStep === "platform") cancelAdd();
+}
+
+// ── Pause Modal ───────────────────────────────────────────────────────────────
+function renderPauseModal() {
+  const { pauseModalShow } = state;
+  if (!pauseModalShow) return "";
+  const next = getNextEpisode(pauseModalShow);
+  const ph = next ? `e.g. S${pad(next.season)}E${pad(next.episode)} — ${next.title}` : "e.g. Season 2, Episode 4…";
+  return `<div class="modal-overlay" onclick="setState({pauseModalShow:null})">
+    <div class="modal" onclick="event.stopPropagation()">
+      <h3 style="font-family:'Playfair Display',serif;font-size:18px;margin-bottom:6px">Pause Show</h3>
+      <p style="color:${C.muted};font-size:13px;margin-bottom:18px">Pausing <strong style="color:${C.text}">${pauseModalShow.title}</strong>. Add a note to remember where you left off.</p>
+      <input id="pause-note" placeholder="${ph}" autofocus
+        onkeydown="if(event.key==='Enter')confirmPause()"
+        style="width:100%;background:${C.bg};border:1px solid ${C.border};color:${C.text};padding:10px 12px;border-radius:7px;font-size:13px;outline:none;margin-bottom:16px" />
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-purple" onclick="confirmPause()" style="flex:1;padding:10px;font-size:14px">⏸ Pause</button>
+        <button class="btn btn-ghost" onclick="setState({pauseModalShow:null})" style="padding:10px 16px">Cancel</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function confirmPause() {
+  const show = state.pauseModalShow;
+  const note = document.getElementById("pause-note")?.value?.trim() || "";
+  const next = getNextEpisode(show);
+  const pauseEp = next ? { season: next.season, episode: next.episode, title: next.title } : null;
+  upsertShow({ ...show, status: "Paused", pauseNote: note, pauseEpisode: pauseEp });
+  setState({ pauseModalShow: null });
+}
+
+// ── Watching Tab ──────────────────────────────────────────────────────────────
+function renderWatching() {
+  const { shows, adding } = state;
+  const watching = shows.filter(s => s.status === "Watching");
+  return `<div class="fade">
+    <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:24px;flex-wrap:wrap;gap:10px">
+      <div>
+        <h2 style="font-family:'Playfair Display',serif;font-size:28px;margin-bottom:4px">Currently Watching</h2>
+        <div style="display:flex;align-items:center;gap:10px">
+          <div style="width:8px;height:8px;border-radius:50%;background:${C.accent};animation:pulse 1.5s ease-in-out infinite"></div>
+          <span style="color:${C.muted};font-size:13px">${watching.length} active ${watching.length===1?"show":"shows"}</span>
         </div>
-      );
+      </div>
+      <button class="btn btn-accent" onclick="setState({adding:{...state.adding,watching:true},addDefaultStatus:'Watching'})">+ Add Show</button>
+    </div>
+    ${adding.watching ? renderAddFlow("watching") : ""}
+    ${watching.length === 0 && !adding.watching ? `
+      <div style="text-align:center;padding:80px 0;color:${C.muted}">
+        <div style="font-size:56px;margin-bottom:16px">📺</div>
+        <div style="font-family:'Playfair Display',serif;font-size:20px;color:${C.text};margin-bottom:8px">Nothing playing right now</div>
+        <div style="font-size:14px;margin-bottom:24px">Start a show from your watchlist</div>
+        <button class="btn btn-accent" onclick="setState({tab:'watchlist'})">Browse Watchlist</button>
+      </div>` :
+      `<div style="display:grid;gap:14px">${watching.map(s => watchingCardHTML(s)).join("")}</div>`
     }
+  </div>`;
+}
 
-    function PlatformModal({ show, onConfirm, onCancel, title = "Start Watching" }) {
-      const [selected, setSelected] = useState(show.watchingOn || "");
-      const [custom, setCustom] = useState("");
-      function confirm() { onConfirm(selected === "Other" ? (custom.trim() || "Other") : selected); }
-      return (
-        <div style={{ position: "fixed", inset: 0, background: "#00000088", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center" }} onClick={onCancel}>
-          <div onClick={e => e.stopPropagation()} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: 24, width: 340, maxWidth: "90vw", boxShadow: "0 20px 60px #00000080" }}>
-            <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: 18, marginBottom: 6 }}>{title}</h3>
-            <div style={{ color: C.muted, fontSize: 13, marginBottom: 18 }}>Where are you watching <span style={{ color: C.text, fontWeight: 600 }}>{show.title}</span>?</div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 14 }}>
-              {PLATFORMS.map(p => (
-                <button key={p} onClick={() => setSelected(p)} style={{ background: selected === p ? C.blue : C.card, border: `1px solid ${selected === p ? C.blueBright : C.border}`, color: selected === p ? "#fff" : C.muted, padding: "8px 10px", borderRadius: 7, cursor: "pointer", fontSize: 12, fontWeight: selected === p ? 600 : 400, transition: "all 0.15s", textAlign: "left" }}>{p}</button>
-              ))}
-            </div>
-            {selected === "Other" && <input placeholder="Platform name…" value={custom} autoFocus onChange={e => setCustom(e.target.value)} onKeyDown={e => e.key === "Enter" && confirm()} style={{ width: "100%", background: C.bg, border: `1px solid ${C.border}`, color: C.text, padding: "9px 12px", borderRadius: 7, fontSize: 13, outline: "none", marginBottom: 14 }} />}
-            <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
-              <button onClick={confirm} style={{ flex: 1, background: C.accent, border: "none", color: "#fff", padding: "10px", borderRadius: 7, cursor: "pointer", fontSize: 14, fontWeight: 700 }}>▶ {title}</button>
-              <button onClick={onCancel} style={{ background: "none", border: `1px solid ${C.border}`, color: C.muted, padding: "10px 16px", borderRadius: 7, cursor: "pointer", fontSize: 13 }}>Cancel</button>
-            </div>
-          </div>
+function watchingCardHTML(show) {
+  const next = getNextEpisode(show);
+  let banner = "";
+  if (!show.episodeData) {
+    banner = `<div class="ep-banner" style="background:rgba(15,52,96,0.4);justify-content:space-between">
+      <span style="color:${C.muted};font-size:12px;font-style:italic">Load episodes to track progress</span>
+      <button class="btn btn-accent" onclick="doLoadEpisodes('${show.id}')" style="padding:5px 14px;font-size:11px">⬇ Load Episodes</button>
+    </div>`;
+  } else if (next) {
+    banner = `<div class="ep-banner" style="background:linear-gradient(135deg,rgba(15,52,96,0.8),rgba(233,69,96,0.2))">
+      <div style="flex:1">
+        <div style="font-size:10px;font-weight:800;letter-spacing:1.5px;color:#4a9eff;text-transform:uppercase;margin-bottom:2px">Up Next</div>
+        <div style="color:${C.text};font-size:14px;font-weight:600">S${pad(next.season)}E${pad(next.episode)} — ${next.title}${next.runtime?`<span style="color:${C.muted};font-size:11px;font-weight:400;margin-left:8px">${next.runtime}m</span>`:""}</div>
+      </div>
+      <button class="btn" onclick="markWatched('${show.id}')" style="background:${C.green};color:#fff;padding:7px 18px;font-size:12px;flex-shrink:0">✓ Watched</button>
+    </div>`;
+  } else {
+    banner = `<div class="ep-banner" style="background:linear-gradient(135deg,rgba(26,61,43,0.6),rgba(46,204,113,0.2))">
+      <span style="font-size:10px;font-weight:800;letter-spacing:1.5px;color:${C.green};text-transform:uppercase">✓ All Caught Up</span>
+    </div>`;
+  }
+  return `<div class="card" style="overflow:hidden">
+    ${banner}
+    <div style="padding:14px 18px;display:flex;gap:14px;align-items:flex-start">
+      ${coverHTML(show, 64)}
+      <div style="flex:1;display:flex;flex-direction:column;gap:5px;min-width:0">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <span style="font-family:'Playfair Display',serif;font-size:17px;font-weight:700;cursor:pointer" onclick="viewDetail('${show.id}')">${show.title}</span>
+          ${show.years?`<span style="color:${C.muted};font-size:11px">${show.years}</span>`:""}
         </div>
-      );
-    }
-
-    function PauseModal({ show, onConfirm, onCancel }) {
-      const [note, setNote] = useState("");
-      const next = getNextEpisode(show);
-      const placeholder = next ? `e.g. S${String(next.season).padStart(2,"0")}E${String(next.episode).padStart(2,"0")} — ${next.title}` : "e.g. Season 2, Episode 4…";
-      return (
-        <div style={{ position: "fixed", inset: 0, background: "#00000088", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center" }} onClick={onCancel}>
-          <div onClick={e => e.stopPropagation()} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: 24, width: 340, maxWidth: "90vw", boxShadow: "0 20px 60px #00000080" }}>
-            <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: 18, marginBottom: 6 }}>Pause Show</h3>
-            <div style={{ color: C.muted, fontSize: 13, marginBottom: 18 }}>Pausing <span style={{ color: C.text, fontWeight: 600 }}>{show.title}</span>.</div>
-            <input placeholder={placeholder} value={note} autoFocus onChange={e => setNote(e.target.value)} onKeyDown={e => e.key === "Enter" && onConfirm({ note: note.trim() })} style={{ width: "100%", background: C.bg, border: `1px solid ${C.border}`, color: C.text, padding: "10px 12px", borderRadius: 7, fontSize: 13, outline: "none", marginBottom: 16 }} />
-            <div style={{ display: "flex", gap: 8 }}>
-              <button onClick={() => onConfirm({ note: note.trim() })} style={{ flex: 1, background: C.purpleDim, border: `1px solid ${C.purple}60`, color: "#c39bd3", padding: "10px", borderRadius: 7, cursor: "pointer", fontSize: 14, fontWeight: 700 }}>⏸ Pause</button>
-              <button onClick={onCancel} style={{ background: "none", border: `1px solid ${C.border}`, color: C.muted, padding: "10px 16px", borderRadius: 7, cursor: "pointer", fontSize: 13 }}>Cancel</button>
-            </div>
-          </div>
+        <div style="display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:${C.muted}">
+          ${show.watchingOn?`<span style="color:#4a9eff">📡 ${show.watchingOn}</span>`:""}
+          ${show.genre?`<span>🎭 ${show.genre}</span>`:""}
+          ${show.totalEpisodes?`<span>🎬 ${show.episodesWatched||0}/${show.totalEpisodes} eps</span>`:""}
         </div>
-      );
+        ${show.totalEpisodes ? progressHTML(show.episodesWatched||0, Number(show.totalEpisodes)) : ""}
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end;flex-shrink:0">
+        <button class="btn btn-purple" onclick="openPause('${show.id}')" style="padding:6px 14px;font-size:12px">⏸ Pause</button>
+        <button class="btn btn-ghost" onclick="removeShow('${show.id}')" style="padding:4px 8px;font-size:10px">Remove</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function markWatched(id) {
+  const show = state.shows.find(s => s.id === id);
+  if (!show) return;
+  const next = getNextEpisode(show);
+  if (!next) return;
+  const key = `${next.season}-${next.episode}`;
+  const watchedEps = { ...show.watchedEps, [key]: true };
+  upsertShow({ ...show, watchedEps, episodesWatched: Object.values(watchedEps).filter(Boolean).length });
+}
+
+async function doLoadEpisodes(id) {
+  const show = state.shows.find(s => s.id === id);
+  if (!show) return;
+  // Show loading state inline
+  const shows = state.shows.map(s => s.id === id ? { ...s, _loadingEps: true } : s);
+  setState({ shows });
+  try {
+    const updates = await loadEpisodesForShow(show);
+    upsertShow({ ...show, ...updates, _loadingEps: false });
+  } catch {
+    upsertShow({ ...show, _loadingEps: false });
+    alert("Failed to load episodes. Try again.");
+  }
+}
+
+function openPause(id) {
+  const show = state.shows.find(s => s.id === id);
+  setState({ pauseModalShow: show });
+}
+
+// ── Paused Tab ────────────────────────────────────────────────────────────────
+function renderPaused() {
+  const { shows } = state;
+  const paused = shows.filter(s => s.status === "Paused");
+  return `<div class="fade">
+    <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:24px;flex-wrap:wrap;gap:10px">
+      <div>
+        <h2 style="font-family:'Playfair Display',serif;font-size:28px;margin-bottom:4px">Paused Shows</h2>
+        <span style="color:${C.muted};font-size:13px">${paused.length} ${paused.length===1?"show":"shows"} on hold</span>
+      </div>
+      ${paused.length > 1 ? `<button class="btn btn-blue" onclick="resumeAll()">▶ Resume All</button>` : ""}
+    </div>
+    ${paused.length === 0 ? `
+      <div style="text-align:center;padding:80px 0;color:${C.muted}">
+        <div style="font-size:56px;margin-bottom:16px">⏸</div>
+        <div style="font-family:'Playfair Display',serif;font-size:20px;color:${C.text};margin-bottom:8px">No paused shows</div>
+      </div>` :
+      `<div style="display:grid;gap:14px">${paused.map(s => pausedCardHTML(s)).join("")}</div>`
     }
+  </div>`;
+}
 
-    // ── Add Show Flow ─────────────────────────────────────────────────────────
-    function AddShowFlow({ onAdd, onCancel, defaultStatus = "Watching" }) {
-      const [step, setStep] = useState("name");
-      const [title, setTitle] = useState("");
-      const [loading, setLoading] = useState(false);
-      const [matches, setMatches] = useState([]);
-      const [pending, setPending] = useState(null);
-      const [error, setError] = useState("");
-
-      async function handleNameSubmit() {
-        if (!title.trim()) return;
-        setLoading(true); setError("");
-        try {
-          const raw = await askClaude(
-            `Are there multiple distinct TV shows named "${title.trim()}" (e.g. remakes, reboots, shows from different countries or eras)? ` +
-            `Return ONLY valid JSON array, no markdown: [{"title":"...","years":"...","genre":"...","network":"...","description":"one sentence"}]. ` +
-            `If only one show matches, return an array with one item.`
-          );
-          const results = parseJSON(raw);
-          if (!results || !results.length) throw new Error("No results");
-          if (results.length > 1) { setMatches(results); setStep("disambig"); }
-          else { setPending(results[0]); if (defaultStatus === "Watching") setStep("platform"); else finalize(results[0], ""); }
-        } catch { setError("Couldn't find that show. Try a different title."); }
-        setLoading(false);
-      }
-
-      function selectMatch(match) { setPending(match); setMatches([]); if (defaultStatus === "Watching") setStep("platform"); else finalize(match, ""); }
-
-      function finalize(meta, platform) {
-        const m = meta || pending;
-        onAdd({ id: Date.now().toString(), title: m.title || title.trim(), genre: m.genre || "", network: m.network || "", years: m.years || "", description: m.description || "", status: defaultStatus, watchingOn: platform || "", totalEpisodes: "", episodesWatched: 0, episodeData: null, watchedEps: {}, pauseNote: "", pauseEpisode: null });
-      }
-
-      if (step === "disambig") return <DisambiguateModal matches={matches} onSelect={selectMatch} onCancel={onCancel} />;
-      if (step === "platform" && pending) return <PlatformModal show={pending} onConfirm={p => finalize(pending, p)} onCancel={onCancel} />;
-
-      return (
-        <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 10, padding: 16, marginBottom: 20 }}>
-          <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-            <input placeholder="Show title…" value={title} autoFocus onChange={e => setTitle(e.target.value)} onKeyDown={e => e.key === "Enter" && handleNameSubmit()} style={{ flex: 1, minWidth: 180, background: C.surface, border: `1px solid ${C.border}`, color: C.text, padding: "9px 12px", borderRadius: 6, fontSize: 13, outline: "none" }} />
-            <button onClick={handleNameSubmit} disabled={loading || !title.trim()} style={{ background: C.accent, border: "none", color: "#fff", padding: "9px 20px", borderRadius: 6, cursor: "pointer", fontSize: 13, fontWeight: 600, opacity: loading ? 0.7 : 1 }}>
-              {loading ? "Searching…" : "Next →"}
-            </button>
-            <button onClick={onCancel} style={{ background: "none", border: `1px solid ${C.border}`, color: C.muted, padding: "9px 14px", borderRadius: 6, cursor: "pointer", fontSize: 13 }}>✕</button>
-          </div>
-          {error && <div style={{ color: C.accent, fontSize: 12, marginTop: 8 }}>{error}</div>}
+function pausedCardHTML(show) {
+  const pauseInfo = show.pauseEpisode || getPausedAt(show);
+  const pauseLabel = pauseInfo
+    ? `S${pad(pauseInfo.season)}E${pad(pauseInfo.episode)}${pauseInfo.title ? ` — ${pauseInfo.title}` : ""}`
+    : show.pauseNote || "Load episodes in Show Detail to track progress";
+  return `<div class="card" style="border-color:rgba(155,89,182,0.3);overflow:hidden">
+    <div class="ep-banner" style="background:linear-gradient(135deg,rgba(61,31,94,0.8),rgba(155,89,182,0.2));border-bottom-color:rgba(155,89,182,0.3)">
+      <span style="font-size:10px;font-weight:800;letter-spacing:1.5px;color:#c39bd3;text-transform:uppercase">⏸ Paused At</span>
+      <span style="color:${C.text};font-size:13px;font-weight:500">${pauseLabel}</span>
+    </div>
+    <div style="padding:14px 18px;display:flex;gap:14px;align-items:flex-start">
+      ${coverHTML(show, 64)}
+      <div style="flex:1;display:flex;flex-direction:column;gap:5px;min-width:0">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <span style="font-family:'Playfair Display',serif;font-size:17px;font-weight:700;cursor:pointer" onclick="viewDetail('${show.id}')">${show.title}</span>
+          ${show.years?`<span style="color:${C.muted};font-size:11px">${show.years}</span>`:""}
         </div>
-      );
-    }
+        <div style="display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:${C.muted}">
+          ${show.watchingOn?`<span style="color:#c39bd3">📡 ${show.watchingOn}</span>`:""}
+          ${show.genre?`<span>🎭 ${show.genre}</span>`:""}
+          ${show.totalEpisodes?`<span>🎬 ${show.episodesWatched||0}/${show.totalEpisodes} eps</span>`:""}
+        </div>
+        ${show.totalEpisodes ? progressHTML(show.episodesWatched||0, Number(show.totalEpisodes)) : ""}
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end;flex-shrink:0">
+        <button class="btn btn-blue" onclick="openResume('${show.id}')" style="padding:6px 14px;font-size:12px">▶ Resume</button>
+        <button class="btn btn-ghost" onclick="removeShow('${show.id}')" style="padding:4px 8px;font-size:10px">Remove</button>
+      </div>
+    </div>
+  </div>`;
+}
 
-    // ── Watching Card ─────────────────────────────────────────────────────────
-    function WatchingCard({ show, upsertShow, removeShow, onViewDetail }) {
-      const [showPause, setShowPause] = useState(false);
-      const [loadingEps, setLoadingEps] = useState(false);
-      const [epError, setEpError] = useState("");
-      const next = getNextEpisode(show);
+function openResume(id) {
+  const show = state.shows.find(s => s.id === id);
+  setState({
+    platformModalShow: show,
+    platformModalTitle: "Resume Watching",
+    platformSelected: show.watchingOn || "",
+    platformCustom: "",
+    platformModalCallback: (platform) => {
+      upsertShow({ ...show, status: "Watching", watchingOn: platform, pauseEpisode: null, pauseNote: "" });
+    },
+  });
+}
 
-      function handlePause({ note }) {
-        const pauseEp = next ? { season: next.season, episode: next.episode, title: next.title } : null;
-        upsertShow({ ...show, status: "Paused", pauseNote: note, pauseEpisode: pauseEp });
-        setShowPause(false);
-      }
+function resumeAll() {
+  state.shows.filter(s => s.status === "Paused").forEach(s => upsertShow({ ...s, status: "Watching", pauseEpisode: null, pauseNote: "" }));
+}
 
-      function markWatched() {
-        if (!next) return;
-        const key = `${next.season}-${next.episode}`;
-        const watchedEps = { ...show.watchedEps, [key]: true };
-        upsertShow({ ...show, watchedEps, episodesWatched: Object.values(watchedEps).filter(Boolean).length });
-      }
+// ── All Shows Tab ─────────────────────────────────────────────────────────────
+function renderAllShows() {
+  const { shows, filter, adding } = state;
+  const statuses = ["All", ...Object.keys(STATUS_META)];
+  const filtered = filter === "All" ? shows : shows.filter(s => s.status === filter);
+  return `<div class="fade">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+      <h2 style="font-family:'Playfair Display',serif;font-size:26px">All Shows <span style="color:${C.muted};font-size:16px;font-weight:400">(${shows.length})</span></h2>
+      <button class="btn ${adding.shows?'btn-ghost':'btn-accent'}" onclick="setState({adding:{...state.adding,shows:!state.adding.shows},addDefaultStatus:'Watching'})">${adding.shows?"✕ Cancel":"+ Add Show"}</button>
+    </div>
+    ${adding.shows ? renderAddFlow("shows") : ""}
+    <div style="display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap">
+      ${statuses.map(s => {
+        const count = s==="All" ? shows.length : shows.filter(sh=>sh.status===s).length;
+        const sm = STATUS_META[s];
+        const active = filter===s;
+        return `<button onclick="setState({filter:'${s}'})" style="background:${active?(sm?sm.color:C.accent):C.card};border:1px solid ${active?(sm?sm.bright:C.accent):C.border};color:${active?(sm?sm.bright:'#fff'):C.muted};padding:5px 13px;border-radius:20px;cursor:pointer;font-size:12px;font-weight:${active?700:400};transition:all 0.2s">${sm?sm.icon+' ':''}${s} (${count})</button>`;
+      }).join("")}
+    </div>
+    ${filtered.length===0 ? `<div style="text-align:center;padding:60px 0;color:${C.muted}"><div style="font-size:40px;margin-bottom:10px">📭</div><div>No shows here yet</div></div>` :
+      `<div style="display:grid;gap:10px">${filtered.map(s => compactCardHTML(s)).join("")}</div>`}
+  </div>`;
+}
 
-      async function handleLoadEpisodes() {
-        setLoadingEps(true); setEpError("");
-        try { const updates = await loadEpisodesForShow(show); upsertShow({ ...show, ...updates }); }
-        catch { setEpError("Failed to load. Try again."); }
-        setLoadingEps(false);
-      }
+function compactCardHTML(show) {
+  const sm = STATUS_META[show.status] || STATUS_META.Watching;
+  return `<div class="card" style="padding:12px 16px;display:flex;gap:12px;align-items:center">
+    ${coverHTML(show, 48)}
+    <div style="flex:1;display:flex;flex-direction:column;gap:4px;min-width:0">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <span style="font-family:'Playfair Display',serif;font-size:15px;font-weight:700;cursor:pointer" onclick="viewDetail('${show.id}')">${show.title}</span>
+        ${badgeHTML(`${sm.icon} ${show.status}`, sm.color, sm.bright)}
+        ${show.years?`<span style="color:${C.muted};font-size:11px">${show.years}</span>`:""}
+      </div>
+      <div style="display:flex;gap:12px;font-size:12px;color:${C.muted};flex-wrap:wrap">
+        ${show.watchingOn?`<span style="color:#4a9eff">📡 ${show.watchingOn}</span>`:""}
+        ${show.genre?`<span>🎭 ${show.genre}</span>`:""}
+        ${show.totalEpisodes?`<span>🎬 ${show.episodesWatched||0}/${show.totalEpisodes}</span>`:""}
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:5px;align-items:flex-end;flex-shrink:0">
+      ${show.status==="Watching"?`<button class="btn btn-purple" onclick="openPause('${show.id}')" style="padding:4px 10px;font-size:11px">⏸</button>`:""}
+      <select onchange="changeStatus('${show.id}',this.value)" style="background:${C.surface};border:1px solid ${C.border};color:${C.text};padding:4px 8px;border-radius:5px;font-size:11px;cursor:pointer">
+        ${Object.keys(STATUS_META).map(s=>`<option ${show.status===s?"selected":""}>${s}</option>`).join("")}
+      </select>
+      <button class="btn btn-ghost" onclick="removeShow('${show.id}')" style="padding:3px 8px;font-size:10px">Remove</button>
+    </div>
+  </div>`;
+}
 
-      return (
-        <>
-          {showPause && <PauseModal show={show} onConfirm={handlePause} onCancel={() => setShowPause(false)} />}
-          <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden", transition: "border-color 0.2s, transform 0.2s" }}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = `${C.accent}60`; e.currentTarget.style.transform = "translateY(-1px)"; }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = C.border; e.currentTarget.style.transform = "translateY(0)"; }}>
-            {!show.episodeData && (
-              <div style={{ background: `${C.blue}40`, borderBottom: `1px solid ${C.border}`, padding: "10px 18px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-                {loadingEps ? <Spinner text="Loading episodes…" /> : <>
-                  <span style={{ color: C.muted, fontSize: 12 }}>{epError || "Load episodes to track progress"}</span>
-                  <button onClick={handleLoadEpisodes} style={{ background: C.accent, border: "none", color: "#fff", padding: "5px 14px", borderRadius: 5, cursor: "pointer", fontSize: 11, fontWeight: 700, whiteSpace: "nowrap" }}>⬇ Load Episodes</button>
-                </>}
-              </div>
-            )}
-            {next && (
-              <div style={{ background: `linear-gradient(135deg, ${C.blue}cc, ${C.accent}30)`, borderBottom: `1px solid ${C.border}`, padding: "10px 18px", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: 1.5, color: "#4a9eff", textTransform: "uppercase", marginBottom: 2 }}>Up Next</div>
-                  <div style={{ color: C.text, fontSize: 14, fontWeight: 600 }}>
-                    S{String(next.season).padStart(2,"0")}E{String(next.episode).padStart(2,"0")} — {next.title}
-                    {next.runtime && <span style={{ color: C.muted, fontSize: 11, fontWeight: 400, marginLeft: 8 }}>{next.runtime}m</span>}
-                  </div>
-                </div>
-                <button onClick={markWatched} style={{ background: C.green, border: "none", color: "#fff", padding: "7px 18px", borderRadius: 6, cursor: "pointer", fontSize: 12, fontWeight: 700, whiteSpace: "nowrap" }}>✓ Watched</button>
-              </div>
-            )}
-            {!next && show.episodeData && (
-              <div style={{ background: "linear-gradient(135deg, #1a3d2b99, #2ecc7130)", borderBottom: `1px solid ${C.border}`, padding: "10px 18px" }}>
-                <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: 1.5, color: C.green, textTransform: "uppercase" }}>✓ All Caught Up</span>
-              </div>
-            )}
-            <div style={{ padding: "14px 18px", display: "flex", gap: 14, alignItems: "flex-start" }}>
-              <CoverArt show={show} size={64} />
-              <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 5, minWidth: 0 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                  <span style={{ fontFamily: "'Playfair Display', serif", fontSize: 17, fontWeight: 700, cursor: "pointer" }} onClick={() => onViewDetail && onViewDetail(show)}>{show.title}</span>
-                  {show.years && <span style={{ color: C.muted, fontSize: 11 }}>{show.years}</span>}
-                </div>
-                <div style={{ display: "flex", gap: 14, flexWrap: "wrap", fontSize: 12, color: C.muted }}>
-                  {show.watchingOn && <span style={{ color: "#4a9eff" }}>📡 {show.watchingOn}</span>}
-                  {show.genre && <span>🎭 {show.genre}</span>}
-                  {show.totalEpisodes && <span>🎬 {show.episodesWatched || 0}/{show.totalEpisodes} eps</span>}
-                </div>
-                {show.totalEpisodes && <ProgressBar watched={show.episodesWatched || 0} total={Number(show.totalEpisodes)} />}
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-end", flexShrink: 0 }}>
-                <button onClick={() => setShowPause(true)} style={{ background: C.purpleDim, border: `1px solid ${C.purple}50`, color: "#c39bd3", padding: "6px 14px", borderRadius: 6, cursor: "pointer", fontSize: 12, fontWeight: 600 }}>⏸ Pause</button>
-                <button onClick={() => removeShow(show.id)} style={{ background: "none", border: `1px solid ${C.border}`, color: C.muted, padding: "4px 8px", borderRadius: 4, cursor: "pointer", fontSize: 10 }}>Remove</button>
-              </div>
-            </div>
+function changeStatus(id, newStatus) {
+  const show = state.shows.find(s => s.id === id);
+  if (!show) return;
+  if (newStatus === "Watching") {
+    setState({
+      platformModalShow: show,
+      platformModalTitle: "Start Watching",
+      platformSelected: show.watchingOn || "",
+      platformCustom: "",
+      platformModalCallback: (platform) => upsertShow({ ...show, status: "Watching", watchingOn: platform }),
+    });
+  } else {
+    upsertShow({ ...show, status: newStatus });
+  }
+}
+
+// ── Show Detail Tab ───────────────────────────────────────────────────────────
+function renderDetail() {
+  const { shows, detailShowId, detailQuery, detailSearching, detailResults, detailActiveSeason, detailLoadingEps, detailEpError } = state;
+  const selected = shows.find(s => s.id === detailShowId);
+  const seasonData = selected?.episodeData?.find(s => s.number === detailActiveSeason);
+
+  return `<div class="fade">
+    <h2 style="font-family:'Playfair Display',serif;font-size:26px;margin-bottom:18px">Show Detail</h2>
+    <div style="display:flex;gap:10px;margin-bottom:18px;flex-wrap:wrap">
+      <select onchange="setState({detailShowId:this.value,detailResults:[]})" style="background:${C.card};border:1px solid ${C.border};color:${C.text};padding:9px 14px;border-radius:7px;font-size:14px;cursor:pointer;min-width:220px">
+        <option value="">— Pick a show —</option>
+        ${shows.map(s=>`<option value="${s.id}" ${detailShowId===s.id?"selected":""}>${s.title}${s.years?` (${s.years})`:""}</option>`).join("")}
+      </select>
+      <span style="color:${C.muted};align-self:center;font-size:12px">or search</span>
+      <div style="display:flex;gap:8px;flex:1;max-width:360px">
+        <input placeholder="Search any show…" value="${detailQuery}" oninput="setState({detailQuery:this.value})" onkeydown="if(event.key==='Enter')detailSearch()"
+          style="flex:1;background:${C.card};border:1px solid ${C.border};color:${C.text};padding:9px 14px;border-radius:7px;font-size:13px;outline:none" />
+        <button class="btn btn-accent" onclick="detailSearch()" ${detailSearching?"disabled":""} style="padding:9px 16px">${detailSearching?"…":"Search"}</button>
+      </div>
+    </div>
+    ${detailResults.length > 0 ? `<div style="margin-bottom:18px;display:grid;gap:8px">
+      ${detailResults.map((r,i)=>`
+        <div onclick="detailAddAndView(${i})" class="card" style="padding:12px 16px;cursor:pointer;display:flex;gap:12px;align-items:center">
+          ${coverHTML(r, 32)}
+          <div style="flex:1">
+            <div style="font-family:'Playfair Display',serif;font-size:15px;margin-bottom:2px">${r.title}</div>
+            <div style="font-size:12px;color:${C.muted}">${[r.network,r.genre,r.years].filter(Boolean).join(" · ")}</div>
           </div>
-        </>
-      );
-    }
-
-    // ── Paused Card ───────────────────────────────────────────────────────────
-    function PausedCard({ show, upsertShow, removeShow, onViewDetail }) {
-      const [showResume, setShowResume] = useState(false);
-      const pauseInfo = show.pauseEpisode || getPausedAt(show);
-      return (
-        <>
-          {showResume && <PlatformModal show={show} title="Resume Watching" onConfirm={p => { upsertShow({ ...show, status: "Watching", watchingOn: p, pauseEpisode: null, pauseNote: "" }); setShowResume(false); }} onCancel={() => setShowResume(false)} />}
-          <div style={{ background: C.card, border: `1px solid ${C.purple}30`, borderRadius: 12, overflow: "hidden", transition: "border-color 0.2s, transform 0.2s" }}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = `${C.purple}70`; e.currentTarget.style.transform = "translateY(-1px)"; }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = `${C.purple}30`; e.currentTarget.style.transform = "translateY(0)"; }}>
-            <div style={{ background: `linear-gradient(135deg, ${C.purpleDim}cc, ${C.purple}20)`, borderBottom: `1px solid ${C.purple}30`, padding: "10px 18px", display: "flex", alignItems: "center", gap: 10 }}>
-              <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: 1.5, color: "#c39bd3", textTransform: "uppercase" }}>⏸ Paused At</span>
-              {pauseInfo ? <span style={{ color: C.text, fontSize: 13, fontWeight: 500 }}>S{String(pauseInfo.season).padStart(2,"0")}E{String(pauseInfo.episode).padStart(2,"0")}{pauseInfo.title ? ` — ${pauseInfo.title}` : ""}</span>
-                : show.pauseNote ? <span style={{ color: C.text, fontSize: 13 }}>{show.pauseNote}</span>
-                : <span style={{ color: C.muted, fontSize: 12, fontStyle: "italic" }}>Load episodes in Show Detail to track progress</span>}
-            </div>
-            <div style={{ padding: "14px 18px", display: "flex", gap: 14, alignItems: "flex-start" }}>
-              <CoverArt show={show} size={64} />
-              <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 5, minWidth: 0 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                  <span style={{ fontFamily: "'Playfair Display', serif", fontSize: 17, fontWeight: 700, cursor: "pointer" }} onClick={() => onViewDetail && onViewDetail(show)}>{show.title}</span>
-                  {show.years && <span style={{ color: C.muted, fontSize: 11 }}>{show.years}</span>}
-                </div>
-                <div style={{ display: "flex", gap: 14, flexWrap: "wrap", fontSize: 12, color: C.muted }}>
-                  {show.watchingOn && <span style={{ color: "#c39bd3" }}>📡 {show.watchingOn}</span>}
-                  {show.genre && <span>🎭 {show.genre}</span>}
-                  {show.totalEpisodes && <span>🎬 {show.episodesWatched || 0}/{show.totalEpisodes} eps</span>}
-                </div>
-                {show.totalEpisodes && <ProgressBar watched={show.episodesWatched || 0} total={Number(show.totalEpisodes)} />}
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-end", flexShrink: 0 }}>
-                <button onClick={() => setShowResume(true)} style={{ background: C.blue, border: "none", color: "#fff", padding: "6px 14px", borderRadius: 6, cursor: "pointer", fontSize: 12, fontWeight: 600 }}>▶ Resume</button>
-                <button onClick={() => removeShow(show.id)} style={{ background: "none", border: `1px solid ${C.border}`, color: C.muted, padding: "4px 8px", borderRadius: 4, cursor: "pointer", fontSize: 10 }}>Remove</button>
-              </div>
-            </div>
-          </div>
-        </>
-      );
-    }
-
-    // ── Compact Card ──────────────────────────────────────────────────────────
-    function CompactShowCard({ show, upsertShow, removeShow, onViewDetail }) {
-      const [platformModal, setPlatformModal] = useState(false);
-      const [pauseModal, setPauseModal] = useState(false);
-      const sm = STATUS_META[show.status] || STATUS_META.Watching;
-      function changeStatus(s) { if (s === "Watching") setPlatformModal(true); else upsertShow({ ...show, status: s }); }
-      return (
-        <>
-          {platformModal && <PlatformModal show={show} onConfirm={p => { upsertShow({ ...show, status: "Watching", watchingOn: p }); setPlatformModal(false); }} onCancel={() => setPlatformModal(false)} />}
-          {pauseModal && <PauseModal show={show} onConfirm={({ note }) => { upsertShow({ ...show, status: "Paused", pauseNote: note, pauseEpisode: getNextEpisode(show) }); setPauseModal(false); }} onCancel={() => setPauseModal(false)} />}
-          <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 10, padding: "12px 16px", display: "flex", gap: 12, alignItems: "center", transition: "border-color 0.2s, transform 0.2s" }}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = `${C.accent}60`; e.currentTarget.style.transform = "translateY(-1px)"; }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = C.border; e.currentTarget.style.transform = "translateY(0)"; }}>
-            <CoverArt show={show} size={48} />
-            <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 4, minWidth: 0 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                <span style={{ fontFamily: "'Playfair Display', serif", fontSize: 15, fontWeight: 700, cursor: "pointer" }} onClick={() => onViewDetail && onViewDetail(show)}>{show.title}</span>
-                <Badge label={`${sm.icon} ${show.status}`} color={sm.color} bright={sm.bright} small />
-                {show.years && <span style={{ color: C.muted, fontSize: 11 }}>{show.years}</span>}
-              </div>
-              <div style={{ display: "flex", gap: 12, fontSize: 12, color: C.muted, flexWrap: "wrap" }}>
-                {show.watchingOn && <span style={{ color: "#4a9eff" }}>📡 {show.watchingOn}</span>}
-                {show.genre && <span>🎭 {show.genre}</span>}
-                {show.totalEpisodes && <span>🎬 {show.episodesWatched || 0}/{show.totalEpisodes}</span>}
-              </div>
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 5, alignItems: "flex-end", flexShrink: 0 }}>
-              {show.status === "Watching" && <button onClick={() => setPauseModal(true)} style={{ background: C.purpleDim, border: `1px solid ${C.purple}50`, color: "#c39bd3", padding: "4px 10px", borderRadius: 5, cursor: "pointer", fontSize: 11, fontWeight: 600 }}>⏸</button>}
-              <select value={show.status} onChange={e => changeStatus(e.target.value)} style={{ background: C.surface, border: `1px solid ${C.border}`, color: C.text, padding: "4px 8px", borderRadius: 5, fontSize: 11, cursor: "pointer" }}>
-                {Object.keys(STATUS_META).map(s => <option key={s}>{s}</option>)}
-              </select>
-              <button onClick={() => removeShow(show.id)} style={{ background: "none", border: `1px solid ${C.border}`, color: C.muted, padding: "3px 8px", borderRadius: 4, cursor: "pointer", fontSize: 10 }}>Remove</button>
-            </div>
-          </div>
-        </>
-      );
-    }
-
-    // ── Tab Views ─────────────────────────────────────────────────────────────
-    function CurrentlyWatching({ shows, upsertShow, removeShow, setTab, setDetailShow }) {
-      const [adding, setAdding] = useState(false);
-      const watching = shows.filter(s => s.status === "Watching");
-      return (
-        <div style={{ animation: "fadeIn 0.3s ease" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 24, flexWrap: "wrap", gap: 10 }}>
+          <span style="color:${C.accent};font-size:18px">→</span>
+        </div>`).join("")}
+    </div>` : ""}
+    ${selected ? `
+      <div style="background:${C.card};border:1px solid ${C.border};border-radius:10px;padding:18px 22px;margin-bottom:16px;display:flex;gap:16px;align-items:flex-start">
+        ${coverHTML(selected, 80)}
+        <div style="flex:1">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px">
             <div>
-              <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: 28, marginBottom: 4 }}>Currently Watching</h2>
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <div style={{ width: 8, height: 8, borderRadius: "50%", background: C.accent, animation: "pulse 1.5s ease-in-out infinite" }} />
-                <span style={{ color: C.muted, fontSize: 13 }}>{watching.length} active {watching.length === 1 ? "show" : "shows"}</span>
+              <h3 style="font-family:'Playfair Display',serif;font-size:22px;margin-bottom:6px">${selected.title}</h3>
+              <div style="display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:${C.muted}">
+                ${selected.watchingOn?`<span style="color:#4a9eff">📡 ${selected.watchingOn}</span>`:""}
+                ${selected.genre?`<span>🎭 ${selected.genre}</span>`:""}
+                ${selected.years?`<span>📅 ${selected.years}</span>`:""}
+                ${selected.totalEpisodes?`<span style="color:${C.accent}">${selected.episodesWatched||0} / ${selected.totalEpisodes} watched</span>`:""}
               </div>
+              ${selected.description?`<div style="font-size:12px;color:${C.muted};font-style:italic;margin-top:6px;max-width:500px">${selected.description}</div>`:""}
             </div>
-            <button onClick={() => setAdding(true)} style={{ background: C.accent, border: "none", color: "#fff", padding: "8px 18px", borderRadius: 6, cursor: "pointer", fontSize: 13, fontWeight: 600 }}>+ Add Show</button>
-          </div>
-          {adding && <AddShowFlow defaultStatus="Watching" onAdd={s => { upsertShow(s); setAdding(false); }} onCancel={() => setAdding(false)} />}
-          {watching.length === 0 && !adding
-            ? <div style={{ textAlign: "center", padding: "80px 0", color: C.muted }}>
-                <div style={{ fontSize: 56, marginBottom: 16 }}>📺</div>
-                <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 20, color: C.text, marginBottom: 8 }}>Nothing playing right now</div>
-                <button onClick={() => setTab("watchlist")} style={{ background: C.accent, border: "none", color: "#fff", padding: "10px 24px", borderRadius: 7, cursor: "pointer", fontSize: 14, fontWeight: 600 }}>Browse Watchlist</button>
-              </div>
-            : <div style={{ display: "grid", gap: 14 }}>{watching.map(show => <WatchingCard key={show.id} show={show} upsertShow={upsertShow} removeShow={removeShow} onViewDetail={s => { setDetailShow(s.id); setTab("detail"); }} />)}</div>
-          }
-        </div>
-      );
-    }
-
-    function PausedShows({ shows, upsertShow, removeShow, setTab, setDetailShow }) {
-      const paused = shows.filter(s => s.status === "Paused");
-      return (
-        <div style={{ animation: "fadeIn 0.3s ease" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 24, flexWrap: "wrap", gap: 10 }}>
             <div>
-              <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: 28, marginBottom: 4 }}>Paused Shows</h2>
-              <span style={{ color: C.muted, fontSize: 13 }}>{paused.length} {paused.length === 1 ? "show" : "shows"} on hold</span>
-            </div>
-            {paused.length > 1 && <button onClick={() => paused.forEach(s => upsertShow({ ...s, status: "Watching", pauseEpisode: null, pauseNote: "" }))} style={{ background: C.blue, border: "none", color: "#fff", padding: "8px 18px", borderRadius: 7, cursor: "pointer", fontSize: 13, fontWeight: 600 }}>▶ Resume All</button>}
-          </div>
-          {paused.length === 0
-            ? <div style={{ textAlign: "center", padding: "80px 0", color: C.muted }}><div style={{ fontSize: 56, marginBottom: 16 }}>⏸</div><div style={{ fontFamily: "'Playfair Display', serif", fontSize: 20, color: C.text }}>No paused shows</div></div>
-            : <div style={{ display: "grid", gap: 14 }}>{paused.map(show => <PausedCard key={show.id} show={show} upsertShow={upsertShow} removeShow={removeShow} onViewDetail={s => { setDetailShow(s.id); setTab("detail"); }} />)}</div>
-          }
-        </div>
-      );
-    }
-
-    function AllShows({ shows, upsertShow, removeShow, setTab, setDetailShow }) {
-      const [adding, setAdding] = useState(false);
-      const [filter, setFilter] = useState("All");
-      const statuses = ["All", ...Object.keys(STATUS_META)];
-      const filtered = filter === "All" ? shows : shows.filter(s => s.status === filter);
-      return (
-        <div style={{ animation: "fadeIn 0.3s ease" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 10 }}>
-            <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: 26 }}>All Shows <span style={{ color: C.muted, fontSize: 16, fontWeight: 400 }}>({shows.length})</span></h2>
-            <button onClick={() => setAdding(!adding)} style={{ background: adding ? C.surface : C.accent, border: adding ? `1px solid ${C.border}` : "none", color: adding ? C.muted : "#fff", padding: "8px 18px", borderRadius: 6, cursor: "pointer", fontSize: 13, fontWeight: 600 }}>{adding ? "✕ Cancel" : "+ Add Show"}</button>
-          </div>
-          {adding && <AddShowFlow defaultStatus="Watching" onAdd={s => { upsertShow(s); setAdding(false); }} onCancel={() => setAdding(false)} />}
-          <div style={{ display: "flex", gap: 6, marginBottom: 16, flexWrap: "wrap" }}>
-            {statuses.map(s => { const count = s === "All" ? shows.length : shows.filter(sh => sh.status === s).length; const sm = STATUS_META[s]; return <button key={s} onClick={() => setFilter(s)} style={{ background: filter === s ? (sm ? sm.color : C.accent) : C.card, border: `1px solid ${filter === s ? (sm ? sm.bright : C.accent) : C.border}`, color: filter === s ? (sm ? sm.bright : "#fff") : C.muted, padding: "5px 13px", borderRadius: 20, cursor: "pointer", fontSize: 12, fontWeight: filter === s ? 700 : 400, transition: "all 0.2s" }}>{sm ? `${sm.icon} ` : ""}{s} ({count})</button>; })}
-          </div>
-          {filtered.length === 0 && <div style={{ textAlign: "center", padding: "60px 0", color: C.muted }}><div style={{ fontSize: 40, marginBottom: 10 }}>📭</div><div>No shows here yet</div></div>}
-          <div style={{ display: "grid", gap: 10 }}>{filtered.map(show => <CompactShowCard key={show.id} show={show} upsertShow={upsertShow} removeShow={removeShow} onViewDetail={s => { setDetailShow(s.id); setTab("detail"); }} />)}</div>
-        </div>
-      );
-    }
-
-    function ShowDetail({ shows, upsertShow, initialShowId }) {
-      const [selectedId, setSelectedId] = useState(initialShowId || "");
-      const [query, setQuery] = useState("");
-      const [loadingEps, setLoadingEps] = useState(false);
-      const [epError, setEpError] = useState("");
-      const [activeSeason, setActiveSeason] = useState(1);
-      const [searchResults, setSearchResults] = useState([]);
-      const [searching, setSearching] = useState(false);
-
-      useEffect(() => { if (initialShowId) { setSelectedId(initialShowId); setSearchResults([]); } }, [initialShowId]);
-
-      const selected = shows.find(s => s.id === selectedId);
-
-      async function fetchEpisodes(show) {
-        setLoadingEps(true); setEpError("");
-        try { const updates = await loadEpisodesForShow(show); upsertShow({ ...show, ...updates }); setActiveSeason(1); }
-        catch { setEpError("Failed to load episodes. Try again."); }
-        setLoadingEps(false);
-      }
-
-      async function handleSearch() {
-        if (!query.trim()) return;
-        setSearching(true);
-        try {
-          const raw = await askClaude(`List 5 TV shows matching "${query}". Return ONLY a valid JSON array, no markdown: [{"title":"...","years":"...","genre":"...","network":"...","description":"one sentence"}]`);
-          setSearchResults(parseJSON(raw) || []);
-        } catch { setSearchResults([]); }
-        setSearching(false);
-      }
-
-      async function addAndView(result) {
-        const existing = shows.find(s => s.title.toLowerCase() === result.title.toLowerCase() && s.years === result.years);
-        if (existing) { setSelectedId(existing.id); setSearchResults([]); return; }
-        const show = { id: Date.now().toString(), title: result.title, genre: result.genre || "", network: result.network || "", years: result.years || "", description: result.description || "", status: "Watchlist", totalEpisodes: "", episodesWatched: 0, episodeData: null, watchedEps: {}, pauseNote: "", pauseEpisode: null, watchingOn: "" };
-        upsertShow(show); setSelectedId(show.id); setSearchResults([]); fetchEpisodes(show);
-      }
-
-      function toggleWatched(show, sn, en) {
-        const key = `${sn}-${en}`;
-        const watchedEps = { ...show.watchedEps, [key]: !show.watchedEps?.[key] };
-        upsertShow({ ...show, watchedEps, episodesWatched: Object.values(watchedEps).filter(Boolean).length });
-      }
-
-      const seasonData = selected?.episodeData?.find(s => s.number === activeSeason);
-
-      return (
-        <div style={{ animation: "fadeIn 0.3s ease" }}>
-          <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: 26, marginBottom: 18 }}>Show Detail</h2>
-          <div style={{ display: "flex", gap: 10, marginBottom: 18, flexWrap: "wrap" }}>
-            <select value={selectedId} onChange={e => { setSelectedId(e.target.value); setSearchResults([]); }} style={{ background: C.card, border: `1px solid ${C.border}`, color: C.text, padding: "9px 14px", borderRadius: 7, fontSize: 14, cursor: "pointer", minWidth: 220 }}>
-              <option value="">— Pick a show —</option>
-              {shows.map(s => <option key={s.id} value={s.id}>{s.title}{s.years ? ` (${s.years})` : ""}</option>)}
-            </select>
-            <span style={{ color: C.muted, alignSelf: "center", fontSize: 12 }}>or search</span>
-            <div style={{ display: "flex", gap: 8, flex: 1, maxWidth: 360 }}>
-              <input placeholder="Search any show…" value={query} onChange={e => setQuery(e.target.value)} onKeyDown={e => e.key === "Enter" && handleSearch()} style={{ flex: 1, background: C.card, border: `1px solid ${C.border}`, color: C.text, padding: "9px 14px", borderRadius: 7, fontSize: 13, outline: "none" }} />
-              <button onClick={handleSearch} disabled={searching} style={{ background: C.accent, border: "none", color: "#fff", padding: "9px 16px", borderRadius: 7, cursor: "pointer", fontSize: 13, fontWeight: 600, opacity: searching ? 0.7 : 1 }}>{searching ? "…" : "Search"}</button>
-            </div>
-          </div>
-          {searchResults.length > 0 && (
-            <div style={{ marginBottom: 18, display: "grid", gap: 8 }}>
-              {searchResults.map((r, i) => (
-                <div key={i} onClick={() => addAndView(r)} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 8, padding: "12px 16px", cursor: "pointer", display: "flex", gap: 12, alignItems: "center", transition: "border-color 0.2s" }}
-                  onMouseEnter={e => e.currentTarget.style.borderColor = `${C.accent}60`}
-                  onMouseLeave={e => e.currentTarget.style.borderColor = C.border}>
-                  <CoverArt show={r} size={32} />
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 15, marginBottom: 2 }}>{r.title}</div>
-                    <div style={{ fontSize: 12, color: C.muted }}>{[r.network, r.genre, r.years].filter(Boolean).join(" · ")}</div>
-                  </div>
-                  <span style={{ color: C.accent, fontSize: 18 }}>→</span>
-                </div>
-              ))}
-            </div>
-          )}
-          {selected && (
-            <div style={{ animation: "fadeIn 0.3s ease" }}>
-              <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 10, padding: "18px 22px", marginBottom: 16, display: "flex", gap: 16, alignItems: "flex-start" }}>
-                <CoverArt show={selected} size={80} />
-                <div style={{ flex: 1 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 12 }}>
-                    <div>
-                      <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: 22, marginBottom: 6 }}>{selected.title}</h3>
-                      <div style={{ display: "flex", gap: 14, flexWrap: "wrap", fontSize: 12, color: C.muted }}>
-                        {selected.watchingOn && <span style={{ color: "#4a9eff" }}>📡 {selected.watchingOn}</span>}
-                        {selected.genre && <span>🎭 {selected.genre}</span>}
-                        {selected.years && <span>📅 {selected.years}</span>}
-                        {selected.totalEpisodes && <span style={{ color: C.accent }}>{selected.episodesWatched || 0} / {selected.totalEpisodes} watched</span>}
-                      </div>
-                      {selected.description && <div style={{ fontSize: 12, color: C.muted, fontStyle: "italic", marginTop: 6, maxWidth: 500 }}>{selected.description}</div>}
-                    </div>
-                    <div>
-                      {!selected.episodeData && !loadingEps && <button onClick={() => fetchEpisodes(selected)} style={{ background: C.accent, border: "none", color: "#fff", padding: "9px 18px", borderRadius: 7, cursor: "pointer", fontSize: 13, fontWeight: 600 }}>Load Episodes</button>}
-                      {loadingEps && <Spinner text="Loading episodes…" />}
-                      {epError && <div style={{ color: C.accent, fontSize: 12, marginTop: 6 }}>{epError}</div>}
-                    </div>
-                  </div>
-                </div>
-              </div>
-              {selected.episodeData && (
-                <>
-                  <div style={{ display: "flex", gap: 6, marginBottom: 14, flexWrap: "wrap" }}>
-                    {selected.episodeData.map(s => { const wc = s.episodes.filter((_,i) => selected.watchedEps?.[`${s.number}-${i+1}`]).length; return <button key={s.number} onClick={() => setActiveSeason(s.number)} style={{ background: activeSeason === s.number ? C.accent : C.card, border: `1px solid ${activeSeason === s.number ? C.accent : C.border}`, color: activeSeason === s.number ? "#fff" : C.muted, padding: "6px 14px", borderRadius: 20, cursor: "pointer", fontSize: 12, fontWeight: 600, transition: "all 0.2s", display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}><span>S{String(s.number).padStart(2,"0")}</span><span style={{ fontSize: 10, opacity: 0.7 }}>{Math.round(wc / s.episodes.length * 100)}%</span></button>; })}
-                  </div>
-                  {seasonData && (
-                    <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 10, overflow: "hidden" }}>
-                      <div style={{ padding: "12px 18px", borderBottom: `1px solid ${C.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                        <span style={{ fontFamily: "'Playfair Display', serif", fontSize: 16 }}>Season {seasonData.number}</span>
-                        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                          <span style={{ fontSize: 12, color: C.muted }}>{seasonData.episodes.filter((_,i) => selected.watchedEps?.[`${seasonData.number}-${i+1}`]).length}/{seasonData.episodes.length}</span>
-                          <button onClick={() => { const nw = { ...selected.watchedEps }; const allW = seasonData.episodes.every((_,i) => selected.watchedEps?.[`${seasonData.number}-${i+1}`]); seasonData.episodes.forEach((_,i) => { nw[`${seasonData.number}-${i+1}`] = !allW; }); upsertShow({ ...selected, watchedEps: nw, episodesWatched: Object.values(nw).filter(Boolean).length }); }} style={{ background: C.surface, border: `1px solid ${C.border}`, color: C.muted, padding: "4px 10px", borderRadius: 5, cursor: "pointer", fontSize: 11 }}>Toggle All</button>
-                        </div>
-                      </div>
-                      {seasonData.episodes.map((ep, i) => {
-                        const epNum = i + 1; const key = `${seasonData.number}-${epNum}`; const watched = !!selected.watchedEps?.[key];
-                        return (
-                          <div key={epNum} style={{ display: "grid", gridTemplateColumns: "36px 50px 1fr", alignItems: "center", gap: 12, padding: "10px 18px", borderBottom: `1px solid ${C.border}15`, background: watched ? "#1a2e1a18" : "transparent", transition: "background 0.15s" }}
-                            onMouseEnter={e => e.currentTarget.style.background = watched ? "#1a2e1a30" : `${C.border}20`}
-                            onMouseLeave={e => e.currentTarget.style.background = watched ? "#1a2e1a18" : "transparent"}>
-                            <button onClick={() => toggleWatched(selected, seasonData.number, epNum)} style={{ width: 28, height: 28, borderRadius: "50%", border: `2px solid ${watched ? C.green : C.border}`, background: watched ? `${C.green}25` : "transparent", color: watched ? C.green : C.muted, cursor: "pointer", fontSize: 13, display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s" }}>{watched ? "✓" : "○"}</button>
-                            <span style={{ fontSize: 11, color: C.muted, fontWeight: 600 }}>E{String(epNum).padStart(2,"0")}</span>
-                            <div>
-                              <div style={{ fontSize: 13, color: watched ? C.muted : C.text, fontWeight: 500 }}>{ep.title}</div>
-                              {ep.runtime && <div style={{ fontSize: 11, color: C.muted }}>{ep.runtime} min</div>}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-          )}
-          {!selected && searchResults.length === 0 && <div style={{ textAlign: "center", padding: "60px 0", color: C.muted }}><div style={{ fontSize: 48, marginBottom: 12 }}>🔍</div><div style={{ fontSize: 15 }}>Select a show or search for any title</div></div>}
-        </div>
-      );
-    }
-
-    function Watchlist({ shows, upsertShow, removeShow }) {
-      const [adding, setAdding] = useState(false);
-      const watchlist = shows.filter(s => s.status === "Watchlist");
-      return (
-        <div style={{ animation: "fadeIn 0.3s ease" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-            <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: 26 }}>Watchlist <span style={{ color: C.muted, fontSize: 16 }}>({watchlist.length})</span></h2>
-            <button onClick={() => setAdding(!adding)} style={{ background: adding ? C.surface : C.accent, border: adding ? `1px solid ${C.border}` : "none", color: adding ? C.muted : "#fff", padding: "8px 18px", borderRadius: 6, cursor: "pointer", fontSize: 13, fontWeight: 600 }}>{adding ? "✕ Cancel" : "+ Add"}</button>
-          </div>
-          {adding && <AddShowFlow defaultStatus="Watchlist" onAdd={s => { upsertShow(s); setAdding(false); }} onCancel={() => setAdding(false)} />}
-          {watchlist.length === 0 && !adding && <div style={{ textAlign: "center", padding: "60px 0", color: C.muted }}><div style={{ fontSize: 48, marginBottom: 12 }}>🔖</div><div>Your watchlist is empty</div></div>}
-          <div style={{ display: "grid", gap: 10 }}>
-            {watchlist.map(show => {
-              const [startModal, setStartModal] = useState(false);
-              return (
-                <div key={show.id}>
-                  {startModal && <PlatformModal show={show} onConfirm={p => { upsertShow({ ...show, status: "Watching", watchingOn: p }); setStartModal(false); }} onCancel={() => setStartModal(false)} />}
-                  <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 10, padding: "14px 18px", display: "flex", gap: 14, alignItems: "center", transition: "border-color 0.2s" }}
-                    onMouseEnter={e => e.currentTarget.style.borderColor = `${C.accent}60`}
-                    onMouseLeave={e => e.currentTarget.style.borderColor = C.border}>
-                    <CoverArt show={show} size={56} />
-                    <div style={{ flex: 1 }}>
-                      <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 4, flexWrap: "wrap" }}>
-                        <span style={{ fontFamily: "'Playfair Display', serif", fontSize: 16, fontWeight: 700 }}>{show.title}</span>
-                        {show.years && <span style={{ color: C.muted, fontSize: 11 }}>{show.years}</span>}
-                      </div>
-                      <div style={{ fontSize: 12, color: C.muted, display: "flex", gap: 12, flexWrap: "wrap" }}>
-                        {show.network && <span>📡 {show.network}</span>}
-                        {show.genre && <span>🎭 {show.genre}</span>}
-                      </div>
-                      {show.description && <div style={{ fontSize: 11, color: C.muted, fontStyle: "italic", marginTop: 4, maxWidth: 500 }}>{show.description}</div>}
-                    </div>
-                    <div style={{ display: "flex", gap: 6, alignItems: "center", flexShrink: 0 }}>
-                      <button onClick={() => setStartModal(true)} style={{ background: C.blue, border: "none", color: "#fff", padding: "6px 12px", borderRadius: 5, cursor: "pointer", fontSize: 12, fontWeight: 600 }}>▶ Start</button>
-                      <button onClick={() => removeShow(show.id)} style={{ background: "none", border: `1px solid ${C.border}`, color: C.muted, padding: "6px 10px", borderRadius: 5, cursor: "pointer", fontSize: 11 }}>✕</button>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      );
-    }
-
-    function Stats({ shows }) {
-      const totalEps = shows.reduce((a,s) => a + (s.episodesWatched || 0), 0);
-      const topWatched = shows.filter(s => (s.episodesWatched || 0) > 0).sort((a,b) => (b.episodesWatched||0) - (a.episodesWatched||0)).slice(0,5);
-      return (
-        <div style={{ animation: "fadeIn 0.3s ease" }}>
-          <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: 26, marginBottom: 20 }}>Stats</h2>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12, marginBottom: 24 }}>
-            {[
-              { label: "Total Shows", value: shows.length, icon: "📺" },
-              { label: "Watching", value: shows.filter(s => s.status === "Watching").length, icon: "▶" },
-              { label: "Paused", value: shows.filter(s => s.status === "Paused").length, icon: "⏸" },
-              { label: "Completed", value: shows.filter(s => s.status === "Watched").length, icon: "✅" },
-              { label: "Eps Watched", value: totalEps, icon: "🎬" },
-            ].map(stat => (
-              <div key={stat.label} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 10, padding: 16, textAlign: "center" }}>
-                <div style={{ fontSize: 22, marginBottom: 4 }}>{stat.icon}</div>
-                <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 24, color: C.accent, marginBottom: 4 }}>{stat.value}</div>
-                <div style={{ fontSize: 11, color: C.muted }}>{stat.label}</div>
-              </div>
-            ))}
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-            <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 10, padding: 18 }}>
-              <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: 16, marginBottom: 14 }}>By Status</h3>
-              {Object.entries(STATUS_META).map(([status, sm]) => {
-                const count = shows.filter(s => s.status === status).length;
-                const pct = shows.length ? Math.round((count / shows.length) * 100) : 0;
-                return (
-                  <div key={status} style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 0", borderBottom: `1px solid ${C.border}20` }}>
-                    <Badge label={`${sm.icon} ${status}`} color={sm.color} bright={sm.bright} small />
-                    <div style={{ flex: 1, height: 3, background: C.border, borderRadius: 2 }}><div style={{ width: `${pct}%`, height: "100%", background: sm.bright, borderRadius: 2, transition: "width 0.5s" }} /></div>
-                    <span style={{ fontFamily: "'Playfair Display', serif", fontSize: 15, color: C.text, minWidth: 20, textAlign: "right" }}>{count}</span>
-                  </div>
-                );
-              })}
-            </div>
-            <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 10, padding: 18 }}>
-              <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: 16, marginBottom: 14 }}>🏆 Most Watched</h3>
-              {topWatched.length === 0
-                ? <div style={{ color: C.muted, fontSize: 13, textAlign: "center", paddingTop: 20 }}>Mark episodes as watched to see rankings</div>
-                : topWatched.map((s, i) => (
-                  <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: `1px solid ${C.border}20` }}>
-                    <span style={{ fontSize: i === 0 ? 18 : 13, width: 22, textAlign: "center" }}>{i === 0 ? "🏆" : i + 1}</span>
-                    <CoverArt show={s} size={20} />
-                    <div style={{ flex: 1, fontSize: 13, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.title}</div>
-                    <span style={{ color: C.accent, fontSize: 13, fontWeight: 700, whiteSpace: "nowrap" }}>{s.episodesWatched} eps</span>
-                  </div>
-                ))
-              }
+              ${!selected.episodeData && !detailLoadingEps ? `<button class="btn btn-accent" onclick="detailLoadEps()" style="padding:9px 18px">Load Episodes</button>` : ""}
+              ${detailLoadingEps ? spinnerHTML("Loading episodes…") : ""}
+              ${detailEpError ? `<div style="color:${C.accent};font-size:12px;margin-top:6px">${detailEpError}</div>` : ""}
             </div>
           </div>
         </div>
-      );
-    }
-
-    // ── Main App ──────────────────────────────────────────────────────────────
-    function App() {
-      const [user, setUser] = useState(null);
-      const [authChecked, setAuthChecked] = useState(false);
-      const [shows, setShows] = useState([]);
-      const [tab, setTab] = useState("watching");
-      const [detailShowId, setDetailShowId] = useState("");
-      const saveTimeout = useRef({});
-
-      // Auth listener
-      useEffect(() => {
-        sb.auth.getSession().then(({ data }) => { setUser(data.session?.user || null); setAuthChecked(true); });
-        const { data: { subscription } } = sb.auth.onAuthStateChange((_e, session) => { setUser(session?.user || null); });
-        return () => subscription.unsubscribe();
-      }, []);
-
-      // Load shows on login
-      useEffect(() => {
-        if (!user) { setShows([]); return; }
-        dbLoad(user.id).then(setShows).catch(console.error);
-      }, [user]);
-
-      const upsertShow = useCallback((show) => {
-        setShows(prev => {
-          const idx = prev.findIndex(s => s.id === show.id);
-          const next = idx >= 0 ? [...prev.slice(0,idx), show, ...prev.slice(idx+1)] : [...prev, show];
-          // Debounce save per show
-          clearTimeout(saveTimeout.current[show.id]);
-          saveTimeout.current[show.id] = setTimeout(() => { if (user) dbUpsert(user.id, show); }, 600);
-          return next;
-        });
-      }, [user]);
-
-      const removeShow = useCallback((id) => {
-        setShows(prev => prev.filter(s => s.id !== id));
-        if (user) dbDelete(user.id, id);
-      }, [user]);
-
-      async function signOut() { await sb.auth.signOut(); setUser(null); }
-
-      if (!authChecked) return <div style={{ minHeight: "100vh", background: C.bg, display: "flex", alignItems: "center", justifyContent: "center" }}><Spinner text="Loading…" /></div>;
-      if (!user) return <AuthScreen onAuth={setUser} />;
-
-      const watchingCount = shows.filter(s => s.status === "Watching").length;
-      const pausedCount = shows.filter(s => s.status === "Paused").length;
-
-      return (
-        <div style={{ minHeight: "100vh", background: C.bg, color: C.text }}>
-          <div style={{ background: C.surface, borderBottom: `1px solid ${C.border}`, position: "sticky", top: 0, zIndex: 100 }}>
-            <div style={{ maxWidth: 1100, margin: "0 auto", padding: "0 20px", display: "flex", alignItems: "center", overflowX: "auto" }}>
-              <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: 20, color: C.accent, letterSpacing: 1, padding: "14px 20px 14px 0", flexShrink: 0, borderRight: `1px solid ${C.border}`, marginRight: 4 }}>SHOWLY</h1>
-              {TABS.map(t => {
-                const badge = t.id === "watching" ? watchingCount : t.id === "paused" ? pausedCount : 0;
-                return (
-                  <button key={t.id} onClick={() => setTab(t.id)} style={{ background: "none", border: "none", cursor: "pointer", color: tab === t.id ? C.text : C.muted, borderBottom: tab === t.id ? `2px solid ${C.accent}` : "2px solid transparent", padding: "14px 13px", fontSize: 12.5, fontWeight: tab === t.id ? 600 : 400, transition: "all 0.2s", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 5, flexShrink: 0 }}>
-                    {t.label}
-                    {badge > 0 && <span style={{ background: t.id === "paused" ? C.purpleDim : C.accent, color: t.id === "paused" ? "#c39bd3" : "#fff", borderRadius: 10, fontSize: 10, fontWeight: 700, padding: "1px 6px", minWidth: 18, textAlign: "center" }}>{badge}</span>}
-                  </button>
-                );
-              })}
-              <div style={{ marginLeft: "auto", paddingLeft: 16, display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
-                <span style={{ fontSize: 11, color: C.muted, display: "none" }}>{user.email}</span>
-                <button onClick={signOut} style={{ background: "none", border: `1px solid ${C.border}`, color: C.muted, padding: "5px 12px", borderRadius: 5, cursor: "pointer", fontSize: 11 }}>Sign Out</button>
+      </div>
+      ${selected.episodeData ? `
+        <div style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap">
+          ${selected.episodeData.map(s => {
+            const wc = s.episodes.filter((_,i)=>selected.watchedEps?.[`${s.number}-${i+1}`]).length;
+            const pct = Math.round(wc/s.episodes.length*100);
+            return `<button onclick="setState({detailActiveSeason:${s.number}})" style="background:${detailActiveSeason===s.number?C.accent:C.card};border:1px solid ${detailActiveSeason===s.number?C.accent:C.border};color:${detailActiveSeason===s.number?'#fff':C.muted};padding:6px 14px;border-radius:20px;cursor:pointer;font-size:12px;font-weight:600;transition:all 0.2s;display:flex;flex-direction:column;align-items:center;gap:2px">
+              <span>S${pad(s.number)}</span><span style="font-size:10px;opacity:0.7">${pct}%</span>
+            </button>`;
+          }).join("")}
+        </div>
+        ${seasonData ? `
+          <div style="background:${C.card};border:1px solid ${C.border};border-radius:10px;overflow:hidden">
+            <div style="padding:12px 18px;border-bottom:1px solid ${C.border};display:flex;justify-content:space-between;align-items:center">
+              <span style="font-family:'Playfair Display',serif;font-size:16px">Season ${seasonData.number}</span>
+              <div style="display:flex;gap:10px;align-items:center">
+                <span style="font-size:12px;color:${C.muted}">${seasonData.episodes.filter((_,i)=>selected.watchedEps?.[`${seasonData.number}-${i+1}`]).length}/${seasonData.episodes.length}</span>
+                <button onclick="toggleAllEps()" style="background:${C.surface};border:1px solid ${C.border};color:${C.muted};padding:4px 10px;border-radius:5px;cursor:pointer;font-size:11px">Toggle All</button>
               </div>
             </div>
-          </div>
-          <div style={{ maxWidth: 1100, margin: "0 auto", padding: "28px 20px 60px" }}>
-            {tab === "watching"  && <CurrentlyWatching shows={shows} upsertShow={upsertShow} removeShow={removeShow} setTab={setTab} setDetailShow={setDetailShowId} />}
-            {tab === "paused"    && <PausedShows shows={shows} upsertShow={upsertShow} removeShow={removeShow} setTab={setTab} setDetailShow={setDetailShowId} />}
-            {tab === "shows"     && <AllShows shows={shows} upsertShow={upsertShow} removeShow={removeShow} setTab={setTab} setDetailShow={setDetailShowId} />}
-            {tab === "detail"    && <ShowDetail shows={shows} upsertShow={upsertShow} initialShowId={detailShowId} />}
-            {tab === "watchlist" && <Watchlist shows={shows} upsertShow={upsertShow} removeShow={removeShow} />}
-            {tab === "stats"     && <Stats shows={shows} />}
-          </div>
-        </div>
-      );
-    }
+            ${seasonData.episodes.map((ep,i) => {
+              const epNum = i+1;
+              const key = `${seasonData.number}-${epNum}`;
+              const watched = !!selected.watchedEps?.[key];
+              return `<div class="ep-row ${watched?'watched':''}">
+                <button class="check-btn ${watched?'watched':''}" onclick="toggleEp('${selected.id}','${seasonData.number}','${epNum}')">${watched?"✓":"○"}</button>
+                <span style="font-size:11px;color:${C.muted};font-weight:600">E${pad(epNum)}</span>
+                <div>
+                  <div style="font-size:13px;color:${watched?C.muted:C.text};font-weight:500">${ep.title}</div>
+                  ${ep.runtime?`<div style="font-size:11px;color:${C.muted}">${ep.runtime} min</div>`:""}
+                </div>
+              </div>`;
+            }).join("")}
+          </div>` : ""}
+      ` : ""}
+    ` : `
+      <div style="text-align:center;padding:60px 0;color:${C.muted}">
+        <div style="font-size:48px;margin-bottom:12px">🔍</div>
+        <div style="font-size:15px">Select a show or search for any title</div>
+      </div>`}
+  </div>`;
+}
 
-    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
-  </script>
+async function detailSearch() {
+  const q = state.detailQuery.trim();
+  if (!q) return;
+  setState({ detailSearching: true });
+  try {
+    const raw = await askClaude(`List 5 TV shows matching "${q}". Return ONLY a valid JSON array, no markdown: [{"title":"...","years":"...","genre":"...","network":"...","description":"one sentence"}]`);
+    setState({ detailSearching: false, detailResults: parseJSON(raw) || [] });
+  } catch { setState({ detailSearching: false, detailResults: [] }); }
+}
+
+function detailAddAndView(i) {
+  const r = state.detailResults[i];
+  const existing = state.shows.find(s => s.title.toLowerCase()===r.title.toLowerCase() && s.years===r.years);
+  if (existing) { setState({ detailShowId: existing.id, detailResults: [] }); return; }
+  const show = { id: Date.now().toString(), title: r.title, genre: r.genre||"", network: r.network||"", years: r.years||"", description: r.description||"", status: "Watchlist", totalEpisodes: "", episodesWatched: 0, episodeData: null, watchedEps: {}, pauseNote: "", pauseEpisode: null, watchingOn: "" };
+  upsertShow(show);
+  setState({ detailShowId: show.id, detailResults: [] });
+  detailLoadEpsFor(show);
+}
+
+async function detailLoadEps() {
+  const show = state.shows.find(s => s.id === state.detailShowId);
+  if (!show) return;
+  await detailLoadEpsFor(show);
+}
+
+async function detailLoadEpsFor(show) {
+  setState({ detailLoadingEps: true, detailEpError: "" });
+  try {
+    const updates = await loadEpisodesForShow(show);
+    upsertShow({ ...show, ...updates });
+    setState({ detailLoadingEps: false, detailActiveSeason: 1 });
+  } catch { setState({ detailLoadingEps: false, detailEpError: "Failed to load. Try again." }); }
+}
+
+function toggleEp(showId, sn, en) {
+  const show = state.shows.find(s => s.id === showId);
+  if (!show) return;
+  const key = `${sn}-${en}`;
+  const watchedEps = { ...show.watchedEps, [key]: !show.watchedEps?.[key] };
+  upsertShow({ ...show, watchedEps, episodesWatched: Object.values(watchedEps).filter(Boolean).length });
+}
+
+function toggleAllEps() {
+  const show = state.shows.find(s => s.id === state.detailShowId);
+  if (!show) return;
+  const seasonData = show.episodeData?.find(s => s.number === state.detailActiveSeason);
+  if (!seasonData) return;
+  const nw = { ...show.watchedEps };
+  const allW = seasonData.episodes.every((_,i) => show.watchedEps?.[`${seasonData.number}-${i+1}`]);
+  seasonData.episodes.forEach((_,i) => { nw[`${seasonData.number}-${i+1}`] = !allW; });
+  upsertShow({ ...show, watchedEps: nw, episodesWatched: Object.values(nw).filter(Boolean).length });
+}
+
+function viewDetail(id) { setState({ tab: "detail", detailShowId: id }); }
+
+// ── Watchlist Tab ─────────────────────────────────────────────────────────────
+function renderWatchlist() {
+  const { shows, adding } = state;
+  const watchlist = shows.filter(s => s.status === "Watchlist");
+  return `<div class="fade">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+      <h2 style="font-family:'Playfair Display',serif;font-size:26px">Watchlist <span style="color:${C.muted};font-size:16px">(${watchlist.length})</span></h2>
+      <button class="btn ${adding.watchlist?'btn-ghost':'btn-accent'}" onclick="setState({adding:{...state.adding,watchlist:!state.adding.watchlist},addDefaultStatus:'Watchlist'})">${adding.watchlist?"✕ Cancel":"+ Add"}</button>
+    </div>
+    ${adding.watchlist ? renderAddFlow("watchlist") : ""}
+    ${watchlist.length===0&&!adding.watchlist ? `<div style="text-align:center;padding:60px 0;color:${C.muted}"><div style="font-size:48px;margin-bottom:12px">🔖</div><div>Your watchlist is empty</div></div>` :
+      `<div style="display:grid;gap:10px">${watchlist.map(show=>`
+        <div class="card" style="padding:14px 18px;display:flex;gap:14px;align-items:center">
+          ${coverHTML(show, 56)}
+          <div style="flex:1">
+            <div style="display:flex;gap:10px;align-items:center;margin-bottom:4px;flex-wrap:wrap">
+              <span style="font-family:'Playfair Display',serif;font-size:16px;font-weight:700">${show.title}</span>
+              ${show.years?`<span style="color:${C.muted};font-size:11px">${show.years}</span>`:""}
+            </div>
+            <div style="font-size:12px;color:${C.muted};display:flex;gap:12px;flex-wrap:wrap">
+              ${show.network?`<span>📡 ${show.network}</span>`:""}
+              ${show.genre?`<span>🎭 ${show.genre}</span>`:""}
+            </div>
+            ${show.description?`<div style="font-size:11px;color:${C.muted};font-style:italic;margin-top:4px;max-width:500px">${show.description}</div>`:""}
+          </div>
+          <div style="display:flex;gap:6px;align-items:center;flex-shrink:0">
+            <button class="btn btn-blue" onclick="startFromWatchlist('${show.id}')" style="padding:6px 12px;font-size:12px">▶ Start</button>
+            <button class="btn btn-ghost" onclick="removeShow('${show.id}')" style="padding:6px 10px;font-size:11px">✕</button>
+          </div>
+        </div>`).join("")}
+      </div>`}
+  </div>`;
+}
+
+function startFromWatchlist(id) {
+  const show = state.shows.find(s => s.id === id);
+  if (!show) return;
+  setState({
+    platformModalShow: show,
+    platformModalTitle: "Start Watching",
+    platformSelected: "",
+    platformCustom: "",
+    platformModalCallback: (platform) => upsertShow({ ...show, status: "Watching", watchingOn: platform }),
+  });
+}
+
+// ── Stats Tab ─────────────────────────────────────────────────────────────────
+function renderStats() {
+  const { shows } = state;
+  const totalEps = shows.reduce((a,s)=>a+(s.episodesWatched||0),0);
+  const topWatched = shows.filter(s=>(s.episodesWatched||0)>0).sort((a,b)=>(b.episodesWatched||0)-(a.episodesWatched||0)).slice(0,5);
+  const statCards = [
+    { label:"Total Shows", value:shows.length, icon:"📺" },
+    { label:"Watching", value:shows.filter(s=>s.status==="Watching").length, icon:"▶" },
+    { label:"Paused", value:shows.filter(s=>s.status==="Paused").length, icon:"⏸" },
+    { label:"Completed", value:shows.filter(s=>s.status==="Watched").length, icon:"✅" },
+    { label:"Eps Watched", value:totalEps, icon:"🎬" },
+  ];
+  return `<div class="fade">
+    <h2 style="font-family:'Playfair Display',serif;font-size:26px;margin-bottom:20px">Stats</h2>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:24px">
+      ${statCards.map(s=>`
+        <div style="background:${C.card};border:1px solid ${C.border};border-radius:10px;padding:16px;text-align:center">
+          <div style="font-size:22px;margin-bottom:4px">${s.icon}</div>
+          <div style="font-family:'Playfair Display',serif;font-size:24px;color:${C.accent};margin-bottom:4px">${s.value}</div>
+          <div style="font-size:11px;color:${C.muted}">${s.label}</div>
+        </div>`).join("")}
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+      <div style="background:${C.card};border:1px solid ${C.border};border-radius:10px;padding:18px">
+        <h3 style="font-family:'Playfair Display',serif;font-size:16px;margin-bottom:14px">By Status</h3>
+        ${Object.entries(STATUS_META).map(([status,sm])=>{
+          const count = shows.filter(s=>s.status===status).length;
+          const pct = shows.length ? Math.round((count/shows.length)*100) : 0;
+          return `<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid rgba(37,37,64,0.2)">
+            ${badgeHTML(`${sm.icon} ${status}`, sm.color, sm.bright)}
+            <div class="progress-bar" style="flex:1"><div class="progress-fill" style="width:${pct}%;background:${sm.bright}"></div></div>
+            <span style="font-family:'Playfair Display',serif;font-size:15px;min-width:20px;text-align:right">${count}</span>
+          </div>`;
+        }).join("")}
+      </div>
+      <div style="background:${C.card};border:1px solid ${C.border};border-radius:10px;padding:18px">
+        <h3 style="font-family:'Playfair Display',serif;font-size:16px;margin-bottom:14px">🏆 Most Watched</h3>
+        ${topWatched.length===0
+          ? `<div style="color:${C.muted};font-size:13px;text-align:center;padding-top:20px">Mark episodes as watched to see rankings</div>`
+          : topWatched.map((s,i)=>`
+            <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(37,37,64,0.2)">
+              <span style="font-size:${i===0?18:13}px;width:22px;text-align:center">${i===0?"🏆":i+1}</span>
+              ${coverHTML(s, 20)}
+              <div style="flex:1;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.title}</div>
+              <span style="color:${C.accent};font-size:13px;font-weight:700;white-space:nowrap">${s.episodesWatched} eps</span>
+            </div>`).join("")}
+      </div>
+    </div>
+  </div>`;
+}
+
+// ── Main Render ───────────────────────────────────────────────────────────────
+function render() {
+  const { user, tab, shows, addStep, disambigMatches } = state;
+  const app = document.getElementById("app");
+  if (!app) return;
+
+  if (!user) { app.innerHTML = renderAuth(); return; }
+
+  const watchingCount = shows.filter(s=>s.status==="Watching").length;
+  const pausedCount = shows.filter(s=>s.status==="Paused").length;
+
+  const tabs = [
+    { id:"watching", label:"▶ Watching", badge: watchingCount },
+    { id:"paused",   label:"⏸ Paused",   badge: pausedCount },
+    { id:"shows",    label:"📺 All Shows", badge: 0 },
+    { id:"detail",   label:"🔍 Show Detail", badge: 0 },
+    { id:"watchlist",label:"🔖 Watchlist", badge: 0 },
+    { id:"stats",    label:"📊 Stats", badge: 0 },
+  ];
+
+  let content = "";
+  if (tab==="watching")  content = renderWatching();
+  if (tab==="paused")    content = renderPaused();
+  if (tab==="shows")     content = renderAllShows();
+  if (tab==="detail")    content = renderDetail();
+  if (tab==="watchlist") content = renderWatchlist();
+  if (tab==="stats")     content = renderStats();
+
+  app.innerHTML = `
+    <div class="tab-bar">
+      <div class="tab-inner">
+        <span style="font-family:'Playfair Display',serif;font-size:20px;color:${C.accent};letter-spacing:1px;padding:14px 20px 14px 0;flex-shrink:0;border-right:1px solid ${C.border};margin-right:4px">SHOWLY</span>
+        ${tabs.map(t=>`
+          <button class="tab-btn ${tab===t.id?'active':''}" onclick="setState({tab:'${t.id}'})">
+            ${t.label}
+            ${t.badge>0?`<span class="tab-badge" style="background:${t.id==='paused'?C.purpleDim:C.accent};color:${t.id==='paused'?'#c39bd3':'#fff'}">${t.badge}</span>`:""}
+          </button>`).join("")}
+        <button onclick="signOut()" style="margin-left:auto;background:none;border:none;color:${C.muted};cursor:pointer;font-size:12px;padding:14px 8px;white-space:nowrap">Sign Out</button>
+      </div>
+    </div>
+    <div class="content">${content}</div>
+    ${renderPlatformModal()}
+    ${renderPauseModal()}
+    ${addStep==="disambig" ? renderAddFlow("") : ""}
+  `;
+}
+
+async function signOut() {
+  await sb.auth.signOut();
+  setState({ user: null, shows: [] });
+}
+
+// ── Boot ──────────────────────────────────────────────────────────────────────
+sb.auth.getSession().then(({ data }) => {
+  if (data.session?.user) {
+    setState({ user: data.session.user });
+    loadShows();
+  } else {
+    render();
+  }
+});
+
+sb.auth.onAuthStateChange((_event, session) => {
+  if (session?.user) {
+    setState({ user: session.user });
+    loadShows();
+  } else {
+    setState({ user: null, shows: [] });
+  }
+});
+</script>
 </body>
 </html>
