@@ -1,0 +1,1172 @@
+import { useState, useEffect, useCallback } from "react";
+
+const C = {
+  bg: "#0d0d14", surface: "#13131f", card: "#1a1a2e", border: "#252540",
+  accent: "#e94560", accentDim: "#a02f44", blue: "#0f3460", blueBright: "#1a5296",
+  text: "#e8e8f0", muted: "#6060a0", green: "#2ecc71", amber: "#f39c12",
+  purple: "#9b59b6", purpleDim: "#3d1f5e",
+};
+
+const STATUS_META = {
+  Watching:  { color: "#0f3460", bright: "#4a9eff", icon: "▶" },
+  Watched:   { color: "#1a3d2b", bright: "#2ecc71", icon: "✓" },
+  Paused:    { color: "#2e1a3e", bright: "#c39bd3", icon: "⏸" },
+  Watchlist: { color: "#3d2b00", bright: "#f39c12", icon: "◉" },
+  Dropped:   { color: "#3a0a0a", bright: "#e94560", icon: "✕" },
+};
+
+const PLATFORMS = [
+  "Netflix","HBO / Max","Disney+","Apple TV+","Hulu","Amazon Prime Video",
+  "Peacock","Paramount+","AMC+","Showtime","Crunchyroll","YouTube Premium","Other",
+];
+
+const TABS = [
+  { id: "watching",  label: "▶ Watching" },
+  { id: "paused",    label: "⏸ Paused" },
+  { id: "shows",     label: "📺 All Shows" },
+  { id: "detail",    label: "🔍 Show Detail" },
+  { id: "watchlist", label: "🔖 Watchlist" },
+  { id: "stats",     label: "📊 Stats" },
+];
+
+async function storageGet(key) {
+  try { const r = await window.storage.get(key); return r ? JSON.parse(r.value) : null; } catch { return null; }
+}
+async function storageSet(key, value) {
+  try { await window.storage.set(key, JSON.stringify(value)); } catch {}
+}
+async function askClaude(prompt) {
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 1500,
+      messages: [{ role: "user", content: prompt }] }),
+  });
+  const data = await res.json();
+  return data.content?.map(b => b.text || "").join("") || "";
+}
+
+async function fetchCoverArt(title, year) {
+  try {
+    const q = encodeURIComponent(title);
+    const res = await fetch(`https://itunes.apple.com/search?term=${q}&media=tvShow&entity=tvSeason&limit=10`);
+    const data = await res.json();
+    if (!data.results?.length) return "";
+    // Try to find best match by title similarity and year
+    const results = data.results;
+    const titleLower = title.toLowerCase();
+    let best = results.find(r => r.collectionName?.toLowerCase().includes(titleLower));
+    if (!best) best = results[0];
+    // artworkUrl100 -> scale up to 600x600
+    return (best.artworkUrl100 || "").replace("100x100", "600x600");
+  } catch { return ""; }
+}
+
+function getNextEpisode(show) {
+  if (!show.episodeData) return null;
+  for (const season of show.episodeData) {
+    for (let i = 0; i < season.episodes.length; i++) {
+      const key = `${season.number}-${i + 1}`;
+      if (!show.watchedEps?.[key]) return { season: season.number, episode: i + 1, title: season.episodes[i].title };
+    }
+  }
+  return null;
+}
+
+function getPausedAt(show) {
+  if (show.pauseEpisode) return show.pauseEpisode;
+  if (!show.episodeData) return null;
+  let last = null;
+  for (const season of show.episodeData) {
+    for (let i = 0; i < season.episodes.length; i++) {
+      const key = `${season.number}-${i + 1}`;
+      if (show.watchedEps?.[key]) last = { season: season.number, episode: i + 1, title: season.episodes[i].title };
+    }
+  }
+  return last;
+}
+
+function Badge({ label, color, bright, small }) {
+  return (
+    <span style={{ background: color, color: bright, border: `1px solid ${bright}50`,
+      borderRadius: 4, padding: small ? "1px 6px" : "2px 9px",
+      fontSize: small ? 10 : 11, fontWeight: 700, letterSpacing: 0.4, whiteSpace: "nowrap" }}>
+      {label}
+    </span>
+  );
+}
+
+function Spinner({ text = "Fetching from Claude…" }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 8, color: C.muted, fontSize: 12, fontFamily: "'DM Sans', sans-serif" }}>
+      <span style={{ animation: "spin 1s linear infinite", display: "inline-block", fontSize: 16 }}>⟳</span>
+      {text}
+    </div>
+  );
+}
+
+function ProgressBar({ watched, total }) {
+  if (!total) return null;
+  const pct = Math.min(100, Math.round((watched / total) * 100));
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      <div style={{ flex: 1, height: 3, background: C.border, borderRadius: 2 }}>
+        <div style={{ width: `${pct}%`, height: "100%", borderRadius: 2,
+          background: pct === 100 ? C.green : C.accent, transition: "width 0.4s" }} />
+      </div>
+      <span style={{ fontSize: 11, color: C.muted, fontFamily: "'DM Sans', sans-serif", minWidth: 32, textAlign: "right" }}>{pct}%</span>
+    </div>
+  );
+}
+
+function CoverArt({ show, size = 80 }) {
+  const [err, setErr] = useState(false);
+  if (!show.coverArt || err) {
+    return (
+      <div style={{ width: size, height: size * 1.5, borderRadius: 6, background: C.border,
+        display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: size * 0.35 }}>
+        📺
+      </div>
+    );
+  }
+  return (
+    <img src={show.coverArt} alt={show.title} onError={() => setErr(true)}
+      style={{ width: size, height: size * 1.5, objectFit: "cover", borderRadius: 6, flexShrink: 0 }} />
+  );
+}
+
+// ── Disambiguation Modal ─────────────────────────────────────────────────────
+function DisambiguateModal({ matches, onSelect, onCancel }) {
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "#00000088", zIndex: 200,
+      display: "flex", alignItems: "center", justifyContent: "center", animation: "fadeIn 0.15s ease" }}
+      onClick={onCancel}>
+      <div onClick={e => e.stopPropagation()}
+        style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12,
+          padding: 24, width: 420, maxWidth: "92vw", boxShadow: "0 20px 60px #00000080", maxHeight: "80vh", overflowY: "auto" }}>
+        <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: 18, marginBottom: 6 }}>Multiple Matches Found</h3>
+        <div style={{ color: C.muted, fontSize: 13, fontFamily: "'DM Sans', sans-serif", marginBottom: 18 }}>
+          Which show did you mean?
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {matches.map((m, i) => (
+            <div key={i} onClick={() => onSelect(m)}
+              style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 8,
+                padding: "12px 16px", cursor: "pointer", display: "flex", gap: 12, alignItems: "center",
+                transition: "border-color 0.2s" }}
+              onMouseEnter={e => e.currentTarget.style.borderColor = `${C.accent}60`}
+              onMouseLeave={e => e.currentTarget.style.borderColor = C.border}>
+              {m.coverArt && (
+                <img src={m.coverArt} alt={m.title}
+                  style={{ width: 40, height: 60, objectFit: "cover", borderRadius: 4, flexShrink: 0 }}
+                  onError={e => e.target.style.display = "none"} />
+              )}
+              <div style={{ flex: 1 }}>
+                <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 15, marginBottom: 3 }}>{m.title}</div>
+                <div style={{ fontSize: 12, color: C.muted, fontFamily: "'DM Sans', sans-serif" }}>
+                  {[m.years, m.genre, m.network].filter(Boolean).join(" · ")}
+                </div>
+                {m.description && <div style={{ fontSize: 11, color: C.muted, fontStyle: "italic", marginTop: 3 }}>{m.description}</div>}
+              </div>
+              <span style={{ color: C.accent, fontSize: 18 }}>→</span>
+            </div>
+          ))}
+        </div>
+        <button onClick={onCancel}
+          style={{ marginTop: 14, background: "none", border: `1px solid ${C.border}`, color: C.muted,
+            padding: "8px 16px", borderRadius: 7, cursor: "pointer", fontSize: 13, width: "100%" }}>Cancel</button>
+      </div>
+    </div>
+  );
+}
+
+// ── Platform Modal ───────────────────────────────────────────────────────────
+function PlatformModal({ show, onConfirm, onCancel, title = "Start Watching" }) {
+  const [selected, setSelected] = useState(show.watchingOn || show.platform || "");
+  const [custom, setCustom] = useState("");
+  function confirm() { onConfirm(selected === "Other" ? (custom.trim() || "Other") : selected); }
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "#00000088", zIndex: 200,
+      display: "flex", alignItems: "center", justifyContent: "center", animation: "fadeIn 0.15s ease" }}
+      onClick={onCancel}>
+      <div onClick={e => e.stopPropagation()}
+        style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12,
+          padding: 24, width: 340, maxWidth: "90vw", boxShadow: "0 20px 60px #00000080" }}>
+        <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: 18, marginBottom: 6 }}>{title}</h3>
+        <div style={{ color: C.muted, fontSize: 13, fontFamily: "'DM Sans', sans-serif", marginBottom: 18 }}>
+          Where are you watching <span style={{ color: C.text, fontWeight: 600 }}>{show.title}</span>?
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 14 }}>
+          {PLATFORMS.map(p => (
+            <button key={p} onClick={() => setSelected(p)}
+              style={{ background: selected === p ? C.blue : C.card,
+                border: `1px solid ${selected === p ? C.blueBright : C.border}`,
+                color: selected === p ? "#fff" : C.muted, padding: "8px 10px", borderRadius: 7,
+                cursor: "pointer", fontSize: 12, fontFamily: "'DM Sans', sans-serif",
+                fontWeight: selected === p ? 600 : 400, transition: "all 0.15s", textAlign: "left" }}>
+              {p}
+            </button>
+          ))}
+        </div>
+        {selected === "Other" && (
+          <input placeholder="Platform name…" value={custom} autoFocus
+            onChange={e => setCustom(e.target.value)} onKeyDown={e => e.key === "Enter" && confirm()}
+            style={{ width: "100%", background: C.bg, border: `1px solid ${C.border}`, color: C.text,
+              padding: "9px 12px", borderRadius: 7, fontSize: 13, outline: "none", marginBottom: 14 }} />
+        )}
+        <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+          <button onClick={confirm}
+            style={{ flex: 1, background: C.accent, border: "none", color: "#fff", padding: "10px",
+              borderRadius: 7, cursor: "pointer", fontSize: 14, fontFamily: "'DM Sans', sans-serif", fontWeight: 700 }}>
+            ▶ {title}
+          </button>
+          <button onClick={onCancel}
+            style={{ background: "none", border: `1px solid ${C.border}`, color: C.muted,
+              padding: "10px 16px", borderRadius: 7, cursor: "pointer", fontSize: 13 }}>Cancel</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Pause Modal ──────────────────────────────────────────────────────────────
+function PauseModal({ show, onConfirm, onCancel }) {
+  const [note, setNote] = useState("");
+  const next = getNextEpisode(show);
+  const placeholder = next
+    ? `e.g. S${String(next.season).padStart(2,"0")}E${String(next.episode).padStart(2,"0")} — ${next.title}`
+    : "e.g. Season 2, Episode 4…";
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "#00000088", zIndex: 200,
+      display: "flex", alignItems: "center", justifyContent: "center", animation: "fadeIn 0.15s ease" }}
+      onClick={onCancel}>
+      <div onClick={e => e.stopPropagation()}
+        style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12,
+          padding: 24, width: 340, maxWidth: "90vw", boxShadow: "0 20px 60px #00000080" }}>
+        <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: 18, marginBottom: 6 }}>Pause Show</h3>
+        <div style={{ color: C.muted, fontSize: 13, fontFamily: "'DM Sans', sans-serif", marginBottom: 18 }}>
+          Pausing <span style={{ color: C.text, fontWeight: 600 }}>{show.title}</span>. Add a note to remember where you left off.
+        </div>
+        <input placeholder={placeholder} value={note} autoFocus
+          onChange={e => setNote(e.target.value)} onKeyDown={e => e.key === "Enter" && onConfirm({ note: note.trim() })}
+          style={{ width: "100%", background: C.bg, border: `1px solid ${C.border}`, color: C.text,
+            padding: "10px 12px", borderRadius: 7, fontSize: 13, outline: "none", marginBottom: 16 }} />
+        <div style={{ display: "flex", gap: 8 }}>
+          <button onClick={() => onConfirm({ note: note.trim() })}
+            style={{ flex: 1, background: C.purpleDim, border: `1px solid ${C.purple}60`, color: "#c39bd3",
+              padding: "10px", borderRadius: 7, cursor: "pointer", fontSize: 14,
+              fontFamily: "'DM Sans', sans-serif", fontWeight: 700 }}>⏸ Pause</button>
+          <button onClick={onCancel}
+            style={{ background: "none", border: `1px solid ${C.border}`, color: C.muted,
+              padding: "10px 16px", borderRadius: 7, cursor: "pointer", fontSize: 13 }}>Cancel</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Add Show Flow ────────────────────────────────────────────────────────────
+function AddShowFlow({ shows, onAdd, onCancel, defaultStatus = "Watching" }) {
+  const [step, setStep] = useState("name"); // name | platform | disambig
+  const [title, setTitle] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [matches, setMatches] = useState([]);
+  const [pending, setPending] = useState(null);
+
+  async function handleNameSubmit() {
+    if (!title.trim()) return;
+    setLoading(true);
+    try {
+      const raw = await askClaude(
+        `Search for TV shows named exactly or closely matching "${title.trim()}". ` +
+        `If there are multiple distinct shows with this name or very similar names (different countries, eras, networks), return all of them. ` +
+        `Return ONLY a JSON array (no markdown): [{"title":"...","years":"...","genre":"...","network":"...","description":"one sentence"}]. ` +
+        `Include 1 entry if there's only one match, or 2-5 if multiple distinct shows share the name.`
+      );
+      const results = JSON.parse(raw.replace(/```json|```/g, "").trim());
+      // Fetch cover art for each result
+      const withArt = await Promise.all(results.map(async r => ({
+        ...r, coverArt: await fetchCoverArt(r.title, r.years)
+      })));
+      if (withArt.length > 1) {
+        setMatches(withArt);
+        setStep("disambig");
+      } else {
+        setPending(withArt[0]);
+        if (defaultStatus === "Watching") setStep("platform");
+        else finalize(withArt[0], "");
+      }
+    } catch {
+      setPending({ title: title.trim(), years: "", genre: "", description: "", coverArt: "" });
+      if (defaultStatus === "Watching") setStep("platform");
+      else finalize({ title: title.trim() }, "");
+    }
+    setLoading(false);
+  }
+
+  function selectMatch(match) {
+    setPending(match);
+    setMatches([]);
+    if (defaultStatus === "Watching") setStep("platform");
+    else finalize(match, "");
+  }
+
+  function finalize(meta, platform) {
+    const m = meta || pending;
+    onAdd({
+      id: Date.now().toString(),
+      title: m.title || title.trim(),
+      genre: m.genre || "", network: m.network || "",
+      years: m.years || "", description: m.description || "",
+      coverArt: m.coverArt || "",
+      status: defaultStatus, watchingOn: platform || "",
+      totalEpisodes: "", episodesWatched: 0,
+      episodeData: null, watchedEps: {}, pauseNote: "", pauseEpisode: null,
+    });
+  }
+
+  if (step === "disambig") return (
+    <DisambiguateModal matches={matches} onSelect={selectMatch} onCancel={onCancel} />
+  );
+
+  if (step === "platform" && pending) return (
+    <PlatformModal show={pending}
+      onConfirm={p => finalize(pending, p)}
+      onCancel={onCancel} />
+  );
+
+  return (
+    <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 10,
+      padding: 16, marginBottom: 20, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+      <input placeholder="Show title…" value={title} autoFocus
+        onChange={e => setTitle(e.target.value)}
+        onKeyDown={e => e.key === "Enter" && handleNameSubmit()}
+        style={{ flex: 1, minWidth: 180, background: C.surface, border: `1px solid ${C.border}`, color: C.text,
+          padding: "9px 12px", borderRadius: 6, fontSize: 13, outline: "none" }} />
+      <button onClick={handleNameSubmit} disabled={loading || !title.trim()}
+        style={{ background: C.accent, border: "none", color: "#fff", padding: "9px 20px",
+          borderRadius: 6, cursor: "pointer", fontSize: 13, fontFamily: "'DM Sans', sans-serif",
+          fontWeight: 600, opacity: loading ? 0.7 : 1 }}>
+        {loading ? "…" : "Next →"}
+      </button>
+      <button onClick={onCancel}
+        style={{ background: "none", border: `1px solid ${C.border}`, color: C.muted,
+          padding: "9px 14px", borderRadius: 6, cursor: "pointer", fontSize: 13 }}>✕</button>
+      {loading && <Spinner />}
+    </div>
+  );
+}
+
+// ── Cards ────────────────────────────────────────────────────────────────────
+function WatchingCard({ show, upsertShow, removeShow, onViewDetail }) {
+  const [showPause, setShowPause] = useState(false);
+  const [loadingEps, setLoadingEps] = useState(false);
+  const next = getNextEpisode(show);
+
+  function handlePause({ note }) {
+    const pauseEp = next ? { season: next.season, episode: next.episode, title: next.title } : null;
+    upsertShow({ ...show, status: "Paused", pauseNote: note, pauseEpisode: pauseEp });
+    setShowPause(false);
+  }
+
+  function markWatched() {
+    if (!next) return;
+    const key = `${next.season}-${next.episode}`;
+    const watchedEps = { ...show.watchedEps, [key]: true };
+    upsertShow({ ...show, watchedEps, episodesWatched: Object.values(watchedEps).filter(Boolean).length });
+  }
+
+  async function loadEpisodes() {
+    setLoadingEps(true);
+    try {
+      const raw = await askClaude(`For the TV show "${show.title}" (${show.years || ""}), return ONLY a JSON object (no markdown): {"seasons":[{"number":1,"episodes":[{"number":1,"title":"...","runtime":45},...]},...] }`);
+      const data = JSON.parse(raw.replace(/```json|```/g, "").trim());
+      upsertShow({ ...show, episodeData: data.seasons, totalEpisodes: data.seasons.reduce((a,s) => a + s.episodes.length, 0) });
+    } catch {}
+    setLoadingEps(false);
+  }
+
+  return (
+    <>
+      {showPause && <PauseModal show={show} onConfirm={handlePause} onCancel={() => setShowPause(false)} />}
+      <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 12,
+        overflow: "hidden", transition: "border-color 0.2s, transform 0.2s" }}
+        onMouseEnter={e => { e.currentTarget.style.borderColor = `${C.accent}60`; e.currentTarget.style.transform = "translateY(-1px)"; }}
+        onMouseLeave={e => { e.currentTarget.style.borderColor = C.border; e.currentTarget.style.transform = "translateY(0)"; }}>
+
+        {/* Episode banner */}
+        {next && (
+          <div style={{ background: `linear-gradient(135deg, ${C.blue}cc, ${C.accent}30)`,
+            borderBottom: `1px solid ${C.border}`, padding: "10px 18px",
+            display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 2, flex: 1 }}>
+              <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: 1.5, color: "#4a9eff",
+                fontFamily: "'DM Sans', sans-serif", textTransform: "uppercase" }}>Up Next</span>
+              <span style={{ color: C.text, fontSize: 14, fontFamily: "'DM Sans', sans-serif", fontWeight: 600 }}>
+                S{String(next.season).padStart(2,"0")}E{String(next.episode).padStart(2,"0")} — {next.title}
+              </span>
+            </div>
+            <button onClick={markWatched}
+              style={{ background: C.green, border: "none", color: "#fff", padding: "7px 16px",
+                borderRadius: 6, cursor: "pointer", fontSize: 12, fontFamily: "'DM Sans', sans-serif",
+                fontWeight: 700, whiteSpace: "nowrap", flexShrink: 0 }}>
+              ✓ Watched
+            </button>
+          </div>
+        )}
+
+        {/* No episodes loaded yet */}
+        {!show.episodeData && !loadingEps && (
+          <div style={{ background: `${C.blue}30`, borderBottom: `1px solid ${C.border}`,
+            padding: "10px 18px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+            <span style={{ color: C.muted, fontSize: 12, fontFamily: "'DM Sans', sans-serif", fontStyle: "italic" }}>
+              Load episodes to track progress
+            </span>
+            <button onClick={loadEpisodes}
+              style={{ background: C.accent, border: "none", color: "#fff", padding: "5px 14px",
+                borderRadius: 5, cursor: "pointer", fontSize: 11, fontFamily: "'DM Sans', sans-serif",
+                fontWeight: 700, whiteSpace: "nowrap", flexShrink: 0 }}>
+              ⬇ Load Episodes
+            </button>
+          </div>
+        )}
+        {!show.episodeData && loadingEps && (
+          <div style={{ background: `${C.blue}30`, borderBottom: `1px solid ${C.border}`, padding: "10px 18px" }}>
+            <Spinner text="Loading episodes…" />
+          </div>
+        )}
+
+        {/* All caught up */}
+        {!next && show.episodeData && (
+          <div style={{ background: "linear-gradient(135deg, #1a3d2b99, #2ecc7130)",
+            borderBottom: `1px solid ${C.border}`, padding: "10px 18px", display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: 1.5, color: C.green,
+              fontFamily: "'DM Sans', sans-serif", textTransform: "uppercase" }}>✓ All Caught Up</span>
+          </div>
+        )}
+
+        {/* Card body */}
+        <div style={{ padding: "14px 18px", display: "flex", gap: 14, alignItems: "flex-start" }}>
+          <CoverArt show={show} size={64} />
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 5, minWidth: 0 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+              <span style={{ fontFamily: "'Playfair Display', serif", fontSize: 17, fontWeight: 700,
+                cursor: onViewDetail ? "pointer" : "default" }}
+                onClick={() => onViewDetail && onViewDetail(show)}>{show.title}</span>
+              {show.years && <span style={{ color: C.muted, fontSize: 11, fontFamily: "'DM Sans', sans-serif" }}>{show.years}</span>}
+            </div>
+            <div style={{ display: "flex", gap: 14, flexWrap: "wrap", fontSize: 12, color: C.muted, fontFamily: "'DM Sans', sans-serif" }}>
+              {show.watchingOn && <span style={{ color: "#4a9eff" }}>📡 {show.watchingOn}</span>}
+              {show.genre && <span>🎭 {show.genre}</span>}
+              {show.totalEpisodes && <span>🎬 {show.episodesWatched || 0}/{show.totalEpisodes} eps</span>}
+            </div>
+            {show.totalEpisodes && <ProgressBar watched={show.episodesWatched || 0} total={Number(show.totalEpisodes)} />}
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-end", flexShrink: 0 }}>
+            <button onClick={() => setShowPause(true)}
+              style={{ background: C.purpleDim, border: `1px solid ${C.purple}50`, color: "#c39bd3",
+                padding: "6px 14px", borderRadius: 6, cursor: "pointer", fontSize: 12,
+                fontFamily: "'DM Sans', sans-serif", fontWeight: 600 }}>⏸ Pause</button>
+            {removeShow && (
+              <button onClick={() => removeShow(show.id)}
+                style={{ background: "none", border: `1px solid ${C.border}`, color: C.muted,
+                  padding: "4px 8px", borderRadius: 4, cursor: "pointer", fontSize: 10 }}>Remove</button>
+            )}
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
+function PausedCard({ show, upsertShow, removeShow, onViewDetail }) {
+  const [showResume, setShowResume] = useState(false);
+  const pauseInfo = show.pauseEpisode || getPausedAt(show);
+
+  return (
+    <>
+      {showResume && (
+        <PlatformModal show={show} title="Resume Watching"
+          onConfirm={p => { upsertShow({ ...show, status: "Watching", watchingOn: p, pauseEpisode: null, pauseNote: "" }); setShowResume(false); }}
+          onCancel={() => setShowResume(false)} />
+      )}
+      <div style={{ background: C.card, border: `1px solid ${C.purple}30`, borderRadius: 12,
+        overflow: "hidden", transition: "border-color 0.2s, transform 0.2s" }}
+        onMouseEnter={e => { e.currentTarget.style.borderColor = `${C.purple}70`; e.currentTarget.style.transform = "translateY(-1px)"; }}
+        onMouseLeave={e => { e.currentTarget.style.borderColor = `${C.purple}30`; e.currentTarget.style.transform = "translateY(0)"; }}>
+        <div style={{ background: `linear-gradient(135deg, ${C.purpleDim}cc, ${C.purple}20)`,
+          borderBottom: `1px solid ${C.purple}30`, padding: "9px 18px", display: "flex", alignItems: "center", gap: 10 }}>
+          <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: 1.5, color: "#c39bd3",
+            fontFamily: "'DM Sans', sans-serif", textTransform: "uppercase" }}>⏸ Paused At</span>
+          {pauseInfo ? (
+            <span style={{ color: C.text, fontSize: 13, fontFamily: "'DM Sans', sans-serif", fontWeight: 500 }}>
+              S{String(pauseInfo.season).padStart(2,"0")}E{String(pauseInfo.episode).padStart(2,"0")}
+              {pauseInfo.title ? ` — ${pauseInfo.title}` : ""}
+            </span>
+          ) : show.pauseNote ? (
+            <span style={{ color: C.text, fontSize: 13 }}>{show.pauseNote}</span>
+          ) : (
+            <span style={{ color: C.muted, fontSize: 12, fontStyle: "italic" }}>Load episodes in Show Detail to track progress</span>
+          )}
+        </div>
+        <div style={{ padding: "14px 18px", display: "flex", gap: 14, alignItems: "flex-start" }}>
+          <CoverArt show={show} size={64} />
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 5, minWidth: 0 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+              <span style={{ fontFamily: "'Playfair Display', serif", fontSize: 17, fontWeight: 700,
+                cursor: onViewDetail ? "pointer" : "default" }}
+                onClick={() => onViewDetail && onViewDetail(show)}>{show.title}</span>
+              {show.years && <span style={{ color: C.muted, fontSize: 11 }}>{show.years}</span>}
+            </div>
+            <div style={{ display: "flex", gap: 14, flexWrap: "wrap", fontSize: 12, color: C.muted, fontFamily: "'DM Sans', sans-serif" }}>
+              {show.watchingOn && <span style={{ color: "#c39bd3" }}>📡 {show.watchingOn}</span>}
+              {show.genre && <span>🎭 {show.genre}</span>}
+              {show.totalEpisodes && <span>🎬 {show.episodesWatched || 0}/{show.totalEpisodes} eps</span>}
+            </div>
+            {show.pauseNote && show.pauseEpisode && <div style={{ fontSize: 11, color: C.muted, fontStyle: "italic" }}>📝 {show.pauseNote}</div>}
+            {show.totalEpisodes && <ProgressBar watched={show.episodesWatched || 0} total={Number(show.totalEpisodes)} />}
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-end", flexShrink: 0 }}>
+            <button onClick={() => setShowResume(true)}
+              style={{ background: C.blue, border: "none", color: "#fff", padding: "6px 14px",
+                borderRadius: 6, cursor: "pointer", fontSize: 12, fontFamily: "'DM Sans', sans-serif", fontWeight: 600 }}>▶ Resume</button>
+            {removeShow && (
+              <button onClick={() => removeShow(show.id)}
+                style={{ background: "none", border: `1px solid ${C.border}`, color: C.muted,
+                  padding: "4px 8px", borderRadius: 4, cursor: "pointer", fontSize: 10 }}>Remove</button>
+            )}
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
+// ── Tabs ─────────────────────────────────────────────────────────────────────
+function CurrentlyWatching({ shows, upsertShow, removeShow, setTab, setDetailShow }) {
+  const [adding, setAdding] = useState(false);
+  const watching = shows.filter(s => s.status === "Watching");
+  function viewDetail(show) { setDetailShow(show.id); setTab("detail"); }
+  return (
+    <div style={{ animation: "fadeIn 0.3s ease" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 24, flexWrap: "wrap", gap: 10 }}>
+        <div>
+          <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: 28, marginBottom: 4 }}>Currently Watching</h2>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ width: 8, height: 8, borderRadius: "50%", background: C.accent, animation: "pulse 1.5s ease-in-out infinite" }} />
+            <span style={{ color: C.muted, fontSize: 13, fontFamily: "'DM Sans', sans-serif" }}>
+              {watching.length} active {watching.length === 1 ? "show" : "shows"}
+            </span>
+          </div>
+        </div>
+        <button onClick={() => setAdding(true)}
+          style={{ background: C.accent, border: "none", color: "#fff", padding: "8px 18px",
+            borderRadius: 6, cursor: "pointer", fontSize: 13, fontFamily: "'DM Sans', sans-serif", fontWeight: 600 }}>
+          + Add Show
+        </button>
+      </div>
+      {adding && <AddShowFlow shows={shows} defaultStatus="Watching" onAdd={s => { upsertShow(s); setAdding(false); }} onCancel={() => setAdding(false)} />}
+      {watching.length === 0 && !adding ? (
+        <div style={{ textAlign: "center", padding: "80px 0", color: C.muted }}>
+          <div style={{ fontSize: 56, marginBottom: 16 }}>📺</div>
+          <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 20, color: C.text, marginBottom: 8 }}>Nothing playing right now</div>
+          <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 14, marginBottom: 24 }}>Start a show from your watchlist</div>
+          <button onClick={() => setTab("watchlist")}
+            style={{ background: C.accent, border: "none", color: "#fff", padding: "10px 24px",
+              borderRadius: 7, cursor: "pointer", fontSize: 14, fontFamily: "'DM Sans', sans-serif", fontWeight: 600 }}>
+            Browse Watchlist
+          </button>
+        </div>
+      ) : (
+        <div style={{ display: "grid", gap: 14 }}>
+          {watching.map(show => <WatchingCard key={show.id} show={show} upsertShow={upsertShow} removeShow={removeShow} onViewDetail={viewDetail} />)}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PausedShows({ shows, upsertShow, removeShow, setTab, setDetailShow }) {
+  const paused = shows.filter(s => s.status === "Paused");
+  function viewDetail(show) { setDetailShow(show.id); setTab("detail"); }
+  return (
+    <div style={{ animation: "fadeIn 0.3s ease" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 24, flexWrap: "wrap", gap: 10 }}>
+        <div>
+          <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: 28, marginBottom: 4 }}>Paused Shows</h2>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <span style={{ fontSize: 14 }}>⏸</span>
+            <span style={{ color: C.muted, fontSize: 13, fontFamily: "'DM Sans', sans-serif" }}>
+              {paused.length} {paused.length === 1 ? "show" : "shows"} on hold
+            </span>
+          </div>
+        </div>
+        {paused.length > 1 && (
+          <button onClick={() => paused.forEach(s => upsertShow({ ...s, status: "Watching", pauseEpisode: null, pauseNote: "" }))}
+            style={{ background: C.blue, border: "none", color: "#fff", padding: "8px 18px",
+              borderRadius: 7, cursor: "pointer", fontSize: 13, fontFamily: "'DM Sans', sans-serif", fontWeight: 600 }}>
+            ▶ Resume All
+          </button>
+        )}
+      </div>
+      {paused.length === 0 ? (
+        <div style={{ textAlign: "center", padding: "80px 0", color: C.muted }}>
+          <div style={{ fontSize: 56, marginBottom: 16 }}>⏸</div>
+          <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 20, color: C.text, marginBottom: 8 }}>No paused shows</div>
+          <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 14 }}>Hit ⏸ Pause on any watching show to move it here</div>
+        </div>
+      ) : (
+        <div style={{ display: "grid", gap: 14 }}>
+          {paused.map(show => <PausedCard key={show.id} show={show} upsertShow={upsertShow} removeShow={removeShow} onViewDetail={viewDetail} />)}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CompactShowCard({ show, upsertShow, removeShow, onViewDetail }) {
+  const [platformModal, setPlatformModal] = useState(false);
+  const [pauseModal, setPauseModal] = useState(false);
+  const sm = STATUS_META[show.status] || STATUS_META.Watching;
+
+  function changeStatus(newStatus) {
+    if (newStatus === "Watching") setPlatformModal(true);
+    else upsertShow({ ...show, status: newStatus });
+  }
+
+  return (
+    <>
+      {platformModal && (
+        <PlatformModal show={show}
+          onConfirm={p => { upsertShow({ ...show, status: "Watching", watchingOn: p }); setPlatformModal(false); }}
+          onCancel={() => setPlatformModal(false)} />
+      )}
+      {pauseModal && (
+        <PauseModal show={show}
+          onConfirm={({ note }) => { upsertShow({ ...show, status: "Paused", pauseNote: note, pauseEpisode: getNextEpisode(show) }); setPauseModal(false); }}
+          onCancel={() => setPauseModal(false)} />
+      )}
+      <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 10,
+        padding: "12px 16px", display: "flex", gap: 12, alignItems: "center",
+        transition: "border-color 0.2s, transform 0.2s" }}
+        onMouseEnter={e => { e.currentTarget.style.borderColor = `${C.accent}60`; e.currentTarget.style.transform = "translateY(-1px)"; }}
+        onMouseLeave={e => { e.currentTarget.style.borderColor = C.border; e.currentTarget.style.transform = "translateY(0)"; }}>
+        <CoverArt show={show} size={48} />
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 4, minWidth: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+            <span style={{ fontFamily: "'Playfair Display', serif", fontSize: 15, fontWeight: 700,
+              cursor: onViewDetail ? "pointer" : "default" }}
+              onClick={() => onViewDetail && onViewDetail(show)}>{show.title}</span>
+            <Badge label={`${sm.icon} ${show.status}`} color={sm.color} bright={sm.bright} small />
+            {show.years && <span style={{ color: C.muted, fontSize: 11, fontFamily: "'DM Sans', sans-serif" }}>{show.years}</span>}
+          </div>
+          <div style={{ display: "flex", gap: 12, fontSize: 12, color: C.muted, fontFamily: "'DM Sans', sans-serif", flexWrap: "wrap" }}>
+            {show.watchingOn && <span style={{ color: "#4a9eff" }}>📡 {show.watchingOn}</span>}
+            {show.genre && <span>🎭 {show.genre}</span>}
+            {show.totalEpisodes && <span>🎬 {show.episodesWatched || 0}/{show.totalEpisodes}</span>}
+          </div>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 5, alignItems: "flex-end", flexShrink: 0 }}>
+          {show.status === "Watching" && (
+            <button onClick={() => setPauseModal(true)}
+              style={{ background: C.purpleDim, border: `1px solid ${C.purple}50`, color: "#c39bd3",
+                padding: "4px 10px", borderRadius: 5, cursor: "pointer", fontSize: 11,
+                fontFamily: "'DM Sans', sans-serif", fontWeight: 600 }}>⏸</button>
+          )}
+          <select value={show.status} onChange={e => changeStatus(e.target.value)}
+            style={{ background: C.surface, border: `1px solid ${C.border}`, color: C.text,
+              padding: "4px 8px", borderRadius: 5, fontSize: 11, cursor: "pointer" }}>
+            {Object.keys(STATUS_META).map(s => <option key={s}>{s}</option>)}
+          </select>
+          {removeShow && (
+            <button onClick={() => removeShow(show.id)}
+              style={{ background: "none", border: `1px solid ${C.border}`, color: C.muted,
+                padding: "3px 8px", borderRadius: 4, cursor: "pointer", fontSize: 10 }}>Remove</button>
+          )}
+        </div>
+      </div>
+    </>
+  );
+}
+
+function AllShows({ shows, upsertShow, removeShow, setTab, setDetailShow }) {
+  const [adding, setAdding] = useState(false);
+  const [filter, setFilter] = useState("All");
+  const statuses = ["All", ...Object.keys(STATUS_META)];
+  const filtered = filter === "All" ? shows : shows.filter(s => s.status === filter);
+  function viewDetail(show) { setDetailShow(show.id); setTab("detail"); }
+
+  return (
+    <div style={{ animation: "fadeIn 0.3s ease" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 10 }}>
+        <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: 26 }}>
+          All Shows <span style={{ color: C.muted, fontSize: 16, fontWeight: 400 }}>({shows.length})</span>
+        </h2>
+        <button onClick={() => setAdding(!adding)}
+          style={{ background: adding ? C.surface : C.accent, border: adding ? `1px solid ${C.border}` : "none",
+            color: adding ? C.muted : "#fff", padding: "8px 18px",
+            borderRadius: 6, cursor: "pointer", fontSize: 13, fontFamily: "'DM Sans', sans-serif", fontWeight: 600 }}>
+          {adding ? "✕ Cancel" : "+ Add Show"}
+        </button>
+      </div>
+      {adding && <AddShowFlow shows={shows} defaultStatus="Watching" onAdd={s => { upsertShow(s); setAdding(false); }} onCancel={() => setAdding(false)} />}
+      <div style={{ display: "flex", gap: 6, marginBottom: 16, flexWrap: "wrap" }}>
+        {statuses.map(s => {
+          const count = s === "All" ? shows.length : shows.filter(sh => sh.status === s).length;
+          const sm = STATUS_META[s];
+          return (
+            <button key={s} onClick={() => setFilter(s)}
+              style={{ background: filter === s ? (sm ? sm.color : C.accent) : C.card,
+                border: `1px solid ${filter === s ? (sm ? sm.bright : C.accent) : C.border}`,
+                color: filter === s ? (sm ? sm.bright : "#fff") : C.muted,
+                padding: "5px 13px", borderRadius: 20, cursor: "pointer",
+                fontSize: 12, fontFamily: "'DM Sans', sans-serif",
+                fontWeight: filter === s ? 700 : 400, transition: "all 0.2s" }}>
+              {sm ? `${sm.icon} ` : ""}{s} ({count})
+            </button>
+          );
+        })}
+      </div>
+      {filtered.length === 0 && (
+        <div style={{ textAlign: "center", padding: "60px 0", color: C.muted }}>
+          <div style={{ fontSize: 40, marginBottom: 10 }}>📭</div>
+          <div style={{ fontFamily: "'DM Sans', sans-serif" }}>No shows here yet</div>
+        </div>
+      )}
+      <div style={{ display: "grid", gap: 10 }}>
+        {filtered.map(show => <CompactShowCard key={show.id} show={show} upsertShow={upsertShow} removeShow={removeShow} onViewDetail={viewDetail} />)}
+      </div>
+    </div>
+  );
+}
+
+function ShowDetail({ shows, upsertShow, initialShowId }) {
+  const [selectedId, setSelectedId] = useState(initialShowId || "");
+  const [query, setQuery] = useState("");
+  const [loadingEps, setLoadingEps] = useState(false);
+  const [activeSeason, setActiveSeason] = useState(1);
+  const [searchResults, setSearchResults] = useState([]);
+  const [searching, setSearching] = useState(false);
+
+  useEffect(() => { if (initialShowId) { setSelectedId(initialShowId); setSearchResults([]); } }, [initialShowId]);
+
+  const selected = shows.find(s => s.id === selectedId);
+
+  async function fetchEpisodes(show) {
+    setLoadingEps(true);
+    try {
+      const raw = await askClaude(`For the TV show "${show.title}" (${show.years || ""}), return ONLY a JSON object (no markdown): {"seasons":[{"number":1,"episodes":[{"number":1,"title":"...","runtime":45},...]},...] }`);
+      const data = JSON.parse(raw.replace(/```json|```/g, "").trim());
+      upsertShow({ ...show, episodeData: data.seasons, totalEpisodes: data.seasons.reduce((a,s) => a + s.episodes.length, 0) });
+      setActiveSeason(1);
+    } catch {}
+    setLoadingEps(false);
+  }
+
+  async function handleSearch() {
+    if (!query.trim()) return;
+    setSearching(true);
+    try {
+      const raw = await askClaude(`List 5 TV shows matching "${query}". Return ONLY a JSON array (no markdown): [{"title":"...","years":"...","genre":"...","network":"...","description":"one sentence"}]`);
+      const results = JSON.parse(raw.replace(/```json|```/g, "").trim());
+      const withArt = await Promise.all(results.map(async r => ({
+        ...r, coverArt: await fetchCoverArt(r.title, r.years)
+      })));
+      setSearchResults(withArt);
+    } catch { setSearchResults([]); }
+    setSearching(false);
+  }
+
+  async function addAndView(result) {
+    const existing = shows.find(s => s.title.toLowerCase() === result.title.toLowerCase() && s.years === result.years);
+    if (existing) { setSelectedId(existing.id); setSearchResults([]); return; }
+    const coverArt = result.coverArt || await fetchCoverArt(result.title, result.years);
+    const show = {
+      id: Date.now().toString(), title: result.title, genre: result.genre || "",
+      network: result.network || "", years: result.years || "", description: result.description || "",
+      coverArt, status: "Watchlist", totalEpisodes: "",
+      episodesWatched: 0, episodeData: null, watchedEps: {}, pauseNote: "", pauseEpisode: null, watchingOn: "",
+    };
+    upsertShow(show);
+    setSelectedId(show.id);
+    setSearchResults([]);
+    fetchEpisodes(show);
+  }
+
+  function toggleWatched(show, sn, en) {
+    const key = `${sn}-${en}`;
+    const watchedEps = { ...show.watchedEps, [key]: !show.watchedEps?.[key] };
+    upsertShow({ ...show, watchedEps, episodesWatched: Object.values(watchedEps).filter(Boolean).length });
+  }
+
+  const seasonData = selected?.episodeData?.find(s => s.number === activeSeason);
+
+  return (
+    <div style={{ animation: "fadeIn 0.3s ease" }}>
+      <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: 26, marginBottom: 18 }}>Show Detail</h2>
+      <div style={{ display: "flex", gap: 10, marginBottom: 18, flexWrap: "wrap" }}>
+        <select value={selectedId} onChange={e => { setSelectedId(e.target.value); setSearchResults([]); }}
+          style={{ background: C.card, border: `1px solid ${C.border}`, color: C.text,
+            padding: "9px 14px", borderRadius: 7, fontSize: 14, cursor: "pointer", minWidth: 220 }}>
+          <option value="">— Pick a show —</option>
+          {shows.map(s => <option key={s.id} value={s.id}>{s.title}{s.years ? ` (${s.years})` : ""}</option>)}
+        </select>
+        <span style={{ color: C.muted, alignSelf: "center", fontSize: 12, fontFamily: "'DM Sans', sans-serif" }}>or search</span>
+        <div style={{ display: "flex", gap: 8, flex: 1, maxWidth: 360 }}>
+          <input placeholder="Search any show…" value={query}
+            onChange={e => setQuery(e.target.value)} onKeyDown={e => e.key === "Enter" && handleSearch()}
+            style={{ flex: 1, background: C.card, border: `1px solid ${C.border}`, color: C.text,
+              padding: "9px 14px", borderRadius: 7, fontSize: 13, outline: "none" }} />
+          <button onClick={handleSearch} disabled={searching}
+            style={{ background: C.accent, border: "none", color: "#fff", padding: "9px 16px",
+              borderRadius: 7, cursor: "pointer", fontSize: 13, fontFamily: "'DM Sans', sans-serif",
+              fontWeight: 600, opacity: searching ? 0.7 : 1 }}>
+            {searching ? "…" : "Search"}
+          </button>
+        </div>
+      </div>
+      {searchResults.length > 0 && (
+        <div style={{ marginBottom: 18, display: "grid", gap: 8 }}>
+          {searchResults.map((r, i) => (
+            <div key={i} onClick={() => addAndView(r)}
+              style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 8,
+                padding: "12px 16px", cursor: "pointer", display: "flex", gap: 12, alignItems: "center",
+                transition: "border-color 0.2s" }}
+              onMouseEnter={e => e.currentTarget.style.borderColor = `${C.accent}60`}
+              onMouseLeave={e => e.currentTarget.style.borderColor = C.border}>
+              {r.coverArt && <img src={r.coverArt} alt={r.title} style={{ width: 36, height: 54, objectFit: "cover", borderRadius: 4 }} onError={e => e.target.style.display="none"} />}
+              <div style={{ flex: 1 }}>
+                <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 15, marginBottom: 2 }}>{r.title}</div>
+                <div style={{ fontSize: 12, color: C.muted, fontFamily: "'DM Sans', sans-serif" }}>
+                  {[r.network, r.genre, r.years].filter(Boolean).join(" · ")}
+                </div>
+              </div>
+              <span style={{ color: C.accent, fontSize: 18 }}>→</span>
+            </div>
+          ))}
+        </div>
+      )}
+      {selected && (
+        <div style={{ animation: "fadeIn 0.3s ease" }}>
+          <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 10,
+            padding: "18px 22px", marginBottom: 16, display: "flex", gap: 16, alignItems: "flex-start" }}>
+            <CoverArt show={selected} size={80} />
+            <div style={{ flex: 1 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 12 }}>
+                <div>
+                  <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: 22, marginBottom: 6 }}>{selected.title}</h3>
+                  <div style={{ display: "flex", gap: 14, flexWrap: "wrap", fontSize: 12, color: C.muted, fontFamily: "'DM Sans', sans-serif" }}>
+                    {selected.watchingOn && <span style={{ color: "#4a9eff" }}>📡 {selected.watchingOn}</span>}
+                    {selected.genre && <span>🎭 {selected.genre}</span>}
+                    {selected.years && <span>📅 {selected.years}</span>}
+                    {selected.totalEpisodes && <span style={{ color: C.accent }}>{selected.episodesWatched || 0} / {selected.totalEpisodes} watched</span>}
+                  </div>
+                  {selected.description && <div style={{ fontSize: 12, color: C.muted, fontStyle: "italic", marginTop: 6, maxWidth: 500 }}>{selected.description}</div>}
+                </div>
+                {!selected.episodeData && !loadingEps && (
+                  <button onClick={() => fetchEpisodes(selected)}
+                    style={{ background: C.accent, border: "none", color: "#fff", padding: "9px 18px",
+                      borderRadius: 7, cursor: "pointer", fontSize: 13, fontFamily: "'DM Sans', sans-serif", fontWeight: 600 }}>
+                    Load Episodes
+                  </button>
+                )}
+                {loadingEps && <Spinner />}
+              </div>
+            </div>
+          </div>
+          {selected.episodeData && (
+            <>
+              <div style={{ display: "flex", gap: 6, marginBottom: 14, flexWrap: "wrap" }}>
+                {selected.episodeData.map(s => {
+                  const wc = s.episodes.filter((_,i) => selected.watchedEps?.[`${s.number}-${i+1}`]).length;
+                  return (
+                    <button key={s.number} onClick={() => setActiveSeason(s.number)}
+                      style={{ background: activeSeason === s.number ? C.accent : C.card,
+                        border: `1px solid ${activeSeason === s.number ? C.accent : C.border}`,
+                        color: activeSeason === s.number ? "#fff" : C.muted,
+                        padding: "6px 14px", borderRadius: 20, cursor: "pointer", fontSize: 12,
+                        fontFamily: "'DM Sans', sans-serif", fontWeight: 600, transition: "all 0.2s",
+                        display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
+                      <span>S{String(s.number).padStart(2,"0")}</span>
+                      <span style={{ fontSize: 10, opacity: 0.7 }}>{Math.round(wc / s.episodes.length * 100)}%</span>
+                    </button>
+                  );
+                })}
+              </div>
+              {seasonData && (
+                <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 10, overflow: "hidden" }}>
+                  <div style={{ padding: "12px 18px", borderBottom: `1px solid ${C.border}`,
+                    display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={{ fontFamily: "'Playfair Display', serif", fontSize: 16 }}>Season {seasonData.number}</span>
+                    <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                      <span style={{ fontSize: 12, color: C.muted, fontFamily: "'DM Sans', sans-serif" }}>
+                        {seasonData.episodes.filter((_,i) => selected.watchedEps?.[`${seasonData.number}-${i+1}`]).length}/{seasonData.episodes.length}
+                      </span>
+                      <button onClick={() => {
+                        const nw = { ...selected.watchedEps };
+                        const allW = seasonData.episodes.every((_,i) => selected.watchedEps?.[`${seasonData.number}-${i+1}`]);
+                        seasonData.episodes.forEach((_,i) => { nw[`${seasonData.number}-${i+1}`] = !allW; });
+                        upsertShow({ ...selected, watchedEps: nw, episodesWatched: Object.values(nw).filter(Boolean).length });
+                      }}
+                        style={{ background: C.surface, border: `1px solid ${C.border}`, color: C.muted,
+                          padding: "4px 10px", borderRadius: 5, cursor: "pointer", fontSize: 11,
+                          fontFamily: "'DM Sans', sans-serif" }}>Toggle All</button>
+                    </div>
+                  </div>
+                  {seasonData.episodes.map((ep, i) => {
+                    const epNum = i + 1;
+                    const key = `${seasonData.number}-${epNum}`;
+                    const watched = !!selected.watchedEps?.[key];
+                    return (
+                      <div key={epNum}
+                        style={{ display: "grid", gridTemplateColumns: "36px 50px 1fr auto",
+                          alignItems: "center", gap: 12, padding: "10px 18px",
+                          borderBottom: `1px solid ${C.border}15`,
+                          background: watched ? "#1a2e1a18" : "transparent", transition: "background 0.15s" }}
+                        onMouseEnter={e => e.currentTarget.style.background = watched ? "#1a2e1a30" : `${C.border}20`}
+                        onMouseLeave={e => e.currentTarget.style.background = watched ? "#1a2e1a18" : "transparent"}>
+                        <button onClick={() => toggleWatched(selected, seasonData.number, epNum)}
+                          style={{ width: 28, height: 28, borderRadius: "50%",
+                            border: `2px solid ${watched ? C.green : C.border}`,
+                            background: watched ? `${C.green}25` : "transparent",
+                            color: watched ? C.green : C.muted, cursor: "pointer", fontSize: 13,
+                            display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s" }}>
+                          {watched ? "✓" : "○"}
+                        </button>
+                        <span style={{ fontSize: 11, color: C.muted, fontFamily: "'DM Sans', sans-serif", fontWeight: 600 }}>
+                          E{String(epNum).padStart(2,"0")}
+                        </span>
+                        <div>
+                          <div style={{ fontSize: 13, fontFamily: "'DM Sans', sans-serif",
+                            color: watched ? C.muted : C.text, fontWeight: 500 }}>{ep.title}</div>
+                          {ep.runtime && <div style={{ fontSize: 11, color: C.muted }}>{ep.runtime} min</div>}
+                        </div>
+                        <span style={{ fontSize: 11, color: C.muted, minWidth: 30, textAlign: "right" }} />
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+      {!selected && searchResults.length === 0 && (
+        <div style={{ textAlign: "center", padding: "60px 0", color: C.muted }}>
+          <div style={{ fontSize: 48, marginBottom: 12 }}>🔍</div>
+          <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 15 }}>Select a show or search for any title</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Watchlist({ shows, upsertShow, removeShow }) {
+  const [adding, setAdding] = useState(false);
+  const watchlist = shows.filter(s => s.status === "Watchlist");
+
+  return (
+    <div style={{ animation: "fadeIn 0.3s ease" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+        <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: 26 }}>
+          Watchlist <span style={{ color: C.muted, fontSize: 16 }}>({watchlist.length})</span>
+        </h2>
+        <button onClick={() => setAdding(!adding)}
+          style={{ background: adding ? C.surface : C.accent, border: adding ? `1px solid ${C.border}` : "none",
+            color: adding ? C.muted : "#fff", padding: "8px 18px",
+            borderRadius: 6, cursor: "pointer", fontSize: 13, fontFamily: "'DM Sans', sans-serif", fontWeight: 600 }}>
+          {adding ? "✕ Cancel" : "+ Add"}
+        </button>
+      </div>
+      {adding && <AddShowFlow shows={shows} defaultStatus="Watchlist" onAdd={s => { upsertShow(s); setAdding(false); }} onCancel={() => setAdding(false)} />}
+      {watchlist.length === 0 && !adding && (
+        <div style={{ textAlign: "center", padding: "60px 0", color: C.muted }}>
+          <div style={{ fontSize: 48, marginBottom: 12 }}>🔖</div>
+          <div style={{ fontFamily: "'DM Sans', sans-serif" }}>Your watchlist is empty</div>
+        </div>
+      )}
+      <div style={{ display: "grid", gap: 10 }}>
+        {watchlist.map(show => {
+          const [startModal, setStartModal] = useState(false);
+          return (
+            <div key={show.id}>
+              {startModal && (
+                <PlatformModal show={show}
+                  onConfirm={p => { upsertShow({ ...show, status: "Watching", watchingOn: p }); setStartModal(false); }}
+                  onCancel={() => setStartModal(false)} />
+              )}
+              <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 10,
+                padding: "14px 18px", display: "flex", gap: 14, alignItems: "center",
+                transition: "border-color 0.2s" }}
+                onMouseEnter={e => e.currentTarget.style.borderColor = `${C.accent}60`}
+                onMouseLeave={e => e.currentTarget.style.borderColor = C.border}>
+                <CoverArt show={show} size={56} />
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 4, flexWrap: "wrap" }}>
+                    <span style={{ fontFamily: "'Playfair Display', serif", fontSize: 16, fontWeight: 700 }}>{show.title}</span>
+                    {show.years && <span style={{ color: C.muted, fontSize: 11, fontFamily: "'DM Sans', sans-serif" }}>{show.years}</span>}
+                  </div>
+                  <div style={{ fontSize: 12, color: C.muted, fontFamily: "'DM Sans', sans-serif", display: "flex", gap: 12, flexWrap: "wrap" }}>
+                    {show.network && <span>📡 {show.network}</span>}
+                    {show.genre && <span>🎭 {show.genre}</span>}
+                  </div>
+                  {show.description && <div style={{ fontSize: 11, color: C.muted, fontStyle: "italic", marginTop: 4, maxWidth: 500 }}>{show.description}</div>}
+                </div>
+                <div style={{ display: "flex", gap: 6, alignItems: "center", flexShrink: 0 }}>
+                  <button onClick={() => setStartModal(true)}
+                    style={{ background: C.blue, border: "none", color: "#fff", padding: "6px 12px",
+                      borderRadius: 5, cursor: "pointer", fontSize: 12, fontFamily: "'DM Sans', sans-serif", fontWeight: 600 }}>
+                    ▶ Start
+                  </button>
+                  <button onClick={() => removeShow(show.id)}
+                    style={{ background: "none", border: `1px solid ${C.border}`, color: C.muted,
+                      padding: "6px 10px", borderRadius: 5, cursor: "pointer", fontSize: 11 }}>✕</button>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function Stats({ shows }) {
+  const totalEps = shows.reduce((a,s) => a + (s.episodesWatched || 0), 0);
+  const topWatched = shows
+    .filter(s => (s.episodesWatched || 0) > 0)
+    .sort((a, b) => (b.episodesWatched || 0) - (a.episodesWatched || 0))
+    .slice(0, 5);
+
+  return (
+    <div style={{ animation: "fadeIn 0.3s ease" }}>
+      <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: 26, marginBottom: 20 }}>Stats</h2>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12, marginBottom: 24 }}>
+        {[
+          { label: "Total Shows", value: shows.length, icon: "📺" },
+          { label: "Watching", value: shows.filter(s => s.status === "Watching").length, icon: "▶" },
+          { label: "Paused", value: shows.filter(s => s.status === "Paused").length, icon: "⏸" },
+          { label: "Completed", value: shows.filter(s => s.status === "Watched").length, icon: "✅" },
+          { label: "Eps Watched", value: totalEps, icon: "🎬" },
+        ].map(stat => (
+          <div key={stat.label} style={{ background: C.card, border: `1px solid ${C.border}`,
+            borderRadius: 10, padding: 16, textAlign: "center" }}>
+            <div style={{ fontSize: 22, marginBottom: 4 }}>{stat.icon}</div>
+            <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 24, color: C.accent, marginBottom: 4 }}>{stat.value}</div>
+            <div style={{ fontSize: 11, color: C.muted, fontFamily: "'DM Sans', sans-serif" }}>{stat.label}</div>
+          </div>
+        ))}
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+        <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 10, padding: 18 }}>
+          <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: 16, marginBottom: 14 }}>By Status</h3>
+          {Object.entries(STATUS_META).map(([status, sm]) => {
+            const count = shows.filter(s => s.status === status).length;
+            const pct = shows.length ? Math.round((count / shows.length) * 100) : 0;
+            return (
+              <div key={status} style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 0", borderBottom: `1px solid ${C.border}20` }}>
+                <Badge label={`${sm.icon} ${status}`} color={sm.color} bright={sm.bright} small />
+                <div style={{ flex: 1, height: 3, background: C.border, borderRadius: 2 }}>
+                  <div style={{ width: `${pct}%`, height: "100%", background: sm.bright, borderRadius: 2, transition: "width 0.5s" }} />
+                </div>
+                <span style={{ fontFamily: "'Playfair Display', serif", fontSize: 15, color: C.text, minWidth: 20, textAlign: "right" }}>{count}</span>
+              </div>
+            );
+          })}
+        </div>
+        <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 10, padding: 18 }}>
+          <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: 16, marginBottom: 14 }}>🏆 Most Watched</h3>
+          {topWatched.length === 0 ? (
+            <div style={{ color: C.muted, fontSize: 13, fontFamily: "'DM Sans', sans-serif", textAlign: "center", paddingTop: 20 }}>
+              Mark episodes as watched to see rankings
+            </div>
+          ) : topWatched.map((s, i) => (
+            <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: `1px solid ${C.border}20` }}>
+              <span style={{ fontSize: i === 0 ? 18 : 13, width: 22, textAlign: "center" }}>{i === 0 ? "🏆" : i + 1}</span>
+              {s.coverArt && <img src={s.coverArt} alt={s.title} style={{ width: 24, height: 36, objectFit: "cover", borderRadius: 3 }} onError={e => e.target.style.display="none"} />}
+              <div style={{ flex: 1, fontFamily: "'DM Sans', sans-serif", fontSize: 13, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.title}</div>
+              <span style={{ color: C.accent, fontFamily: "'DM Sans', sans-serif", fontSize: 13, fontWeight: 700, whiteSpace: "nowrap" }}>{s.episodesWatched} eps</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function App() {
+  const [tab, setTab] = useState("watching");
+  const [shows, setShows] = useState([]);
+  const [loaded, setLoaded] = useState(false);
+  const [detailShowId, setDetailShowId] = useState("");
+
+  useEffect(() => {
+    storageGet("showly-shows").then(d => { if (d) setShows(d); setLoaded(true); });
+  }, []);
+  useEffect(() => { if (loaded) storageSet("showly-shows", shows); }, [shows, loaded]);
+
+  const upsertShow = useCallback((show) => {
+    setShows(prev => {
+      const idx = prev.findIndex(s => s.id === show.id);
+      if (idx >= 0) { const n = [...prev]; n[idx] = show; return n; }
+      return [...prev, show];
+    });
+  }, []);
+  const removeShow = useCallback((id) => setShows(prev => prev.filter(s => s.id !== id)), []);
+
+  const watchingCount = shows.filter(s => s.status === "Watching").length;
+  const pausedCount = shows.filter(s => s.status === "Paused").length;
+
+  return (
+    <div style={{ minHeight: "100vh", background: C.bg, color: C.text }}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@300;400;500;600&display=swap');
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        ::-webkit-scrollbar { width: 6px; } ::-webkit-scrollbar-track { background: ${C.bg}; }
+        ::-webkit-scrollbar-thumb { background: ${C.border}; border-radius: 3px; }
+        input, select, textarea { font-family: 'DM Sans', sans-serif; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+        @keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:.4;} }
+      `}</style>
+      <div style={{ background: C.surface, borderBottom: `1px solid ${C.border}`,
+        position: "sticky", top: 0, zIndex: 100 }}>
+        <div style={{ maxWidth: 1100, margin: "0 auto", padding: "0 20px",
+          display: "flex", alignItems: "center", overflowX: "auto" }}>
+          <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: 20, color: C.accent,
+            letterSpacing: 1, padding: "14px 20px 14px 0", flexShrink: 0,
+            borderRight: `1px solid ${C.border}`, marginRight: 4 }}>SHOWLY</h1>
+          {TABS.map(t => {
+            const badge = t.id === "watching" ? watchingCount : t.id === "paused" ? pausedCount : 0;
+            return (
+              <button key={t.id} onClick={() => setTab(t.id)}
+                style={{ background: "none", border: "none", cursor: "pointer",
+                  color: tab === t.id ? C.text : C.muted,
+                  borderBottom: tab === t.id ? `2px solid ${C.accent}` : "2px solid transparent",
+                  padding: "14px 13px", fontSize: 12.5, fontFamily: "'DM Sans', sans-serif",
+                  fontWeight: tab === t.id ? 600 : 400, transition: "all 0.2s",
+                  whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 5, flexShrink: 0 }}>
+                {t.label}
+                {badge > 0 && (
+                  <span style={{ background: t.id === "paused" ? C.purpleDim : C.accent,
+                    color: t.id === "paused" ? "#c39bd3" : "#fff",
+                    borderRadius: 10, fontSize: 10, fontWeight: 700,
+                    padding: "1px 6px", minWidth: 18, textAlign: "center" }}>
+                    {badge}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "28px 20px 60px" }}>
+        {tab === "watching"  && <CurrentlyWatching shows={shows} upsertShow={upsertShow} removeShow={removeShow} setTab={setTab} setDetailShow={id => setDetailShowId(id)} />}
+        {tab === "paused"    && <PausedShows shows={shows} upsertShow={upsertShow} removeShow={removeShow} setTab={setTab} setDetailShow={id => setDetailShowId(id)} />}
+        {tab === "shows"     && <AllShows shows={shows} upsertShow={upsertShow} removeShow={removeShow} setTab={setTab} setDetailShow={id => setDetailShowId(id)} />}
+        {tab === "detail"    && <ShowDetail shows={shows} upsertShow={upsertShow} initialShowId={detailShowId} />}
+        {tab === "watchlist" && <Watchlist shows={shows} upsertShow={upsertShow} removeShow={removeShow} />}
+        {tab === "stats"     && <Stats shows={shows} />}
+      </div>
+    </div>
+  );
+}
