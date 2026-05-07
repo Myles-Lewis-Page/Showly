@@ -592,7 +592,8 @@ async function setShowStatus(id, title, poster, status) {
   const {data} = await api('/show-status', {method:'POST', body:{tmdb_id:id, title, poster_path:poster, status}});
   if (data) showStatuses.set(id, status);
   renderStatusButtons(id, title, poster);
-  toast(status === 'paused' ? '⏸ Marked as paused' : "🚫 Marked as won't continue");
+  const toastMsgs = {watching:'▶ Marked as watching', paused:'⏸ Marked as paused', dropped:"🚫 Marked as won't continue"};
+  toast(toastMsgs[status] || 'Status updated');
 }
 
 async function clearShowStatus(id, title, poster) {
@@ -646,24 +647,58 @@ async function renderSeasons(showId, showTitle, showPoster, seasons, activeSeaso
 async function toggleEpisode(showId, showTitle, showPoster, season, episode, name) {
   const key = `${showId}_${season}_${episode}`;
   const row = document.getElementById(`ep-${showId}-${season}-${episode}`);
+  if (!row) return;
+
+  // Prevent double-clicks while request is in flight
+  if (row.dataset.loading) return;
+  row.dataset.loading = '1';
+
   if (watchedEpisodes.has(key)) {
     await api(`/watched/episodes/${showId}/${season}/${episode}`, {method:'DELETE'});
     watchedEpisodes.delete(key);
     row.classList.remove('watched');
     row.querySelector('.ep-check').textContent = '';
   } else {
-    const {data} = await api('/watched/episodes', {method:'POST', body:{show_tmdb_id:showId, show_title:showTitle, show_poster:showPoster, season_number:season, episode_number:episode, episode_name:name}});
+    const {data} = await api('/watched/episodes', {method:'POST', body:{
+      show_tmdb_id:showId, show_title:showTitle, show_poster:showPoster,
+      season_number:season, episode_number:episode, episode_name:name
+    }});
     if (data) watchedEpisodes.set(key, data);
     row.classList.add('watched');
     row.querySelector('.ep-check').textContent = '✓';
   }
+
+  // Update the watched count in the header without re-rendering
+  const allEpRows = document.querySelectorAll('.episode-row');
+  const watchedCount = [...allEpRows].filter(r => r.classList.contains('watched')).length;
+  const countEl = document.querySelector('.detail-section-title span');
+  if (countEl) countEl.textContent = `${watchedCount}/${allEpRows.length} watched`;
+
+  delete row.dataset.loading;
 }
 
 async function markSeasonWatched(showId, showTitle, showPoster, season, episodes) {
-  await api('/watched/episodes/season', {method:'POST', body:{show_tmdb_id:showId, show_title:showTitle, show_poster:showPoster, season_number:season, episodes}});
-  episodes.forEach(ep => watchedEpisodes.set(`${showId}_${season}_${ep.episode_number}`, true));
-  // Re-render
-  if (currentDetail) renderSeasons(showId, showTitle, showPoster, currentDetail.data.seasons.filter(s=>s.season_number>0), season);
+  await api('/watched/episodes/season', {method:'POST', body:{
+    show_tmdb_id:showId, show_title:showTitle, show_poster:showPoster,
+    season_number:season, episodes
+  }});
+  episodes.forEach(ep => {
+    const key = `${showId}_${season}_${ep.episode_number}`;
+    watchedEpisodes.set(key, true);
+    const row = document.getElementById(`ep-${showId}-${season}-${ep.episode_number}`);
+    if (row) {
+      row.classList.add('watched');
+      row.querySelector('.ep-check').textContent = '✓';
+    }
+  });
+  // Update count
+  const allEpRows = document.querySelectorAll('.episode-row');
+  const watchedCount = [...allEpRows].filter(r => r.classList.contains('watched')).length;
+  const countEl = document.querySelector('.detail-section-title span');
+  if (countEl) countEl.textContent = `${watchedCount}/${allEpRows.length} watched`;
+  // Update the mark all button
+  const markBtn = document.querySelector('.btn-season');
+  if (markBtn) markBtn.textContent = '✓ All Watched';
   toast(`Season ${season} marked watched ✓`);
 }
 
@@ -702,16 +737,18 @@ async function clearShowStatusFromList(id, status, btn) {
 // ── WATCHLIST ─────────────────────────────────────────────────────────────
 async function toggleWatchlist(id, type, title, poster) {
   const key = `${id}_${type}`;
+  const btn = document.getElementById('wl-btn-'+id);
   if (watchlistIds.has(key)) {
     await api(`/watchlist/${id}/${type}`, {method:'DELETE'});
     watchlistIds.delete(key);
+    if (btn) { btn.textContent = '+ Watchlist'; btn.classList.remove('active'); }
     toast('Removed from watchlist');
   } else {
     const {data} = await api('/watchlist', {method:'POST', body:{tmdb_id:id, media_type:type, title, poster_path:poster}});
     if (data && !data.exists) watchlistIds.set(key, data);
+    if (btn) { btn.textContent = '🔖 In Watchlist'; btn.classList.add('active'); }
     toast('Added to watchlist 🔖');
   }
-  renderDetailActions(id, type, title, poster);
 }
 
 async function loadWatchlist() {
@@ -743,14 +780,16 @@ async function removeFromWatchlist(id, type, btn) {
 async function markMovieWatched(id, title, poster) {
   const {data} = await api('/watched/movies', {method:'POST', body:{tmdb_id:id, title, poster_path:poster}});
   if (data) watchedMovieIds.set(id, data);
-  renderDetailActions(id, 'movie', title, poster);
+  const btn = document.querySelector(`[onclick*="markMovieWatched(${id}"]`);
+  if (btn) { btn.className = 'btn-action btn-unwatched'; btn.textContent = '✓ Watched — Remove'; btn.setAttribute('onclick', `unmarkMovie(${id})`); }
   toast('Marked as watched ✓');
 }
 
 async function unmarkMovie(id) {
   await api(`/watched/movies/${id}`, {method:'DELETE'});
   watchedMovieIds.delete(id);
-  if (currentDetail) renderDetailActions(id, 'movie', currentDetail.data.title, currentDetail.data.poster_path);
+  const btn = document.querySelector(`[onclick*="unmarkMovie(${id}"]`);
+  if (btn) { btn.className = 'btn-action btn-watched'; btn.textContent = '✓ Mark as Watched'; btn.setAttribute('onclick', `markMovieWatched(${id},'${currentDetail?.data?.title||''}','${currentDetail?.data?.poster_path||''}')`); }
   toast('Removed from watched');
 }
 
