@@ -225,6 +225,7 @@ nav{position:fixed;top:0;left:0;right:0;height:60px;background:rgba(13,13,13,.95
       <button class="nav-tab active" onclick="showTab('discover')" id="tab-discover">Discover</button>
       <button class="nav-tab" onclick="showTab('watchlist')" id="tab-watchlist">Watchlist</button>
       <button class="nav-tab" onclick="showTab('history')" id="tab-history">History</button>
+      <button class="nav-tab" onclick="showTab('watching')" id="tab-watching">Watching</button>
       <button class="nav-tab" onclick="showTab('paused')" id="tab-paused">Paused</button>
       <button class="nav-tab" onclick="showTab('dropped')" id="tab-dropped">Won't Continue</button>
       <button class="nav-tab" onclick="showTab('profile')" id="tab-profile">Profile</button>
@@ -271,6 +272,12 @@ nav{position:fixed;top:0;left:0;right:0;height:60px;background:rgba(13,13,13,.95
         <button class="nav-tab" id="hist-tv-btn" onclick="switchHistory('tv')">TV Shows</button>
       </div>
       <div id="history-content"></div>
+    </div>
+
+    <!-- WATCHING -->
+    <div id="page-watching" class="hidden section">
+      <div class="section-header"><div class="section-title">▶ Currently Watching</div></div>
+      <div id="watching-content"></div>
     </div>
 
     <!-- PAUSED -->
@@ -383,12 +390,13 @@ async function loadUserData() {
 
 // ── TABS ──────────────────────────────────────────────────────────────────
 function showTab(tab) {
-  ['discover','watchlist','history','paused','dropped','profile'].forEach(t => {
+  ['discover','watchlist','history','watching','paused','dropped','profile'].forEach(t => {
     document.getElementById('page-'+t).classList.toggle('hidden', t!==tab);
     document.getElementById('tab-'+t)?.classList.toggle('active', t===tab);
   });
   if (tab==='watchlist') loadWatchlist();
   if (tab==='history') loadHistory();
+  if (tab==='watching') loadShowStatusPage('watching');
   if (tab==='paused') loadShowStatusPage('paused');
   if (tab==='dropped') loadShowStatusPage('dropped');
   if (tab==='profile') loadProfile();
@@ -400,11 +408,23 @@ async function loadDiscover() {
     api('/tmdb/trending'), api('/tmdb/popular/movie'), api('/tmdb/popular/tv'),
     api('/tmdb/top-rated/movie'), api('/tmdb/top-rated/tv'),
   ]);
-  renderRow('trending-row', trending.data?.results || []);
-  renderRow('popular-movies-row', popMovies.data?.results || [], 'movie');
-  renderRow('popular-tv-row', popTv.data?.results || [], 'tv');
-  renderRow('toprated-movies-row', topMovies.data?.results || [], 'movie');
-  renderRow('toprated-tv-row', topTv.data?.results || [], 'tv');
+
+  const trendingItems = trending.data?.results || [];
+  const popMovieItems = popMovies.data?.results || [];
+  const popTvItems = popTv.data?.results || [];
+  const topMovieItems = topMovies.data?.results || [];
+  const topTvItems = topTv.data?.results || [];
+
+  if (!trendingItems.length && !popMovieItems.length) {
+    document.getElementById('trending-row').innerHTML = '<p style="color:var(--text2);padding:20px 0;font-size:14px">⚠️ Could not load content. Check that TMDB_TOKEN is set in Railway environment variables.</p>';
+    return;
+  }
+
+  renderRow('trending-row', trendingItems);
+  renderRow('popular-movies-row', popMovieItems, 'movie');
+  renderRow('popular-tv-row', popTvItems, 'tv');
+  renderRow('toprated-movies-row', topMovieItems, 'movie');
+  renderRow('toprated-tv-row', topTvItems, 'tv');
 }
 
 function renderRow(containerId, items, forceType) {
@@ -549,10 +569,14 @@ function renderDetailActions(id, type, title, poster_path) {
 
 function renderStatusButtons(showId, title, poster) {
   const current = showStatuses.get(showId);
+  const watchingActive = current === 'watching';
   const pausedActive = current === 'paused';
   const droppedActive = current === 'dropped';
   document.getElementById('detail-rating-row').innerHTML = `
     <span style="font-size:13px;color:var(--text2);margin-right:4px">Status:</span>
+    <button class="btn-action" style="padding:7px 14px;font-size:12px;background:${watchingActive?'#1a4a2a':'var(--surface2)'};border:1px solid ${watchingActive?'#6bff9e':'var(--border)'};color:${watchingActive?'#6bff9e':'var(--text2)'}" onclick="setShowStatus(${showId},'${esc(title)}','${poster||''}','watching')">
+      ▶ ${watchingActive ? 'Watching' : 'Watching'}
+    </button>
     <button class="btn-action" style="padding:7px 14px;font-size:12px;background:${pausedActive?'#2a4a6a':'var(--surface2)'};border:1px solid ${pausedActive?'#6bb5ff':'var(--border)'};color:${pausedActive?'#6bb5ff':'var(--text2)'}" onclick="setShowStatus(${showId},'${esc(title)}','${poster||''}','paused')">
       ⏸ ${pausedActive ? 'Paused' : 'Pause'}
     </button>
@@ -647,13 +671,14 @@ async function markSeasonWatched(showId, showTitle, showPoster, season, episodes
 async function loadShowStatusPage(status) {
   const {data} = await api('/show-status');
   const filtered = (data||[]).filter(s => s.status === status);
-  const containerId = status === 'paused' ? 'paused-content' : 'dropped-content';
+  const containerId = status === 'watching' ? 'watching-content' : status === 'paused' ? 'paused-content' : 'dropped-content';
   const container = document.getElementById(containerId);
   if (!container) return;
-  const icon = status === 'paused' ? '⏸' : '🚫';
-  const emptyMsg = status === 'paused' ? 'No paused shows' : "No shows marked here";
+  const icons = {watching:'▶', paused:'⏸', dropped:'🚫'};
+  const labels = {watching:'Currently Watching', paused:'Paused', dropped:"Won't Continue"};
+  const emptyMsgs = {watching:'No shows marked as watching', paused:'No paused shows', dropped:'No shows marked here'};
   if (!filtered.length) {
-    container.innerHTML = `<div class="empty-state"><div class="empty-icon">${icon}</div><div class="empty-title">${emptyMsg}</div></div>`;
+    container.innerHTML = `<div class="empty-state"><div class="empty-icon">${icons[status]}</div><div class="empty-title">${emptyMsgs[status]}</div></div>`;
     return;
   }
   container.innerHTML = filtered.map(item => `
@@ -661,7 +686,7 @@ async function loadShowStatusPage(status) {
       <img class="wl-poster" src="${item.poster_path ? IMG+'/w185'+item.poster_path : ''}" alt="" onerror="this.style.background='var(--surface3)'"/>
       <div class="wl-info">
         <div class="wl-title">${esc(item.title)}</div>
-        <div class="wl-meta">📺 TV Show · Updated ${new Date(item.updated_at).toLocaleDateString()}</div>
+        <div class="wl-meta">📺 TV Show · ${labels[status]} · ${new Date(item.updated_at).toLocaleDateString()}</div>
       </div>
       <button class="wl-remove" onclick="event.stopPropagation();clearShowStatusFromList(${item.tmdb_id},'${status}',this)">Remove</button>
     </div>`).join('');
@@ -792,6 +817,7 @@ async function loadProfile() {
       <div class="stat-card"><div class="stat-num">${data.episodes.shows}</div><div class="stat-label">Shows Started</div></div>
       <div class="stat-card"><div class="stat-num">${data.movies.avg_rating ? data.movies.avg_rating.toFixed(1) : '—'}</div><div class="stat-label">Avg Movie Rating</div></div>
       <div class="stat-card"><div class="stat-num">${data.watchlist}</div><div class="stat-label">In Watchlist</div></div>
+      <div class="stat-card"><div class="stat-num">${(data.showStatuses||[]).filter(s=>s.status==='watching').length}</div><div class="stat-label">Watching Now</div></div>
       <div class="stat-card"><div class="stat-num">${(data.showStatuses||[]).filter(s=>s.status==='paused').length}</div><div class="stat-label">Shows Paused</div></div>
     </div>
 

@@ -59,7 +59,7 @@ async function initDB() {
       tmdb_id INTEGER NOT NULL UNIQUE,
       title TEXT NOT NULL,
       poster_path TEXT,
-      status TEXT NOT NULL CHECK (status IN ('paused','dropped')),
+      status TEXT NOT NULL CHECK (status IN ('watching','paused','dropped')),
       updated_at TIMESTAMPTZ DEFAULT NOW()
     );
   `);
@@ -97,6 +97,7 @@ async function tmdb(endpoint, params = {}) {
 
 // Discovery
 app.get('/api/tmdb/trending', async (req, res) => {
+  if (!TMDB_TOKEN) return res.status(500).json({ error: 'TMDB_TOKEN not set in environment variables' });
   try {
     const { type = 'all', time = 'week' } = req.query;
     const data = await tmdb(`/trending/${type}/${time}`);
