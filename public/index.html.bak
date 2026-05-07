@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>My Showly</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0d0d0d;--surface:#1a1a1a;--surface2:#242424;--surface3:#2e2e2e;
+  --border:#333;--accent:#e50914;--accent2:#ff6b6b;
+  --text:#fff;--text2:#aaa;--text3:#666;
+  --radius:12px;--radius-sm:8px;
+  --img-base:https://image.tmdb.org/t/p;
+}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+a{text-decoration:none;color:inherit}
+button{cursor:pointer;font-family:'Inter',sans-serif}
+img{display:block}
+.hidden{display:none!important}
+
+/* SCROLLBAR */
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+
+/* LOGIN */
+#login-screen{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:1000}
+.login-box{width:340px;text-align:center}
+.login-logo{font-size:32px;font-weight:700;color:var(--accent);margin-bottom:8px;letter-spacing:-1px}
+.login-sub{color:var(--text2);font-size:14px;margin-bottom:32px}
+.login-field{margin-bottom:12px;text-align:left}
+.login-field label{display:block;font-size:12px;color:var(--text2);margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em}
+.login-field input{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 16px;color:var(--text);font-size:14px;outline:none;font-family:'Inter',sans-serif}
+.login-field input:focus{border-color:var(--accent)}
+.btn-login{width:100%;background:var(--accent);color:#fff;border:none;border-radius:var(--radius-sm);padding:13px;font-size:15px;font-weight:600;margin-top:8px}
+.btn-login:hover{background:#c4070f}
+.login-err{color:var(--accent2);font-size:13px;margin-top:8px;min-height:20px}
+
+/* APP SHELL */
+#app{display:none;min-height:100vh}
+nav{position:fixed;top:0;left:0;right:0;height:60px;background:rgba(13,13,13,.95);backdrop-filter:blur(10px);border-bottom:1px solid var(--border);z-index:100;display:flex;align-items:center;padding:0 24px;gap:24px}
+.nav-logo{font-size:20px;font-weight:700;color:var(--accent);letter-spacing:-0.5px;cursor:pointer;flex-shrink:0}
+.nav-search{flex:1;max-width:400px;position:relative}
+.nav-search input{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:99px;padding:8px 16px 8px 36px;color:var(--text);font-size:14px;outline:none;font-family:'Inter',sans-serif}
+.nav-search input:focus{border-color:var(--accent)}
+.nav-search-icon{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--text3);font-size:14px}
+.nav-tabs{display:flex;gap:4px;margin-left:auto}
+.nav-tab{background:none;border:none;color:var(--text2);padding:7px 14px;border-radius:99px;font-size:13px;font-weight:500;transition:all .15s}
+.nav-tab:hover{color:var(--text);background:var(--surface2)}
+.nav-tab.active{color:var(--text);background:var(--surface2)}
+.nav-logout{background:none;border:1px solid var(--border);color:var(--text2);padding:6px 14px;border-radius:99px;font-size:12px}
+.nav-logout:hover{color:var(--text);border-color:var(--text2)}
+
+.page-content{padding-top:60px;min-height:100vh}
+
+/* SEARCH RESULTS */
+#search-results{position:absolute;top:calc(100% + 8px);left:0;right:0;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;z-index:200;max-height:480px;overflow-y:auto}
+.search-item{display:flex;align-items:center;gap:12px;padding:10px 14px;cursor:pointer;transition:background .1s}
+.search-item:hover{background:var(--surface2)}
+.search-item-poster{width:36px;height:54px;border-radius:4px;object-fit:cover;background:var(--surface3);flex-shrink:0}
+.search-item-info{flex:1;min-width:0}
+.search-item-title{font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.search-item-meta{font-size:12px;color:var(--text2);margin-top:2px}
+.search-item-type{font-size:11px;padding:2px 7px;border-radius:99px;font-weight:500}
+.type-movie{background:#1a3a5c;color:#6bb5ff}
+.type-tv{background:#1a3d2e;color:#6bff9e}
+
+/* SECTIONS */
+.section{padding:32px 24px}
+.section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+.section-title{font-size:20px;font-weight:600}
+.section-sub{font-size:13px;color:var(--text2);margin-top:4px}
+.see-all{font-size:13px;color:var(--accent);background:none;border:none;font-family:'Inter',sans-serif}
+.see-all:hover{text-decoration:underline}
+
+/* CARDS ROW */
+.cards-row{display:flex;gap:12px;overflow-x:auto;padding-bottom:8px;scroll-snap-type:x mandatory}
+.cards-row::-webkit-scrollbar{height:0}
+.card{flex-shrink:0;width:140px;cursor:pointer;scroll-snap-align:start}
+.card-poster{width:140px;height:210px;border-radius:var(--radius-sm);object-fit:cover;background:var(--surface2);transition:transform .2s;display:block}
+.card:hover .card-poster{transform:scale(1.03)}
+.card-title{font-size:13px;font-weight:500;margin-top:8px;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.card-meta{font-size:12px;color:var(--text2);margin-top:3px}
+.card-rating{display:inline-flex;align-items:center;gap:3px;font-size:12px;color:#ffd700}
+
+/* GRID */
+.cards-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:16px}
+
+/* DETAIL PAGE */
+#detail-page{display:none;position:fixed;inset:0;background:var(--bg);z-index:50;overflow-y:auto}
+.detail-backdrop{width:100%;height:300px;object-fit:cover;object-position:top;mask-image:linear-gradient(to bottom,rgba(0,0,0,.7) 0%,transparent 100%)}
+.detail-backdrop-wrap{position:relative;height:300px;overflow:hidden}
+.detail-backdrop-img{width:100%;height:100%;object-fit:cover;object-position:top;opacity:.4}
+.detail-back{position:absolute;top:16px;left:16px;background:rgba(0,0,0,.6);border:1px solid var(--border);color:var(--text);padding:8px 16px;border-radius:99px;font-size:13px;font-family:'Inter',sans-serif;z-index:10}
+.detail-body{padding:0 24px 48px;margin-top:-60px;position:relative}
+.detail-top{display:flex;gap:20px;align-items:flex-start}
+.detail-poster{width:120px;height:180px;border-radius:var(--radius-sm);object-fit:cover;flex-shrink:0;border:2px solid var(--border)}
+.detail-info{flex:1;padding-top:24px}
+.detail-title{font-size:26px;font-weight:700;line-height:1.2}
+.detail-tagline{font-size:14px;color:var(--text2);margin-top:6px;font-style:italic}
+.detail-meta-row{display:flex;flex-wrap:wrap;gap:12px;margin-top:12px;font-size:13px;color:var(--text2)}
+.detail-meta-item{display:flex;align-items:center;gap:4px}
+.detail-genres{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+.genre-tag{background:var(--surface2);border:1px solid var(--border);padding:4px 10px;border-radius:99px;font-size:12px}
+.detail-actions{display:flex;gap:10px;margin-top:20px;flex-wrap:wrap}
+.btn-action{display:flex;align-items:center;gap:7px;padding:10px 18px;border-radius:99px;font-size:13px;font-weight:500;border:none;transition:all .15s;font-family:'Inter',sans-serif}
+.btn-watched{background:var(--accent);color:#fff}
+.btn-watched:hover{background:#c4070f}
+.btn-watchlist{background:var(--surface2);color:var(--text);border:1px solid var(--border)}
+.btn-watchlist:hover{border-color:var(--text2)}
+.btn-watchlist.active{background:#1a3a5c;border-color:#6bb5ff;color:#6bb5ff}
+.btn-unwatched{background:var(--surface3);color:var(--text2);border:1px solid var(--border)}
+.detail-overview{font-size:14px;line-height:1.7;color:var(--text2);margin-top:24px}
+.detail-section{margin-top:32px}
+.detail-section-title{font-size:16px;font-weight:600;margin-bottom:16px;border-bottom:1px solid var(--border);padding-bottom:10px}
+
+/* SEASONS */
+.season-tabs{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;margin-bottom:16px}
+.season-tab{flex-shrink:0;background:var(--surface2);border:1px solid var(--border);color:var(--text2);padding:6px 14px;border-radius:99px;font-size:13px;font-family:'Inter',sans-serif}
+.season-tab.active{background:var(--accent);border-color:var(--accent);color:#fff}
+.episodes-list{display:flex;flex-direction:column;gap:8px}
+.episode-row{display:flex;align-items:center;gap:12px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;cursor:pointer;transition:border-color .15s}
+.episode-row:hover{border-color:var(--border)}
+.episode-row.watched{border-color:var(--accent);background:rgba(229,9,20,.05)}
+.ep-num{font-size:12px;color:var(--text3);width:28px;flex-shrink:0;text-align:center}
+.ep-still{width:80px;height:45px;border-radius:4px;object-fit:cover;background:var(--surface3);flex-shrink:0}
+.ep-info{flex:1;min-width:0}
+.ep-name{font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ep-date{font-size:12px;color:var(--text2);margin-top:2px}
+.ep-check{width:24px;height:24px;border-radius:50%;border:2px solid var(--border);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:12px;transition:all .15s}
+.episode-row.watched .ep-check{background:var(--accent);border-color:var(--accent);color:#fff}
+.season-actions{display:flex;gap:8px;margin-bottom:12px}
+.btn-season{background:var(--surface2);border:1px solid var(--border);color:var(--text2);padding:7px 14px;border-radius:99px;font-size:12px;font-family:'Inter',sans-serif}
+.btn-season:hover{border-color:var(--text2);color:var(--text)}
+
+/* RATING */
+.rating-row{display:flex;align-items:center;gap:6px;margin-top:16px}
+.rating-label{font-size:13px;color:var(--text2)}
+.star-btn{background:none;border:none;font-size:22px;color:var(--text3);padding:2px;transition:color .1s;line-height:1}
+.star-btn.active,.star-btn:hover{color:#ffd700}
+
+/* CAST */
+.cast-row{display:flex;gap:12px;overflow-x:auto;padding-bottom:4px}
+.cast-card{flex-shrink:0;width:80px;text-align:center}
+.cast-img{width:80px;height:80px;border-radius:50%;object-fit:cover;background:var(--surface2)}
+.cast-name{font-size:11px;margin-top:6px;line-height:1.3}
+.cast-char{font-size:11px;color:var(--text2);margin-top:2px}
+
+/* PROFILE */
+.stat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:32px}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;text-align:center}
+.stat-num{font-size:32px;font-weight:700;color:var(--accent)}
+.stat-label{font-size:13px;color:var(--text2);margin-top:4px}
+
+/* WATCHLIST */
+.watchlist-item{display:flex;align-items:center;gap:12px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;margin-bottom:8px;cursor:pointer;transition:border-color .15s}
+.watchlist-item:hover{border-color:var(--text3)}
+.wl-poster{width:48px;height:72px;border-radius:4px;object-fit:cover;background:var(--surface3);flex-shrink:0}
+.wl-info{flex:1}
+.wl-title{font-size:15px;font-weight:500}
+.wl-meta{font-size:12px;color:var(--text2);margin-top:3px}
+.wl-remove{background:none;border:1px solid var(--border);color:var(--text2);padding:6px 12px;border-radius:99px;font-size:12px;font-family:'Inter',sans-serif}
+.wl-remove:hover{border-color:#ff6b6b;color:#ff6b6b}
+
+/* PROGRESS */
+.progress-bar-wrap{background:var(--surface3);border-radius:99px;height:4px;margin-top:6px;overflow:hidden}
+.progress-bar{height:100%;background:var(--accent);border-radius:99px;transition:width .3s}
+
+/* MODAL */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:200;display:flex;align-items:center;justify-content:center}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:28px;width:320px;text-align:center}
+.modal h3{font-size:18px;margin-bottom:8px}
+.modal p{font-size:14px;color:var(--text2);margin-bottom:20px}
+.modal-btns{display:flex;gap:10px}
+.modal-btn{flex:1;padding:10px;border-radius:var(--radius-sm);font-size:14px;font-weight:500;border:none;font-family:'Inter',sans-serif}
+.modal-confirm{background:var(--accent);color:#fff}
+.modal-cancel{background:var(--surface2);color:var(--text);border:1px solid var(--border)}
+
+/* LOADING */
+.spinner{width:40px;height:40px;border:3px solid var(--surface2);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;margin:60px auto}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* EMPTY STATE */
+.empty-state{text-align:center;padding:60px 20px;color:var(--text2)}
+.empty-icon{font-size:48px;margin-bottom:16px}
+.empty-title{font-size:18px;font-weight:600;color:var(--text);margin-bottom:8px}
+.empty-sub{font-size:14px}
+
+/* TOAST */
+.toast{position:fixed;bottom:24px;right:24px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 20px;font-size:14px;z-index:500;animation:slideIn .2s ease;box-shadow:0 4px 20px rgba(0,0,0,.4)}
+@keyframes slideIn{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}
+
+@media(max-width:600px){
+  .stat-grid{grid-template-columns:repeat(2,1fr)}
+  .detail-top{flex-direction:column}
+  .detail-poster{width:100px;height:150px}
+  .nav-tabs{display:none}
+}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-logo">Showly</div>
+    <div class="login-sub">Your personal TV & movie tracker</div>
+    <div class="login-field"><label>Username</label><input type="text" id="login-user" autocomplete="username"/></div>
+    <div class="login-field"><label>Password</label><input type="password" id="login-pass" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()"/></div>
+    <div class="login-err" id="login-err"></div>
+    <button class="btn-login" onclick="doLogin()">Sign in</button>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <nav>
+    <div class="nav-logo" onclick="showTab('discover')">Showly</div>
+    <div class="nav-search">
+      <span class="nav-search-icon">⌕</span>
+      <input type="text" id="search-input" placeholder="Search movies & shows..." autocomplete="off" oninput="onSearch(this.value)" onblur="setTimeout(()=>hideSearch(),200)"/>
+      <div id="search-results" class="hidden"></div>
+    </div>
+    <div class="nav-tabs">
+      <button class="nav-tab active" onclick="showTab('discover')" id="tab-discover">Discover</button>
+      <button class="nav-tab" onclick="showTab('watchlist')" id="tab-watchlist">Watchlist</button>
+      <button class="nav-tab" onclick="showTab('history')" id="tab-history">History</button>
+      <button class="nav-tab" onclick="showTab('profile')" id="tab-profile">Profile</button>
+    </div>
+    <button class="nav-logout" onclick="doLogout()">Sign out</button>
+  </nav>
+
+  <div class="page-content">
+    <!-- DISCOVER -->
+    <div id="page-discover">
+      <div class="section">
+        <div class="section-header"><div><div class="section-title">🔥 Trending</div><div class="section-sub">This week</div></div></div>
+        <div class="cards-row" id="trending-row"></div>
+      </div>
+      <div class="section">
+        <div class="section-header"><div class="section-title">🎬 Popular Movies</div></div>
+        <div class="cards-row" id="popular-movies-row"></div>
+      </div>
+      <div class="section">
+        <div class="section-header"><div class="section-title">📺 Popular TV Shows</div></div>
+        <div class="cards-row" id="popular-tv-row"></div>
+      </div>
+      <div class="section">
+        <div class="section-header"><div class="section-title">⭐ Top Rated Movies</div></div>
+        <div class="cards-row" id="toprated-movies-row"></div>
+      </div>
+      <div class="section">
+        <div class="section-header"><div class="section-title">⭐ Top Rated TV</div></div>
+        <div class="cards-row" id="toprated-tv-row"></div>
+      </div>
+    </div>
+
+    <!-- WATCHLIST -->
+    <div id="page-watchlist" class="hidden section">
+      <div class="section-header"><div class="section-title">Watchlist</div></div>
+      <div id="watchlist-content"></div>
+    </div>
+
+    <!-- HISTORY -->
+    <div id="page-history" class="hidden section">
+      <div class="section-header"><div class="section-title">Watch History</div></div>
+      <div style="margin-bottom:16px;display:flex;gap:8px">
+        <button class="nav-tab active" id="hist-movies-btn" onclick="switchHistory('movies')">Movies</button>
+        <button class="nav-tab" id="hist-tv-btn" onclick="switchHistory('tv')">TV Shows</button>
+      </div>
+      <div id="history-content"></div>
+    </div>
+
+    <!-- PROFILE -->
+    <div id="page-profile" class="hidden section">
+      <div class="section-header"><div class="section-title">Profile</div></div>
+      <div id="profile-content"></div>
+    </div>
+  </div>
+</div>
+
+<!-- DETAIL PAGE -->
+<div id="detail-page">
+  <div class="detail-backdrop-wrap">
+    <img id="detail-backdrop" class="detail-backdrop-img" src="" alt=""/>
+    <button class="detail-back" onclick="closeDetail()">← Back</button>
+  </div>
+  <div class="detail-body">
+    <div class="detail-top">
+      <img id="detail-poster" class="detail-poster" src="" alt=""/>
+      <div class="detail-info">
+        <div id="detail-title" class="detail-title"></div>
+        <div id="detail-tagline" class="detail-tagline"></div>
+        <div id="detail-meta" class="detail-meta-row"></div>
+        <div id="detail-genres" class="detail-genres"></div>
+        <div id="detail-actions" class="detail-actions"></div>
+        <div id="detail-rating-row" class="rating-row"></div>
+      </div>
+    </div>
+    <div id="detail-overview" class="detail-overview"></div>
+    <div id="detail-seasons" class="detail-section"></div>
+    <div id="detail-cast" class="detail-section"></div>
+    <div id="detail-similar" class="detail-section"></div>
+  </div>
+</div>
+
+<script>
+const IMG = 'https://image.tmdb.org/t/p';
+let currentDetail = null;
+let watchedMovieIds = new Set();
+let watchlistIds = new Map(); // key: `${id}_${type}`
+let watchedEpisodes = new Map(); // key: `${showId}_${s}_${e}`
+let currentHistoryTab = 'movies';
+let searchTimeout = null;
+
+// ── API ────────────────────────────────────────────────────────────────────
+async function api(path, opts={}) {
+  const res = await fetch('/api' + path, {
+    headers: {'Content-Type':'application/json'},
+    ...opts,
+    body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined
+  });
+  const data = await res.json().catch(()=>({}));
+  return {data: res.ok ? data : null, error: res.ok ? null : data};
+}
+
+// ── AUTH ──────────────────────────────────────────────────────────────────
+async function doLogin() {
+  const username = document.getElementById('login-user').value.trim();
+  const password = document.getElementById('login-pass').value;
+  const {error} = await api('/auth/login', {method:'POST', body:{username, password}});
+  if (error) { document.getElementById('login-err').textContent = 'Invalid username or password'; return; }
+  startApp();
+}
+
+async function doLogout() {
+  await api('/auth/logout', {method:'POST'});
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('app').style.display = 'none';
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────
+async function init() {
+  const {data} = await api('/auth/me');
+  if (data?.isLoggedIn) startApp();
+}
+
+async function startApp() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  await loadUserData();
+  loadDiscover();
+}
+
+async function loadUserData() {
+  const [{data:wl}, {data:wm}, {data:we}] = await Promise.all([
+    api('/watchlist'), api('/watched/movies'), api('/watched/episodes')
+  ]);
+  watchlistIds.clear();
+  (wl||[]).forEach(i => watchlistIds.set(`${i.tmdb_id}_${i.media_type}`, i));
+  watchedMovieIds.clear();
+  (wm||[]).forEach(m => watchedMovieIds.set(m.tmdb_id, m));
+  watchedEpisodes.clear();
+  (we||[]).forEach(e => watchedEpisodes.set(`${e.show_tmdb_id}_${e.season_number}_${e.episode_number}`, e));
+}
+
+// ── TABS ──────────────────────────────────────────────────────────────────
+function showTab(tab) {
+  ['discover','watchlist','history','profile'].forEach(t => {
+    document.getElementById('page-'+t).classList.toggle('hidden', t!==tab);
+    document.getElementById('tab-'+t)?.classList.toggle('active', t===tab);
+  });
+  if (tab==='watchlist') loadWatchlist();
+  if (tab==='history') loadHistory();
+  if (tab==='profile') loadProfile();
+}
+
+// ── DISCOVER ──────────────────────────────────────────────────────────────
+async function loadDiscover() {
+  const [trending, popMovies, popTv, topMovies, topTv] = await Promise.all([
+    api('/tmdb/trending'), api('/tmdb/popular/movie'), api('/tmdb/popular/tv'),
+    api('/tmdb/top-rated/movie'), api('/tmdb/top-rated/tv'),
+  ]);
+  renderRow('trending-row', trending.data?.results || []);
+  renderRow('popular-movies-row', popMovies.data?.results || [], 'movie');
+  renderRow('popular-tv-row', popTv.data?.results || [], 'tv');
+  renderRow('toprated-movies-row', topMovies.data?.results || [], 'movie');
+  renderRow('toprated-tv-row', topTv.data?.results || [], 'tv');
+}
+
+function renderRow(containerId, items, forceType) {
+  const container = document.getElementById(containerId);
+  container.innerHTML = items.slice(0, 20).map(item => cardHTML(item, forceType)).join('');
+}
+
+function cardHTML(item, forceType) {
+  const type = forceType || item.media_type || 'movie';
+  const title = item.title || item.name || '';
+  const year = (item.release_date || item.first_air_date || '').slice(0,4);
+  const poster = item.poster_path ? `${IMG}/w300${item.poster_path}` : '';
+  const rating = item.vote_average ? item.vote_average.toFixed(1) : '';
+  return `<div class="card" onclick="openDetail(${item.id},'${type}')">
+    ${poster ? `<img class="card-poster" src="${poster}" alt="${esc(title)}" loading="lazy"/>` : `<div class="card-poster" style="display:flex;align-items:center;justify-content:center;font-size:40px">${type==='movie'?'🎬':'📺'}</div>`}
+    <div class="card-title">${esc(title)}</div>
+    <div class="card-meta">${year}${rating ? ` · ⭐ ${rating}` : ''}</div>
+  </div>`;
+}
+
+// ── SEARCH ────────────────────────────────────────────────────────────────
+function onSearch(q) {
+  clearTimeout(searchTimeout);
+  if (!q.trim()) { hideSearch(); return; }
+  searchTimeout = setTimeout(() => doSearch(q), 300);
+}
+
+async function doSearch(q) {
+  const {data} = await api('/tmdb/search?q='+encodeURIComponent(q));
+  const results = (data?.results||[]).filter(r => r.media_type !== 'person').slice(0, 8);
+  const container = document.getElementById('search-results');
+  if (!results.length) { container.classList.add('hidden'); return; }
+  container.innerHTML = results.map(r => {
+    const type = r.media_type || 'movie';
+    const title = r.title || r.name || '';
+    const year = (r.release_date || r.first_air_date || '').slice(0,4);
+    const poster = r.poster_path ? `${IMG}/w92${r.poster_path}` : '';
+    return `<div class="search-item" onmousedown="openDetail(${r.id},'${type}');hideSearch()">
+      ${poster ? `<img class="search-item-poster" src="${poster}" alt=""/>` : `<div class="search-item-poster" style="display:flex;align-items:center;justify-content:center">${type==='movie'?'🎬':'📺'}</div>`}
+      <div class="search-item-info">
+        <div class="search-item-title">${esc(title)}</div>
+        <div class="search-item-meta">${year}</div>
+      </div>
+      <span class="search-item-type ${type==='movie'?'type-movie':'type-tv'}">${type==='movie'?'Movie':'TV'}</span>
+    </div>`;
+  }).join('');
+  container.classList.remove('hidden');
+}
+
+function hideSearch() {
+  document.getElementById('search-results').classList.add('hidden');
+  document.getElementById('search-input').value = '';
+}
+
+// ── DETAIL ────────────────────────────────────────────────────────────────
+async function openDetail(id, type) {
+  hideSearch();
+  document.getElementById('detail-page').style.display = 'block';
+  document.getElementById('detail-seasons').innerHTML = '';
+  document.getElementById('detail-cast').innerHTML = '';
+  document.getElementById('detail-similar').innerHTML = '';
+  document.getElementById('detail-actions').innerHTML = '';
+  document.getElementById('detail-rating-row').innerHTML = '';
+  document.getElementById('detail-title').textContent = 'Loading...';
+
+  const {data} = await api(`/tmdb/${type}/${id}`);
+  if (!data) return;
+  currentDetail = {id, type, data};
+
+  const title = data.title || data.name || '';
+  const backdrop = data.backdrop_path ? `${IMG}/w1280${data.backdrop_path}` : '';
+  const poster = data.poster_path ? `${IMG}/w500${data.poster_path}` : '';
+  const year = (data.release_date || data.first_air_date || '').slice(0,4);
+  const runtime = data.runtime ? `${data.runtime}m` : data.episode_run_time?.[0] ? `${data.episode_run_time[0]}m/ep` : '';
+  const rating = data.vote_average ? `⭐ ${data.vote_average.toFixed(1)}` : '';
+
+  document.getElementById('detail-backdrop').src = backdrop;
+  document.getElementById('detail-poster').src = poster || '';
+  document.getElementById('detail-title').textContent = title;
+  document.getElementById('detail-tagline').textContent = data.tagline || '';
+  document.getElementById('detail-overview').textContent = data.overview || '';
+  document.getElementById('detail-meta').innerHTML = [
+    year && `<span class="detail-meta-item">📅 ${year}</span>`,
+    runtime && `<span class="detail-meta-item">⏱ ${runtime}</span>`,
+    rating && `<span class="detail-meta-item">${rating}</span>`,
+    type==='tv' && data.number_of_seasons && `<span class="detail-meta-item">📺 ${data.number_of_seasons} season${data.number_of_seasons>1?'s':''}</span>`,
+    type==='tv' && data.number_of_episodes && `<span class="detail-meta-item">${data.number_of_episodes} episodes</span>`,
+  ].filter(Boolean).join('');
+  document.getElementById('detail-genres').innerHTML = (data.genres||[]).map(g => `<span class="genre-tag">${g.name}</span>`).join('');
+
+  renderDetailActions(id, type, title, data.poster_path);
+
+  // Cast
+  const cast = data.credits?.cast?.slice(0,12) || [];
+  if (cast.length) {
+    document.getElementById('detail-cast').innerHTML = `
+      <div class="detail-section-title">Cast</div>
+      <div class="cast-row">${cast.map(c => `
+        <div class="cast-card">
+          <img class="cast-img" src="${c.profile_path ? IMG+'/w185'+c.profile_path : ''}" alt="" onerror="this.style.background='var(--surface3)'"/>
+          <div class="cast-name">${esc(c.name)}</div>
+          <div class="cast-char">${esc(c.character||'')}</div>
+        </div>`).join('')}
+      </div>`;
+  }
+
+  // Similar
+  if (data.similar?.length) {
+    document.getElementById('detail-similar').innerHTML = `
+      <div class="detail-section-title">Similar ${type==='movie'?'Movies':'Shows'}</div>
+      <div class="cards-row">${data.similar.map(s => cardHTML(s, type)).join('')}</div>`;
+  }
+
+  // TV Seasons
+  if (type === 'tv' && data.seasons?.length) {
+    const seasons = data.seasons.filter(s => s.season_number > 0);
+    if (seasons.length) renderSeasons(id, title, data.poster_path, seasons, seasons[0].season_number);
+  }
+
+  // Rating for TV
+  if (type === 'tv') renderRatingRow(id, title, data.poster_path);
+}
+
+function renderDetailActions(id, type, title, poster_path) {
+  const wlKey = `${id}_${type}`;
+  const inWatchlist = watchlistIds.has(wlKey);
+  const isWatched = type === 'movie' && watchedMovieIds.has(id);
+
+  let html = '';
+  if (type === 'movie') {
+    if (isWatched) {
+      html += `<button class="btn-action btn-unwatched" onclick="unmarkMovie(${id})">✓ Watched — Remove</button>`;
+    } else {
+      html += `<button class="btn-action btn-watched" onclick="markMovieWatched(${id},'${esc(title)}','${poster_path||''}')">✓ Mark as Watched</button>`;
+    }
+  }
+  html += `<button class="btn-action btn-watchlist ${inWatchlist?'active':''}" id="wl-btn-${id}" onclick="toggleWatchlist(${id},'${type}','${esc(title)}','${poster_path||''}')">
+    ${inWatchlist ? '🔖 In Watchlist' : '+ Watchlist'}
+  </button>`;
+  document.getElementById('detail-actions').innerHTML = html;
+}
+
+function renderRatingRow(showId, title, poster) {
+  const existing = 0; // could load from stats
+  document.getElementById('detail-rating-row').innerHTML = `
+    <span class="rating-label">Rate this show:</span>
+    ${[1,2,3,4,5,6,7,8,9,10].map(i => `<button class="star-btn" data-val="${i}" onclick="rateShow(${showId},'${esc(title)}','${poster||''}',${i})">★</button>`).join('')}
+  `;
+}
+
+async function rateShow(id, title, poster, rating) {
+  await api('/ratings/tv', {method:'POST', body:{tmdb_id:id, title, poster_path:poster, rating}});
+  document.querySelectorAll('.star-btn').forEach(btn => {
+    btn.classList.toggle('active', parseInt(btn.dataset.val) <= rating);
+  });
+  toast(`Rated ${rating}/10 ⭐`);
+}
+
+function closeDetail() {
+  document.getElementById('detail-page').style.display = 'none';
+  currentDetail = null;
+}
+
+// ── SEASONS / EPISODES ────────────────────────────────────────────────────
+async function renderSeasons(showId, showTitle, showPoster, seasons, activeSeason) {
+  const seasonData = await api(`/tmdb/tv/${showId}/season/${activeSeason}`);
+  const episodes = seasonData.data?.episodes || [];
+
+  const tabs = seasons.map(s => `<button class="season-tab ${s.season_number===activeSeason?'active':''}" onclick="renderSeasons(${showId},'${esc(showTitle)}','${showPoster||''}',${JSON.stringify(seasons).replace(/'/g,"&#39;")},${s.season_number})">S${s.season_number}</button>`).join('');
+
+  const allWatched = episodes.every(e => watchedEpisodes.has(`${showId}_${activeSeason}_${e.episode_number}`));
+  const watchedCount = episodes.filter(e => watchedEpisodes.has(`${showId}_${activeSeason}_${e.episode_number}`)).length;
+
+  const epRows = episodes.map(ep => {
+    const key = `${showId}_${activeSeason}_${ep.episode_number}`;
+    const isWatched = watchedEpisodes.has(key);
+    const still = ep.still_path ? `${IMG}/w300${ep.still_path}` : '';
+    return `<div class="episode-row ${isWatched?'watched':''}" id="ep-${showId}-${activeSeason}-${ep.episode_number}" onclick="toggleEpisode(${showId},'${esc(showTitle)}','${showPoster||''}',${activeSeason},${ep.episode_number},'${esc(ep.name||'')}')">
+      <span class="ep-num">E${ep.episode_number}</span>
+      ${still ? `<img class="ep-still" src="${still}" alt="" loading="lazy"/>` : `<div class="ep-still" style="display:flex;align-items:center;justify-content:center">📺</div>`}
+      <div class="ep-info">
+        <div class="ep-name">${esc(ep.name||`Episode ${ep.episode_number}`)}</div>
+        <div class="ep-date">${ep.air_date||''}</div>
+      </div>
+      <div class="ep-check">${isWatched?'✓':''}</div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('detail-seasons').innerHTML = `
+    <div class="detail-section-title">Episodes <span style="color:var(--text2);font-weight:400;font-size:13px">${watchedCount}/${episodes.length} watched</span></div>
+    <div class="season-tabs">${tabs}</div>
+    <div class="season-actions">
+      <button class="btn-season" onclick="markSeasonWatched(${showId},'${esc(showTitle)}','${showPoster||''}',${activeSeason},${JSON.stringify(episodes.map(e=>({episode_number:e.episode_number,name:e.name||''}))).replace(/'/g,"&#39;")})">
+        ${allWatched ? '✓ All Watched' : '▶ Mark All Watched'}
+      </button>
+    </div>
+    <div class="episodes-list">${epRows}</div>`;
+}
+
+async function toggleEpisode(showId, showTitle, showPoster, season, episode, name) {
+  const key = `${showId}_${season}_${episode}`;
+  const row = document.getElementById(`ep-${showId}-${season}-${episode}`);
+  if (watchedEpisodes.has(key)) {
+    await api(`/watched/episodes/${showId}/${season}/${episode}`, {method:'DELETE'});
+    watchedEpisodes.delete(key);
+    row.classList.remove('watched');
+    row.querySelector('.ep-check').textContent = '';
+  } else {
+    const {data} = await api('/watched/episodes', {method:'POST', body:{show_tmdb_id:showId, show_title:showTitle, show_poster:showPoster, season_number:season, episode_number:episode, episode_name:name}});
+    if (data) watchedEpisodes.set(key, data);
+    row.classList.add('watched');
+    row.querySelector('.ep-check').textContent = '✓';
+  }
+}
+
+async function markSeasonWatched(showId, showTitle, showPoster, season, episodes) {
+  await api('/watched/episodes/season', {method:'POST', body:{show_tmdb_id:showId, show_title:showTitle, show_poster:showPoster, season_number:season, episodes}});
+  episodes.forEach(ep => watchedEpisodes.set(`${showId}_${season}_${ep.episode_number}`, true));
+  // Re-render
+  if (currentDetail) renderSeasons(showId, showTitle, showPoster, currentDetail.data.seasons.filter(s=>s.season_number>0), season);
+  toast(`Season ${season} marked watched ✓`);
+}
+
+// ── WATCHLIST ─────────────────────────────────────────────────────────────
+async function toggleWatchlist(id, type, title, poster) {
+  const key = `${id}_${type}`;
+  if (watchlistIds.has(key)) {
+    await api(`/watchlist/${id}/${type}`, {method:'DELETE'});
+    watchlistIds.delete(key);
+    toast('Removed from watchlist');
+  } else {
+    const {data} = await api('/watchlist', {method:'POST', body:{tmdb_id:id, media_type:type, title, poster_path:poster}});
+    if (data && !data.exists) watchlistIds.set(key, data);
+    toast('Added to watchlist 🔖');
+  }
+  renderDetailActions(id, type, title, poster);
+}
+
+async function loadWatchlist() {
+  const {data} = await api('/watchlist');
+  const container = document.getElementById('watchlist-content');
+  if (!data?.length) {
+    container.innerHTML = `<div class="empty-state"><div class="empty-icon">🔖</div><div class="empty-title">Your watchlist is empty</div><div class="empty-sub">Add movies and shows you want to watch</div></div>`;
+    return;
+  }
+  container.innerHTML = data.map(item => `
+    <div class="watchlist-item" onclick="openDetail(${item.tmdb_id},'${item.media_type}')">
+      <img class="wl-poster" src="${item.poster_path ? IMG+'/w185'+item.poster_path : ''}" alt="" onerror="this.style.background='var(--surface3)'"/>
+      <div class="wl-info">
+        <div class="wl-title">${esc(item.title)}</div>
+        <div class="wl-meta">${item.media_type === 'movie' ? '🎬 Movie' : '📺 TV Show'} · Added ${new Date(item.added_at).toLocaleDateString()}</div>
+      </div>
+      <button class="wl-remove" onclick="event.stopPropagation();removeFromWatchlist(${item.tmdb_id},'${item.media_type}',this)">Remove</button>
+    </div>`).join('');
+}
+
+async function removeFromWatchlist(id, type, btn) {
+  await api(`/watchlist/${id}/${type}`, {method:'DELETE'});
+  watchlistIds.delete(`${id}_${type}`);
+  btn.closest('.watchlist-item').remove();
+  toast('Removed from watchlist');
+}
+
+// ── MOVIES ────────────────────────────────────────────────────────────────
+async function markMovieWatched(id, title, poster) {
+  const {data} = await api('/watched/movies', {method:'POST', body:{tmdb_id:id, title, poster_path:poster}});
+  if (data) watchedMovieIds.set(id, data);
+  renderDetailActions(id, 'movie', title, poster);
+  toast('Marked as watched ✓');
+}
+
+async function unmarkMovie(id) {
+  await api(`/watched/movies/${id}`, {method:'DELETE'});
+  watchedMovieIds.delete(id);
+  if (currentDetail) renderDetailActions(id, 'movie', currentDetail.data.title, currentDetail.data.poster_path);
+  toast('Removed from watched');
+}
+
+// ── HISTORY ───────────────────────────────────────────────────────────────
+async function loadHistory() {
+  switchHistory(currentHistoryTab);
+}
+
+async function switchHistory(tab) {
+  currentHistoryTab = tab;
+  document.getElementById('hist-movies-btn').classList.toggle('active', tab==='movies');
+  document.getElementById('hist-tv-btn').classList.toggle('active', tab==='tv');
+  const container = document.getElementById('history-content');
+  container.innerHTML = '<div class="spinner"></div>';
+
+  if (tab === 'movies') {
+    const {data} = await api('/watched/movies');
+    if (!data?.length) {
+      container.innerHTML = `<div class="empty-state"><div class="empty-icon">🎬</div><div class="empty-title">No movies watched yet</div></div>`;
+      return;
+    }
+    container.innerHTML = `<div class="cards-grid">${data.map(m => `
+      <div class="card" onclick="openDetail(${m.tmdb_id},'movie')">
+        <img class="card-poster" src="${m.poster_path ? IMG+'/w300'+m.poster_path : ''}" alt="${esc(m.title)}" loading="lazy" onerror="this.style.background='var(--surface2)'"/>
+        <div class="card-title">${esc(m.title)}</div>
+        <div class="card-meta">${m.rating ? '⭐ '+m.rating+'/10 · ' : ''}${new Date(m.watched_at).toLocaleDateString()}</div>
+      </div>`).join('')}</div>`;
+  } else {
+    const {data} = await api('/watched/episodes');
+    if (!data?.length) {
+      container.innerHTML = `<div class="empty-state"><div class="empty-icon">📺</div><div class="empty-title">No episodes watched yet</div></div>`;
+      return;
+    }
+    // Group by show
+    const shows = new Map();
+    data.forEach(ep => {
+      if (!shows.has(ep.show_tmdb_id)) shows.set(ep.show_tmdb_id, {title:ep.show_title, poster:ep.show_poster, eps:[], lastSeason:0, lastEp:0});
+      const s = shows.get(ep.show_tmdb_id);
+      s.eps.push(ep);
+      if (ep.season_number > s.lastSeason || (ep.season_number === s.lastSeason && ep.episode_number > s.lastEp)) {
+        s.lastSeason = ep.season_number; s.lastEp = ep.episode_number;
+      }
+    });
+    container.innerHTML = `<div class="cards-grid">${[...shows.entries()].map(([id, s]) => `
+      <div class="card" onclick="openDetail(${id},'tv')">
+        <img class="card-poster" src="${s.poster ? IMG+'/w300'+s.poster : ''}" alt="${esc(s.title)}" loading="lazy" onerror="this.style.background='var(--surface2)'"/>
+        <div class="card-title">${esc(s.title)}</div>
+        <div class="card-meta">${s.eps.length} ep watched · S${s.lastSeason}E${s.lastEp}</div>
+        <div class="progress-bar-wrap"><div class="progress-bar" style="width:${Math.min(100,s.eps.length*5)}%"></div></div>
+      </div>`).join('')}</div>`;
+  }
+}
+
+// ── PROFILE ───────────────────────────────────────────────────────────────
+async function loadProfile() {
+  const {data} = await api('/stats');
+  if (!data) return;
+  const container = document.getElementById('profile-content');
+
+  container.innerHTML = `
+    <div class="stat-grid">
+      <div class="stat-card"><div class="stat-num">${data.movies.count}</div><div class="stat-label">Movies Watched</div></div>
+      <div class="stat-card"><div class="stat-num">${data.episodes.count}</div><div class="stat-label">Episodes Watched</div></div>
+      <div class="stat-card"><div class="stat-num">${data.episodes.shows}</div><div class="stat-label">Shows Started</div></div>
+      <div class="stat-card"><div class="stat-num">${data.movies.avg_rating ? data.movies.avg_rating.toFixed(1) : '—'}</div><div class="stat-label">Avg Movie Rating</div></div>
+      <div class="stat-card"><div class="stat-num">${data.watchlist}</div><div class="stat-label">In Watchlist</div></div>
+      <div class="stat-card"><div class="stat-num">${data.ratings.length}</div><div class="stat-label">Shows Rated</div></div>
+    </div>
+
+    ${data.recentMovies.length ? `
+    <div class="section-title" style="margin-bottom:16px">Recently Watched Movies</div>
+    <div class="cards-row">${data.recentMovies.map(m => `
+      <div class="card" onclick="openDetail(${m.tmdb_id},'movie')">
+        <img class="card-poster" src="${m.poster_path ? IMG+'/w300'+m.poster_path : ''}" alt="${esc(m.title)}" loading="lazy"/>
+        <div class="card-title">${esc(m.title)}</div>
+        <div class="card-meta">${m.rating ? '⭐ '+m.rating : '—'}</div>
+      </div>`).join('')}</div>` : ''}
+
+    ${data.recentShows.length ? `
+    <div class="section-title" style="margin-bottom:16px;margin-top:32px">Recently Watched Shows</div>
+    <div class="cards-row">${data.recentShows.map(s => `
+      <div class="card" onclick="openDetail(${s.show_tmdb_id},'tv')">
+        <img class="card-poster" src="${s.show_poster ? IMG+'/w300'+s.show_poster : ''}" alt="${esc(s.show_title)}" loading="lazy"/>
+        <div class="card-title">${esc(s.show_title)}</div>
+        <div class="card-meta">S${s.last_season}E${s.last_episode} · ${s.ep_count} eps</div>
+      </div>`).join('')}</div>` : ''}
+
+    ${data.ratings.length ? `
+    <div class="section-title" style="margin-bottom:16px;margin-top:32px">Your TV Ratings</div>
+    ${data.ratings.map(r => `
+      <div class="watchlist-item" onclick="openDetail(${r.tmdb_id},'tv')">
+        <img class="wl-poster" src="${r.poster_path ? IMG+'/w185'+r.poster_path : ''}" alt=""/>
+        <div class="wl-info">
+          <div class="wl-title">${esc(r.title)}</div>
+          <div class="wl-meta">Your rating: ⭐ ${r.rating}/10</div>
+        </div>
+      </div>`).join('')}` : ''}`;
+}
+
+// ── UTILS ─────────────────────────────────────────────────────────────────
+function esc(str) { return (str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+
+function toast(msg) {
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 2500);
+}
+
+// ── START ─────────────────────────────────────────────────────────────────
+init();
+</script>
+</body>
+</html>
