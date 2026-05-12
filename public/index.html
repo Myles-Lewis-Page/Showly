@@ -503,7 +503,7 @@ async function markNextWatched(event, showId, tmdbId, season, epNum) {
 
   await api('/api/episodes', { method:'POST', body:{ tmdb_id:tmdbId, season_number:season, episode_number:epNum } });
 
-  const epSet = watchedEps.get(tmdbId) || new Set();
+  const epSet = watchedEps.get(parseInt(tmdbId)) || watchedEps.get(tmdbId) || new Set();
   epSet.add(`${season}_${epNum}`);
   watchedEps.set(tmdbId, epSet);
 
@@ -653,9 +653,10 @@ async function openDetail(tmdbId, showId) {
     api(`/api/episodes/${tmdbId}`),
   ]);
 
-  // Store watched episodes for this show
-  const epSet = new Set(epData.map ? epData.map(e => `${e.season_number}_${e.episode_number}`) : []);
+  // Store watched episodes for this show — use integer key consistently
+  const epSet = new Set(Array.isArray(epData) ? epData.map(e => `${e.season_number}_${e.episode_number}`) : []);
   watchedEps.set(tmdbId, epSet);
+  watchedEps.set(parseInt(tmdbId), epSet);
 
   const show = shows.find(s => s.id === showId);
   const status = show?.status || 'watching';
@@ -763,7 +764,7 @@ async function loadSeason(tmdbId, showId, seasonNum) {
 
   const data = await api(`/api/tmdb/show/${tmdbId}/season/${seasonNum}`);
   const episodes = (data.episodes||[]);
-  const epSet = watchedEps.get(tmdbId) || new Set();
+  const epSet = watchedEps.get(parseInt(tmdbId)) || watchedEps.get(tmdbId) || new Set();
   const watchedInSeason = episodes.filter(e => epSet.has(`${seasonNum}_${e.episode_number}`)).length;
   const allWatched = episodes.length > 0 && watchedInSeason === episodes.length;
 
@@ -806,28 +807,31 @@ function clickEpisode(event, tmdbId, showId, season, epNum, name, stillPath, ove
 }
 
 async function toggleEpisode(tmdbId, showId, season, epNum) {
+  const id = parseInt(tmdbId);
   const key = `${season}_${epNum}`;
-  const epSet = watchedEps.get(tmdbId) || new Set();
+  const epSet = watchedEps.get(id) || watchedEps.get(tmdbId) || new Set();
   const row = document.getElementById(`ep-${tmdbId}-${season}-${epNum}`);
   const chk = document.getElementById(`epchk-${tmdbId}-${season}-${epNum}`);
 
   if (epSet.has(key)) {
-    await api('/api/episodes', { method:'DELETE', body:{ tmdb_id:tmdbId, season_number:season, episode_number:epNum } });
+    const res = await api('/api/episodes', { method:'DELETE', body:{ tmdb_id:id, season_number:parseInt(season), episode_number:parseInt(epNum) } });
     epSet.delete(key);
     if (row) row.classList.remove('watched');
     if (chk) chk.textContent = '';
   } else {
-    await api('/api/episodes', { method:'POST', body:{ tmdb_id:tmdbId, season_number:season, episode_number:epNum } });
+    const res = await api('/api/episodes', { method:'POST', body:{ tmdb_id:id, season_number:parseInt(season), episode_number:parseInt(epNum) } });
+    if (res.ok === false) { toast('Error saving — try again'); return; }
     epSet.add(key);
     if (row) row.classList.add('watched');
     if (chk) chk.textContent = '✓';
   }
-  watchedEps.set(tmdbId, epSet);
+  watchedEps.set(id, epSet);
+  watchedEps.set(tmdbId, epSet); // set both string and int keys
   updateSeasonProgress(tmdbId, season);
-  // Refresh next ep on card if this show is watching
-  const show = shows.find(s => s.tmdb_id === tmdbId);
-  if (show?.status === 'watching') {
-    api(`/api/next-episode/${tmdbId}`).then(next => {
+  const show = shows.find(s => s.tmdb_id === id || s.tmdb_id === tmdbId);
+  if (show && ['watching','continuing'].includes(show.status)) {
+    api(`/api/next-episode/${id}`).then(next => {
+      nextEps.set(id, next);
       nextEps.set(tmdbId, next);
       updateCardNextEp(show);
     });
@@ -835,20 +839,22 @@ async function toggleEpisode(tmdbId, showId, season, epNum) {
 }
 
 async function toggleSeasonWatched(tmdbId, showId, season, epNums, currentlyAllWatched) {
-  const epSet = watchedEps.get(tmdbId) || new Set();
+  const id = parseInt(tmdbId);
+  const epSet = watchedEps.get(id) || watchedEps.get(tmdbId) || new Set();
   if (currentlyAllWatched) {
-    await api('/api/episodes/season', { method:'DELETE', body:{ tmdb_id:tmdbId, season_number:season } });
+    await api('/api/episodes/season', { method:'DELETE', body:{ tmdb_id:id, season_number:parseInt(season) } });
     epNums.forEach(n => epSet.delete(`${season}_${n}`));
   } else {
-    await api('/api/episodes/season', { method:'POST', body:{ tmdb_id:tmdbId, season_number:season, episodes:epNums } });
+    await api('/api/episodes/season', { method:'POST', body:{ tmdb_id:id, season_number:parseInt(season), episodes:epNums.map(Number) } });
     epNums.forEach(n => epSet.add(`${season}_${n}`));
   }
+  watchedEps.set(id, epSet);
   watchedEps.set(tmdbId, epSet);
   loadSeason(tmdbId, showId, season);
-  // Refresh next ep on card
-  const show = shows.find(s => s.tmdb_id === tmdbId);
-  if (show?.status === 'watching') {
-    api(`/api/next-episode/${tmdbId}`).then(next => {
+  const show = shows.find(s => s.tmdb_id === id || s.tmdb_id === tmdbId);
+  if (show && ['watching','continuing'].includes(show.status)) {
+    api(`/api/next-episode/${id}`).then(next => {
+      nextEps.set(id, next);
       nextEps.set(tmdbId, next);
       updateCardNextEp(show);
     });
@@ -857,7 +863,7 @@ async function toggleSeasonWatched(tmdbId, showId, season, epNums, currentlyAllW
 }
 
 function updateSeasonProgress(tmdbId, season) {
-  const epSet = watchedEps.get(tmdbId) || new Set();
+  const epSet = watchedEps.get(parseInt(tmdbId)) || watchedEps.get(tmdbId) || new Set();
   const rows = document.querySelectorAll(`[id^="ep-${tmdbId}-${season}-"]`);
   const total = rows.length;
   const watched = [...rows].filter(r => r.classList.contains('watched')).length;
@@ -873,7 +879,7 @@ function updateSeasonProgress(tmdbId, season) {
 
 // ── EPISODE MODAL ─────────────────────────────────────────────────────────────
 function openEpModal(tmdbId, showId, season, epNum, name, stillPath, overview, airDate) {
-  const epSet = watchedEps.get(tmdbId) || new Set();
+  const epSet = watchedEps.get(parseInt(tmdbId)) || watchedEps.get(tmdbId) || new Set();
   const watched = epSet.has(`${season}_${epNum}`);
   const still = stillPath ? `${IMG}/w780${stillPath}` : null;
   document.getElementById('ep-modal-content').innerHTML = `
@@ -900,7 +906,7 @@ function openEpModal(tmdbId, showId, season, epNum, name, stillPath, overview, a
 
 async function toggleEpisodeFromModal(tmdbId, showId, season, epNum) {
   await toggleEpisode(tmdbId, showId, season, epNum);
-  const epSet = watchedEps.get(tmdbId) || new Set();
+  const epSet = watchedEps.get(parseInt(tmdbId)) || watchedEps.get(tmdbId) || new Set();
   const watched = epSet.has(`${season}_${epNum}`);
   const btn = document.getElementById('ep-modal-watch-btn');
   if (btn) {
