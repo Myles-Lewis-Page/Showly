@@ -24,6 +24,7 @@ app.use(session({
 }));
 
 async function initDB() {
+  // Drop constraint and recreate with new statuses
   await pool.query(`
     CREATE TABLE IF NOT EXISTS shows (
       id SERIAL PRIMARY KEY,
@@ -32,8 +33,7 @@ async function initDB() {
       poster_path TEXT,
       year TEXT,
       overview TEXT,
-      status TEXT NOT NULL DEFAULT 'watching'
-        CHECK (status IN ('watching','plan','paused','dropped')),
+      status TEXT NOT NULL DEFAULT 'watching',
       added_at TIMESTAMPTZ DEFAULT NOW(),
       updated_at TIMESTAMPTZ DEFAULT NOW()
     );
@@ -46,6 +46,12 @@ async function initDB() {
       UNIQUE(tmdb_id, season_number, episode_number)
     );
   `);
+  // Add new statuses to constraint — drop old, add new
+  await pool.query(`
+    ALTER TABLE shows DROP CONSTRAINT IF EXISTS shows_status_check;
+    ALTER TABLE shows ADD CONSTRAINT shows_status_check
+      CHECK (status IN ('watching','continuing','done','plan','paused','dropped'));
+  `).catch(() => {}); // ignore if already correct
   console.log('DB ready');
 }
 
@@ -109,7 +115,7 @@ app.get('/api/tmdb/show/:id/season/:season/episode/:ep', requireLogin, async (re
 
 app.get('/api/recommendations', requireLogin, async (req, res) => {
   try {
-    const myShows = await pool.query("SELECT tmdb_id FROM shows WHERE status IN ('watching','paused') LIMIT 5");
+    const myShows = await pool.query("SELECT tmdb_id FROM shows WHERE status IN ('watching','continuing','paused') LIMIT 5");
     const myIds = new Set((await pool.query('SELECT tmdb_id FROM shows')).rows.map(r => r.tmdb_id));
     let recs = [];
     if (myShows.rows.length) {
@@ -131,6 +137,73 @@ app.get('/api/recommendations', requireLogin, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// ── NEXT EPISODE ──────────────────────────────────────────────────────────────
+app.get('/api/next-episode/:tmdb_id', requireLogin, async (req, res) => {
+  try {
+    const tmdb_id = req.params.tmdb_id;
+    const watched = await pool.query(
+      'SELECT season_number, episode_number FROM watched_episodes WHERE tmdb_id=$1',
+      [tmdb_id]
+    );
+    const watchedSet = new Set(watched.rows.map(r => `${r.season_number}_${r.episode_number}`));
+
+    const showData = await tmdb(`/tv/${tmdb_id}`);
+    const seasons = (showData.seasons || []).filter(s => s.season_number > 0);
+    const showEnded = ['Ended','Canceled','Cancelled'].includes(showData.status);
+    const nextEpData = showData.next_episode_to_air; // TMDB provides this directly
+    let totalAired = 0;
+
+    for (const season of seasons) {
+      const seasonData = await tmdb(`/tv/${tmdb_id}/season/${season.season_number}`);
+      const episodes = (seasonData.episodes || []).filter(e =>
+        e.air_date && new Date(e.air_date) <= new Date()
+      );
+      totalAired += episodes.length;
+      for (const ep of episodes) {
+        if (!watchedSet.has(`${season.season_number}_${ep.episode_number}`)) {
+          return res.json({
+            season_number: season.season_number,
+            episode_number: ep.episode_number,
+            name: ep.name,
+            air_date: ep.air_date,
+            still_path: ep.still_path,
+            overview: ep.overview,
+            total_watched: watchedSet.size,
+            total_aired: totalAired,
+            show_ended: showEnded,
+            suggested_status: 'watching', // still has unwatched aired episodes
+          });
+        }
+      }
+    }
+
+    // All aired episodes watched — determine continuing vs done
+    const suggestedStatus = showEnded ? 'done' : 'continuing';
+
+    // Get next air date from TMDB
+    let nextAirDate = null;
+    let nextAirSeason = null;
+    let nextAirEp = null;
+    if (nextEpData) {
+      nextAirDate = nextEpData.air_date || null;
+      nextAirSeason = nextEpData.season_number;
+      nextAirEp = nextEpData.episode_number;
+    }
+
+    res.json({
+      all_watched: true,
+      total_watched: watchedSet.size,
+      total_aired: totalAired,
+      show_ended: showEnded,
+      suggested_status: suggestedStatus,
+      next_air_date: nextAirDate,
+      next_air_season: nextAirSeason,
+      next_air_ep: nextAirEp,
+    });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── SHOWS ─────────────────────────────────────────────────────────────────────
 app.get('/api/shows', requireLogin, async (req, res) => {
   try {
     const r = await pool.query('SELECT * FROM shows ORDER BY updated_at DESC');
@@ -154,7 +227,10 @@ app.post('/api/shows', requireLogin, async (req, res) => {
 app.patch('/api/shows/:id', requireLogin, async (req, res) => {
   try {
     const { status } = req.body;
-    const r = await pool.query('UPDATE shows SET status=$1, updated_at=NOW() WHERE id=$2 RETURNING *', [status, req.params.id]);
+    const r = await pool.query(
+      'UPDATE shows SET status=$1, updated_at=NOW() WHERE id=$2 RETURNING *',
+      [status, req.params.id]
+    );
     if (!r.rows.length) return res.status(404).json({ error: 'Not found' });
     res.json(r.rows[0]);
   } catch (e) { res.status(500).json({ error: e.message }); }
@@ -167,6 +243,7 @@ app.delete('/api/shows/:id', requireLogin, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// ── EPISODES ──────────────────────────────────────────────────────────────────
 app.get('/api/episodes/:tmdb_id', requireLogin, async (req, res) => {
   try {
     const r = await pool.query(
