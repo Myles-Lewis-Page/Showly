@@ -479,24 +479,37 @@ function updateCardNextEp(show) {
 // ── LOAD NEXT EPISODES ────────────────────────────────────────────────────────
 async function loadNextEpisodes() {
   const active = shows.filter(s => ['watching','caughtup'].includes(s.status));
+  const others = shows.filter(s => !['watching','caughtup'].includes(s.status));
+
+  // Load watching/caughtup first (they need next-ep info urgently)
   await Promise.all(active.map(async s => {
     const data = await api(`/api/next-episode/${s.tmdb_id}`);
     nextEps.set(s.tmdb_id, data);
-    // Update show object with fresh date/status info
     if (data.tmdb_status) {
       s.tmdb_status = data.tmdb_status;
       s.last_air_date = data.last_air_date || s.last_air_date;
       showDetails.set(s.tmdb_id, { status: data.tmdb_status, actively_releasing: data.actively_releasing, last_air_date: data.last_air_date });
     }
     updateCardNextEp(s);
-    // Re-render this card to update banner and dates
     const card = document.getElementById('card-' + s.id);
     if (card) card.outerHTML = showCard(s);
-    // Auto-move status
     if (data.suggested_status && data.suggested_status !== s.status && ['watching','caughtup','finished'].includes(s.status)) {
       autoMoveStatus(s, data.suggested_status);
     }
   }));
+
+  // Then load all other shows in background (for banners + dates)
+  for (const s of others) {
+    const data = await api(`/api/next-episode/${s.tmdb_id}`);
+    nextEps.set(s.tmdb_id, data);
+    if (data.tmdb_status) {
+      s.tmdb_status = data.tmdb_status;
+      s.last_air_date = data.last_air_date || s.last_air_date;
+      showDetails.set(s.tmdb_id, { status: data.tmdb_status, actively_releasing: data.actively_releasing, last_air_date: data.last_air_date });
+    }
+    const card = document.getElementById('card-' + s.id);
+    if (card) card.outerHTML = showCard(s);
+  }
 }
 
 async function autoMoveStatus(show, newStatus) {

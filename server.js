@@ -115,7 +115,9 @@ app.get('/api/next-episode/:tmdb_id', requireLogin, async (req, res) => {
     const showEnded = ['Ended','Canceled','Cancelled'].includes(showData.status);
     const nextEpData = showData.next_episode_to_air;
     const lastEpData = showData.last_episode_to_air;
-    const activelyReleasing = !!nextEpData || (lastEpData?.air_date && (new Date() - new Date(lastEpData.air_date)) < 14*24*60*60*1000);
+    const activelyReleasing = nextEpData?.air_date &&
+      (new Date(nextEpData.air_date) - new Date()) <= 7*24*60*60*1000 &&
+      (new Date(nextEpData.air_date) - new Date()) >= -24*60*60*1000; // within 1 day past
     const baseInfo = {
       show_ended: showEnded, first_air_date: showData.first_air_date,
       last_air_date: showData.last_air_date, tmdb_status: showData.status,
