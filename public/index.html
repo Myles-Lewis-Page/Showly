@@ -366,6 +366,7 @@ let nextEps = new Map();
 let showDetails = new Map();
 let showProviders = new Map();
 let ownedServices = new Set();
+let currentSimilarData = [];
 let genreList = [];
 let activeGenre = null; // {id, name} or null for all // services the user has subscriptions to
 let currentDetail = null;
@@ -785,6 +786,7 @@ async function openDetail(tmdbId,showId){
         </div>`}
     </div>` : '';
 
+  try {
   content.innerHTML=`
     <button class="panel-close" onclick="closeDetail()">← Close</button>
     ${backdrop?`<img class="panel-backdrop" src="${backdrop}" alt=""/>`:`<div class="panel-backdrop-ph">📺</div>`}
@@ -827,10 +829,10 @@ async function openDetail(tmdbId,showId){
         <div id="season-content"><div style="text-align:center;padding:20px;color:var(--muted)">Loading...</div></div>`:''}
       ${similarData?.length?`
         <div class="panel-section-title">Similar Shows</div>
-        <div style="display:flex;gap:10px;overflow-x:auto;padding-bottom:8px">
-          ${similarData.map(s=>{
+        <div style="display:flex;gap:10px;overflow-x:auto;padding-bottom:8px" id="similar-row">
+          ${similarData.map((s,i)=>{
             const inList=shows.some(x=>x.tmdb_id===s.tmdb_id);
-            return `<div style="flex-shrink:0;width:90px;cursor:pointer" onclick="openRecModal(${JSON.stringify(s).replace(/"/g,'&quot;')})">
+            return `<div style="flex-shrink:0;width:90px;cursor:pointer" onclick="openSimilar(${i})" data-similar-idx="${i}">
               ${s.poster_path?`<img src="${IMG}/w300${s.poster_path}" style="width:90px;height:135px;border-radius:8px;object-fit:cover;border:1px solid var(--border)" alt=""/>`:
               `<div style="width:90px;height:135px;border-radius:8px;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:24px">📺</div>`}
               <div style="font-size:11px;margin-top:5px;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${esc(s.title)}</div>
@@ -840,7 +842,14 @@ async function openDetail(tmdbId,showId){
         </div>`:''}
     </div>`;
 
+  // Store similar data for safe access
+  currentSimilarData = similarData || [];
+
   if(seasons.length) loadSeason(id,showId,defaultSeason);
+  } catch(err) {
+    console.error('Panel render error:', err);
+    content.innerHTML = `<div style="padding:40px;text-align:center;color:var(--muted)">Error loading show details. Check console.</div>`;
+  }
 }
 
 const ALL_SERVICES = ['Netflix','Hulu','Disney+','Max','Apple TV+','Peacock','Paramount+','Amazon Prime','MGM+','Crunchyroll','AMC+','Showtime','Fubo','ESPN+','YouTube TV','Other'];
@@ -969,6 +978,11 @@ async function setPlatformFromPanel(showId, platform) {
     if (show) { show.platform = platform; renderAll(); }
     if (platform) toast(`Platform set to ${platform}`);
   }
+}
+
+function openSimilar(idx) {
+  const show = currentSimilarData[idx];
+  if (show) openRecModal(show);
 }
 
 function panelStatusHTML(status,showId){
