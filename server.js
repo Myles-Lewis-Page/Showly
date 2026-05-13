@@ -102,6 +102,26 @@ app.get('/api/tmdb/show/:id', requireLogin, async (req, res) => {
       p.provider_name = base;
       return true;
     });
+    // If no providers found, check networks and inject known ones
+    const networks = (details.networks||[]).map(n=>n.name.toLowerCase());
+    if(!streamingProviders.length) {
+      if(networks.some(n=>n.includes('disney')||n.includes('freeform')||n.includes('nat geo')))
+        streamingProviders.push({ provider_name:'Disney+', logo_path:'/7rwgEs15tFwyR9NPen12l5KvyMR.jpg' });
+      else if(networks.some(n=>n.includes('hbo')||n.includes('max')))
+        streamingProviders.push({ provider_name:'Max', logo_path:'/Ajqyt5aNxNx9pi2ViL1oT.jpg' });
+      else if(networks.some(n=>n.includes('netflix')))
+        streamingProviders.push({ provider_name:'Netflix', logo_path:'/t2yyOv40HZeVlLjYsCsPHnWLk4W.jpg' });
+      else if(networks.some(n=>n.includes('hulu')))
+        streamingProviders.push({ provider_name:'Hulu', logo_path:'/zxrVdFjIjLqkfnwyghnfywTn3Lh.jpg' });
+      else if(networks.some(n=>n.includes('peacock')))
+        streamingProviders.push({ provider_name:'Peacock', logo_path:'/8VCV78prwd9QzZnEm0ReO6bERDa.jpg' });
+      else if(networks.some(n=>n.includes('paramount')))
+        streamingProviders.push({ provider_name:'Paramount+', logo_path:'/h5DcR0J2EESLitnhR8xLG1QymTE.jpg' });
+      else if(networks.some(n=>n.includes('apple')))
+        streamingProviders.push({ provider_name:'Apple TV+', logo_path:'/6uhKBfmtzFqOcLousHwZuzcrScK.jpg' });
+      else if(networks.some(n=>n.includes('amazon')||n.includes('prime')))
+        streamingProviders.push({ provider_name:'Amazon Prime', logo_path:'/dQeAar5H991VYporEjUspolDarG.jpg' });
+    }
     res.json({ ...details, credits, streaming_providers: streamingProviders });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
