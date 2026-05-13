@@ -85,11 +85,11 @@ app.get('/api/tmdb/show/:id', requireLogin, async (req, res) => {
     const seen = new Set();
     const streamingProviders = allProviders.filter(p => {
       const base = p.provider_name
-        .replace(/\s*(with Ads?|Standard with Ads?|Basic|Premium|Plus|\(.*\))\s*$/i, '')
+        .replace(/\s+(with Ads?|Standard with Ads?|Standard|Basic|Premium Plus|Premium)\s*$/i, '')
         .trim();
       if (seen.has(base)) return false;
       seen.add(base);
-      p.provider_name = base; // normalize the name
+      p.provider_name = base;
       return true;
     });
     res.json({ ...details, credits, streaming_providers: streamingProviders });
@@ -168,7 +168,7 @@ app.get('/api/tmdb/show/:id/providers', requireLogin, async (req, res) => {
     const seen = new Set();
     const providers = allProviders.filter(p => {
       const base = p.provider_name
-        .replace(/\s*(with Ads?|Standard with Ads?|Basic|Premium|Plus|\(.*\))\s*$/i, '')
+        .replace(/\s+(with Ads?|Standard with Ads?|Standard|Basic|Premium Plus|Premium)\s*$/i, '')
         .trim();
       if (seen.has(base)) return false;
       seen.add(base);
