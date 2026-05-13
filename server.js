@@ -80,13 +80,17 @@ app.get('/api/tmdb/show/:id', requireLogin, async (req, res) => {
       tmdb(`/tv/${req.params.id}/watch/providers`),
     ]);
     const usProviders = providers.results?.US || {};
-    const subscriptionServices = new Set(['Disney+','Apple TV+','Max','Hulu','Netflix','Peacock','Paramount+','Amazon Prime','MGM+','Crunchyroll','AMC+','Showtime','Fubo','ESPN+','YouTube TV']);
+    // Known streaming subscription services (flexible matching)
+    const isSubscriptionService = (name) => {
+      const n = name.toLowerCase().replace(/\+/g,'plus').replace(/\s+/g,' ').trim();
+      return ['disney plus','disney+','apple tv plus','apple tv+','max','hulu','netflix',
+        'peacock','paramount plus','paramount+','amazon prime','prime video','mgm plus','mgm+',
+        'crunchyroll','amc plus','amc+','showtime','fubo','espn plus','espn+','youtube tv'
+      ].some(s => n.startsWith(s.replace(/\+/g,'plus')));
+    };
     const flatrate = [...(usProviders.flatrate||[]), ...(usProviders.free||[])];
-    // For buy/rent, only include known subscription services (e.g. Disney+ shows appear under buy)
-    const buyRentSubs = [...(usProviders.buy||[]), ...(usProviders.rent||[])].filter(p => {
-      const base = p.provider_name.replace(/\s+(with Ads?|Standard with Ads?|Standard|Basic|Premium Plus|Premium)\s*$/i,'').trim();
-      return subscriptionServices.has(base);
-    });
+    const buyRentSubs = [...(usProviders.buy||[]), ...(usProviders.rent||[])]
+      .filter(p => isSubscriptionService(p.provider_name));
     const allProviders = [...flatrate, ...buyRentSubs];
     const seen = new Set();
     const streamingProviders = allProviders.filter(p => {
@@ -170,12 +174,16 @@ app.get('/api/tmdb/show/:id/providers', requireLogin, async (req, res) => {
   try {
     const data = await tmdb(`/tv/${req.params.id}/watch/providers`);
     const us = data.results?.US || {};
-    const subscriptionServices = new Set(['Disney+','Apple TV+','Max','Hulu','Netflix','Peacock','Paramount+','Amazon Prime','MGM+','Crunchyroll','AMC+','Showtime','Fubo','ESPN+','YouTube TV']);
+    const isSubscriptionService = (name) => {
+      const n = name.toLowerCase().replace(/\+/g,'plus').replace(/\s+/g,' ').trim();
+      return ['disney plus','apple tv plus','max','hulu','netflix','peacock',
+        'paramount plus','amazon prime','prime video','mgm plus','crunchyroll',
+        'amc plus','showtime','fubo','espn plus','youtube tv'
+      ].some(s => n.startsWith(s));
+    };
     const flatrate = [...(us.flatrate||[]), ...(us.free||[])];
-    const buyRentSubs = [...(us.buy||[]), ...(us.rent||[])].filter(p => {
-      const base = p.provider_name.replace(/\s+(with Ads?|Standard with Ads?|Standard|Basic|Premium Plus|Premium)\s*$/i,'').trim();
-      return subscriptionServices.has(base);
-    });
+    const buyRentSubs = [...(us.buy||[]), ...(us.rent||[])]
+      .filter(p => isSubscriptionService(p.provider_name));
     const allProviders = [...flatrate, ...buyRentSubs];
     const seen = new Set();
     const providers = allProviders.filter(p => {
