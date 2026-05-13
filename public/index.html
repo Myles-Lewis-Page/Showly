@@ -163,7 +163,6 @@ main{padding:16px}
 .ps-btn.af{border-color:#805ad5;color:#805ad5;background:rgba(128,90,213,.12)}
 .ps-btn.awl{border-color:#667eea;color:#667eea;background:rgba(102,126,234,.12)}
 .ps-btn.au{border-color:#d69e2e;color:#d69e2e;background:rgba(214,158,46,.12)}
-.ps-btn.ad{border-color:#e53e3e;color:#e53e3e;background:rgba(229,62,62,.12)}
 .panel-overview{font-size:14px;line-height:1.7;color:var(--muted);margin-bottom:4px}
 
 /* PANEL STATS */
@@ -269,6 +268,9 @@ main{padding:16px}
 .service-toggle input{display:none}
 .service-check{width:16px;height:16px;border-radius:4px;border:2px solid var(--border);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:10px;transition:all .15s}
 .service-toggle.on .service-check{background:var(--green);border-color:var(--green);color:#fff}
+.genre-filter-chip{background:var(--surface2);border:1px solid var(--border);color:var(--muted);padding:5px 12px;border-radius:99px;font-size:12px;cursor:pointer;font-family:inherit;white-space:nowrap;transition:all .15s}
+.genre-filter-chip:hover{border-color:#555;color:var(--text)}
+.genre-filter-chip.on{background:var(--accent);border-color:var(--accent);color:#fff}
 /* TOAST */
 .toast{position:fixed;bottom:20px;right:20px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 16px;font-size:13px;z-index:999;animation:fadeUp .2s ease;box-shadow:0 4px 20px rgba(0,0,0,.4)}
 @keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
@@ -305,6 +307,7 @@ main{padding:16px}
     <button class="nav-tab" onclick="setTab('paused')" id="t-paused">Paused</button>
     <button class="nav-tab" onclick="setTab('dropped')" id="t-dropped">Not Continuing</button>
     <button class="nav-tab" onclick="setTab('recs')" id="t-recs">Recommendations</button>
+    <button class="nav-tab" onclick="setTab('trending')" id="t-trending">Trending</button>
     <button class="nav-tab" onclick="setTab('stats')" id="t-stats">Stats</button>
     <button class="nav-tab" onclick="setTab('settings')" id="t-settings">⚙ Settings</button>
     <div class="nav-right"><button class="btn-logout" onclick="doLogout()">Sign out</button></div>
@@ -330,7 +333,12 @@ main{padding:16px}
     <div id="tab-watchlist" class="hide"><div class="section-label">Watchlist <span id="cnt-watchlist">0</span></div><div class="show-grid" id="grid-watchlist"></div></div>
     <div id="tab-paused" class="hide"><div class="section-label">Paused <span id="cnt-paused">0</span></div><div class="show-grid" id="grid-paused"></div></div>
     <div id="tab-dropped" class="hide"><div class="section-label">Not Continuing <span id="cnt-dropped">0</span></div><div class="show-grid" id="grid-dropped"></div></div>
-    <div id="tab-recs" class="hide"><div class="section-label">Recommended for You</div><div class="rec-grid" id="grid-recs"></div></div>
+    <div id="tab-recs" class="hide">
+      <div class="section-label">Recommended for You</div>
+      <div id="genre-filter-row" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px"></div>
+      <div class="rec-grid" id="grid-recs"></div>
+    </div>
+    <div id="tab-trending" class="hide"><div class="section-label">Trending This Week</div><div class="rec-grid" id="grid-trending"></div></div>
     <div id="tab-stats" class="hide" style="max-width:680px"><div class="section-label">Your Stats</div><div id="stats-content"></div></div>
     <div id="tab-settings" class="hide" style="max-width:500px"><div class="section-label">Settings</div><div id="settings-content"></div></div>
   </main>
@@ -357,7 +365,9 @@ let watchedEps = new Map();
 let nextEps = new Map();
 let showDetails = new Map();
 let showProviders = new Map();
-let ownedServices = new Set(); // services the user has subscriptions to
+let ownedServices = new Set();
+let genreList = [];
+let activeGenre = null; // {id, name} or null for all // services the user has subscriptions to
 let currentDetail = null;
 let currentSeason = null;
 let searchTimer = null;
@@ -422,6 +432,7 @@ function renderAll() {
   if(ucnt) ucnt.textContent=groups.upcoming.length;
   const ugrid=document.getElementById('grid-upcoming');
   if(ugrid) ugrid.innerHTML=groups.upcoming.length?groups.upcoming.map(s=>showCard(s)).join(''):`<div class="empty" style="padding:20px"><div style="font-size:13px;color:var(--muted)">No upcoming shows within 90 days</div></div>`;
+
 
   // Other tabs
   ['caughtup','finished','watchlist','paused','dropped'].forEach(status=>{
@@ -613,12 +624,13 @@ async function deleteShow(event, id) {
 
 // ── TABS ──────────────────────────────────────────────────────────────────────
 function setTab(tab) {
-  ['watching','caughtup','finished','watchlist','paused','dropped','recs','stats','settings'].forEach(t=>{
-    document.getElementById('tab-'+t).classList.toggle('hide',t!==tab);
-    document.getElementById('t-'+t).classList.toggle('on',t===tab);
+  ['watching','caughtup','finished','watchlist','paused','dropped','recs','trending','stats','settings'].forEach(t=>{
+    document.getElementById('tab-'+t)?.classList.toggle('hide',t!==tab);
+    document.getElementById('t-'+t)?.classList.toggle('on',t===tab);
   });
-  document.getElementById('search-wrap').classList.toggle('hide',tab==='recs'||tab==='stats'||tab==='settings');
+  document.getElementById('search-wrap').classList.toggle('hide',['recs','trending','stats','settings'].includes(tab));
   if(tab==='recs') loadRecs();
+  if(tab==='trending') loadTrending();
   if(tab==='stats') loadStats();
   if(tab==='settings') loadSettings();
 }
@@ -696,7 +708,11 @@ async function openDetail(tmdbId,showId){
   document.body.style.overflow='hidden';
 
   const id=parseInt(tmdbId);
-  const [details,epData]=await Promise.all([api(`/api/tmdb/show/${id}`),api(`/api/episodes/${id}`)]);
+  const [details,epData,similarData]=await Promise.all([
+    api(`/api/tmdb/show/${id}`),
+    api(`/api/episodes/${id}`),
+    api(`/api/tmdb/show/${id}/similar`),
+  ]);
 
   const epSet=new Set(Array.isArray(epData)?epData.map(e=>`${e.season_number}_${e.episode_number}`):[]);
   watchedEps.set(id,epSet);
@@ -809,6 +825,19 @@ async function openDetail(tmdbId,showId){
         <div id="total-progress-wrap"></div>
         <div class="season-tabs" id="season-tabs">${seasons.map(s=>`<button class="s-tab ${s.season_number===defaultSeason?'on':''}" onclick="loadSeason(${id},${showId},${s.season_number})" id="stab-${s.season_number}">S${s.season_number}</button>`).join('')}</div>
         <div id="season-content"><div style="text-align:center;padding:20px;color:var(--muted)">Loading...</div></div>`:''}
+      ${similarData?.length?`
+        <div class="panel-section-title">Similar Shows</div>
+        <div style="display:flex;gap:10px;overflow-x:auto;padding-bottom:8px">
+          ${similarData.map(s=>{
+            const inList=shows.some(x=>x.tmdb_id===s.tmdb_id);
+            return `<div style="flex-shrink:0;width:90px;cursor:pointer" onclick="openRecModal(${JSON.stringify(s).replace(/"/g,'&quot;')})">
+              ${s.poster_path?`<img src="${IMG}/w300${s.poster_path}" style="width:90px;height:135px;border-radius:8px;object-fit:cover;border:1px solid var(--border)" alt=""/>`:
+              `<div style="width:90px;height:135px;border-radius:8px;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:24px">📺</div>`}
+              <div style="font-size:11px;margin-top:5px;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${esc(s.title)}</div>
+              ${inList?`<div style="font-size:10px;color:var(--green)">✓ In list</div>`:''}
+            </div>`;
+          }).join('')}
+        </div>`:''}
     </div>`;
 
   if(seasons.length) loadSeason(id,showId,defaultSeason);
@@ -975,7 +1004,7 @@ async function loadSeason(tmdbId,showId,seasonNum){
 
   container.innerHTML=`
     <div class="season-header">
-      <span class="season-progress">${watchedInSeason} / ${episodes.length} watched this season</span>
+      <span class="season-progress">${watchedInSeason} / ${episodes.length} watched</span>
       <button class="btn-mark-season ${allWatched?'all-watched':''}" id="mark-season-btn"
         onclick="toggleSeasonWatched(${id},${showId},${seasonNum},${JSON.stringify(episodes.map(e=>e.episode_number))},${allWatched})">
         ${allWatched?'✓ All Watched':'Mark All Watched'}
@@ -983,6 +1012,7 @@ async function loadSeason(tmdbId,showId,seasonNum){
     </div>
     <div class="episodes-list">${episodes.map(ep=>{
       const watched=epSet.has(`${seasonNum}_${ep.episode_number}`);
+
       const still=ep.still_path?`${IMG}/w300${ep.still_path}`:null;
       return `<div class="ep-row ${watched?'watched':''}" id="ep-${id}-${seasonNum}-${ep.episode_number}"
         onclick="clickEpisode(event,${id},${showId},${seasonNum},${ep.episode_number},'${esc(ep.name||'Episode '+ep.episode_number)}','${ep.still_path||''}','${esc((ep.overview||'').replace(/'/g,"&#39;"))}','${ep.air_date||''}')">
@@ -1046,15 +1076,15 @@ async function toggleEpisode(tmdbId,showId,season,epNum){
 async function toggleSeasonWatched(tmdbId,showId,season,epNums,currentlyAllWatched){
   const id=parseInt(tmdbId);
   const epSet=watchedEps.get(id)||new Set();
+
   if(currentlyAllWatched){
-    await api('/api/episodes/season',{method:'DELETE',body:{tmdb_id:id,season_number:parseInt(season)}});
+    await api(apiPath+'/season',{method:'DELETE',body:{tmdb_id:id,season_number:parseInt(season)}});
     epNums.forEach(n=>epSet.delete(`${season}_${n}`));
   } else {
     await api('/api/episodes/season',{method:'POST',body:{tmdb_id:id,season_number:parseInt(season),episodes:epNums.map(Number)}});
     epNums.forEach(n=>epSet.add(`${season}_${n}`));
   }
   watchedEps.set(id,epSet);
-  // Check if we should auto-move status
   const show=shows.find(s=>s.tmdb_id===id);
   if(!currentlyAllWatched&&show&&['watching','caughtup','finished'].includes(show.status)){
     const next=await api(`/api/next-episode/${id}`);
@@ -1071,7 +1101,7 @@ function updateSeasonProgress(tmdbId,season){
   const total=rows.length;
   const watched=[...rows].filter(r=>r.classList.contains('watched')).length;
   const prog=document.querySelector('.season-progress');
-  if(prog) prog.textContent=`${watched} / ${total} watched this season`;
+  if(prog) prog.textContent=`${watched} / ${total} watched`;
   const btn=document.getElementById('mark-season-btn');
   if(btn){const all=watched===total&&total>0;btn.textContent=all?'✓ All Watched':'Mark All Watched';btn.classList.toggle('all-watched',all);}
 }
@@ -1143,19 +1173,51 @@ async function toggleService(name, el) {
 }
 async function loadRecs(){
   const grid=document.getElementById('grid-recs');
+  const filterRow=document.getElementById('genre-filter-row');
+
+  // Load genres if not yet loaded
+  if(!genreList.length){
+    const genres=await api('/api/tmdb/genres');
+    genreList=genres||[];
+  }
+
+  // Render genre chips
+  if(filterRow){
+    filterRow.innerHTML=`
+      <button class="genre-filter-chip ${!activeGenre?'on':''}" onclick="setGenreFilter(null)">All</button>
+      ${genreList.map(g=>`<button class="genre-filter-chip ${activeGenre?.id===g.id?'on':''}" onclick="setGenreFilter(${JSON.stringify(g).replace(/"/g,'&quot;')})">${esc(g.name)}</button>`).join('')}`;
+  }
+
   grid.innerHTML='<div class="empty"><div class="empty-icon">⏳</div>Loading...</div>';
-  const recs=await api('/api/recommendations');
-  if(!recs.length){grid.innerHTML='<div class="empty"><div class="empty-icon">🤷</div>Add some shows first to get recommendations</div>';return;}
-  grid.innerHTML=recs.map(r=>{
-    const inList=shows.some(s=>s.tmdb_id===r.tmdb_id);
-    const poster=r.poster_path?`<img class="poster" src="${IMG}/w300${r.poster_path}" alt="${esc(r.title)}" loading="lazy"/>`:`<div class="poster-ph">📺</div>`;
-    return `<div class="rec-card" onclick="openRecModal(${JSON.stringify(r).replace(/"/g,'&quot;')})">
-      ${poster}<div class="rec-body">
-        <div class="rec-title">${esc(r.title)}</div>
-        <div class="rec-meta">${r.year||''}${r.rating?` · ⭐ ${r.rating.toFixed(1)}`:''}</div>
-        ${inList?`<div style="font-size:11px;color:var(--green);padding:3px 0">✓ In your list</div>`:`<div style="font-size:11px;color:var(--muted);padding:3px 0">Tap to see more</div>`}
-      </div></div>`;
-  }).join('');
+  const url=activeGenre?`/api/recommendations/genre/${activeGenre.id}`:'/api/recommendations';
+  const recs=await api(url);
+  if(!recs.length){grid.innerHTML='<div class="empty"><div class="empty-icon">🤷</div>Nothing found — try a different genre</div>';return;}
+  grid.innerHTML=recs.map(r=>recCardHTML(r)).join('');
+}
+
+function setGenreFilter(genre){
+  activeGenre=genre;
+  loadRecs();
+}
+
+async function loadTrending(){
+  const grid=document.getElementById('grid-trending');
+  if(!grid) return;
+  grid.innerHTML='<div class="empty"><div class="empty-icon">⏳</div>Loading...</div>';
+  const data=await api('/api/tmdb/trending');
+  if(!data.length){grid.innerHTML='<div class="empty"><div class="empty-icon">📺</div>Nothing to show</div>';return;}
+  grid.innerHTML=data.map(r=>recCardHTML(r)).join('');
+}
+
+function recCardHTML(r){
+  const inList=r.in_list||shows.some(s=>s.tmdb_id===r.tmdb_id);
+  const poster=r.poster_path?`<img class="poster" src="${IMG}/w300${r.poster_path}" alt="${esc(r.title)}" loading="lazy"/>`:`<div class="poster-ph">📺</div>`;
+  return `<div class="rec-card" onclick="openRecModal(${JSON.stringify(r).replace(/"/g,'&quot;')})">
+    ${poster}<div class="rec-body">
+      <div class="rec-title">${esc(r.title)}</div>
+      <div class="rec-meta">${r.year||''}${r.rating?` · ⭐ ${r.rating.toFixed(1)}`:''}</div>
+      ${inList?`<div style="font-size:11px;color:var(--green);padding:3px 0">✓ In your list</div>`:`<div style="font-size:11px;color:var(--muted);padding:3px 0">Tap to see more</div>`}
+    </div></div>`;
 }
 
 async function openRecModal(show){

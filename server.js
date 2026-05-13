@@ -33,16 +33,12 @@ async function initDB() {
     ALTER TABLE shows ADD CONSTRAINT shows_status_check
       CHECK (status IN ('watching','caughtup','finished','watchlist','paused','dropped'));
   `).catch(() => {});
-  // Add new columns if they don't exist
   await pool.query(`ALTER TABLE shows ADD COLUMN IF NOT EXISTS last_air_date TEXT`).catch(()=>{});
   await pool.query(`ALTER TABLE shows ADD COLUMN IF NOT EXISTS tmdb_status TEXT`).catch(()=>{});
   await pool.query(`ALTER TABLE shows ADD COLUMN IF NOT EXISTS platform TEXT`).catch(()=>{});
   await pool.query(`ALTER TABLE shows ADD COLUMN IF NOT EXISTS genres TEXT`).catch(()=>{});
   await pool.query(`
-    CREATE TABLE IF NOT EXISTS user_settings (
-      key TEXT PRIMARY KEY,
-      value TEXT
-    );
+CREATE TABLE IF NOT EXISTS user_settings (key TEXT PRIMARY KEY, value TEXT);
   `);
 }
 
@@ -108,6 +104,50 @@ app.post('/api/settings', requireLogin, async (req, res) => {
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
+
+app.get('/api/tmdb/trending', requireLogin, async (req, res) => {
+  try {
+    const data = await tmdb('/trending/tv/week');
+    const myIds = new Set((await pool.query('SELECT tmdb_id FROM shows')).rows.map(r => r.tmdb_id));
+    res.json((data.results||[]).map(s => ({
+      tmdb_id: s.id, title: s.name, poster_path: s.poster_path,
+      year: (s.first_air_date||'').slice(0,4), overview: s.overview,
+      rating: s.vote_average, in_list: myIds.has(s.id),
+    })));
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/tmdb/show/:id/similar', requireLogin, async (req, res) => {
+  try {
+    const myIds = new Set((await pool.query('SELECT tmdb_id FROM shows')).rows.map(r => r.tmdb_id));
+    const data = await tmdb(`/tv/${req.params.id}/similar`);
+    res.json((data.results||[]).slice(0,12).map(s => ({
+      tmdb_id: s.id, title: s.name, poster_path: s.poster_path,
+      year: (s.first_air_date||'').slice(0,4), overview: s.overview,
+      rating: s.vote_average, in_list: myIds.has(s.id),
+    })));
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/tmdb/genres', requireLogin, async (req, res) => {
+  try {
+    const data = await tmdb('/genre/tv/list');
+    res.json(data.genres||[]);
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/recommendations/genre/:genre_id', requireLogin, async (req, res) => {
+  try {
+    const myIds = new Set((await pool.query('SELECT tmdb_id FROM shows')).rows.map(r => r.tmdb_id));
+    const data = await tmdb('/discover/tv', { with_genres: req.params.genre_id, sort_by: 'popularity.desc', 'vote_count.gte': 100 });
+    res.json((data.results||[]).filter(r => !myIds.has(r.id)).slice(0,24).map(s => ({
+      tmdb_id: s.id, title: s.name, poster_path: s.poster_path,
+      year: (s.first_air_date||'').slice(0,4), overview: s.overview, rating: s.vote_average,
+    })));
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+
 
 app.get('/api/tmdb/show/:id/providers', requireLogin, async (req, res) => {
   try {
