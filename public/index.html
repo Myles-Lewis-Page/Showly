@@ -1140,17 +1140,6 @@ function renderStatsContent(container, counts, totalWatched, totalHours, topShow
       <div class="stat-box"><div class="stat-num">${Object.values(counts).reduce((a,b)=>a+b,0)}</div><div class="stat-label">Total Shows</div></div>
     </div>
 
-    ${topPlatforms.length?`
-    <div class="stats-section">
-      <div class="stats-title">By Platform</div>
-      ${topPlatforms.map(([p,c])=>`
-        <div class="stats-row">
-          <div class="stats-name">📺 ${esc(p)}</div>
-          <div class="stats-bar-wrap"><div class="stats-bar" style="width:${Math.round((c/topPlatforms[0][1])*100)}%"></div></div>
-          <div class="stats-val">${c} show${c!==1?'s':''}</div>
-        </div>`).join('')}
-    </div>`:''}
-
     ${sorted.length?`
     <div class="stats-section">
       <div class="stats-title">Top 10 Shows</div>
