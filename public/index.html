@@ -92,12 +92,12 @@ main{padding:16px}
 .ca-btn.del:hover{color:#e53e3e;border-color:#e53e3e}
 
 /* NEXT EP ON CARD */
-.next-ep{background:var(--surface2);border-top:1px solid var(--border);padding:8px;display:flex;align-items:center;gap:8px}
-.next-ep-info{flex:1;min-width:0}
-.next-ep-label{font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:2px}
-.next-ep-title{font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text)}
-.next-ep-num{font-size:11px;color:var(--muted);margin-top:1px}
-.btn-watched-ep{background:var(--green);color:#fff;border:none;border-radius:6px;padding:5px 10px;font-size:11px;font-weight:600;cursor:pointer;flex-shrink:0;white-space:nowrap}
+.next-ep{background:var(--surface2);border-top:1px solid var(--border);padding:8px}
+.next-ep-label{font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:3px}
+.next-ep-title{font-size:12px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:5px}
+.next-ep-bottom{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.next-ep-num{font-size:11px;color:var(--muted)}
+.btn-watched-ep{background:var(--green);color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:600;cursor:pointer;flex-shrink:0;white-space:nowrap}
 .btn-watched-ep:hover{opacity:.85}
 .btn-watched-ep:disabled{opacity:.5;cursor:not-allowed}
 
@@ -487,25 +487,25 @@ function buildNextEpHTML(show, next) {
   if(next.error) return '';
   if(!next.all_watched) {
     return `<div class="next-ep">
-      <div class="next-ep-info">
-        <div class="next-ep-label">Next Up</div>
-        <div class="next-ep-title">${esc(next.name||'Episode '+next.episode_number)}</div>
-        <div class="next-ep-num">S${next.season_number} E${next.episode_number}</div>
+      <div class="next-ep-label">Next Up</div>
+      <div class="next-ep-title">${esc(next.name||'Episode '+next.episode_number)}</div>
+      <div class="next-ep-bottom">
+        <span class="next-ep-num">S${next.season_number} E${next.episode_number}</span>
+        <button class="btn-watched-ep" id="watched-btn-${show.id}" onclick="markNextWatched(event,${show.id},${show.tmdb_id},${next.season_number},${next.episode_number})">✓ Watched</button>
       </div>
-      <button class="btn-watched-ep" id="watched-btn-${show.id}" onclick="markNextWatched(event,${show.id},${show.tmdb_id},${next.season_number},${next.episode_number})">✓ Watched</button>
     </div>`;
   }
-  if(next.show_ended) return `<div class="next-ep"><div class="next-ep-info"><div class="next-ep-label">Status</div><div class="next-ep-title" style="color:var(--green)">🎉 All caught up</div></div></div>`;
+  if(next.show_ended) return `<div class="next-ep"><div class="next-ep-label">Status</div><div class="next-ep-title" style="color:var(--green)">🎉 All caught up</div></div>`;
   if(next.next_air_date) {
     const days=Math.ceil((new Date(next.next_air_date)-new Date())/(1000*60*60*24));
     const dStr=days<=0?'Airs today!':days===1?'Tomorrow':`${days} days`;
-    return `<div class="next-ep"><div class="next-ep-info">
+    return `<div class="next-ep">
       <div class="next-ep-label">Next Episode</div>
       <div class="next-ep-title">S${next.next_air_season} E${next.next_air_ep}</div>
       <div class="next-ep-num" style="color:${days<=3?'#ffd60a':'var(--muted)'}">📅 ${fmtDate(next.next_air_date)} · ${dStr}</div>
-    </div></div>`;
+    </div>`;
   }
-  return `<div class="next-ep"><div class="next-ep-info"><div class="next-ep-label">Next Episode</div><div class="next-ep-title" style="color:var(--muted)">TBD</div><div class="next-ep-num">No air date yet</div></div></div>`;
+  return `<div class="next-ep"><div class="next-ep-label">Next Episode</div><div class="next-ep-title" style="color:var(--muted)">TBD</div><div class="next-ep-num">No air date yet</div></div>`;
 }
 
 function buildProgressHTML(next) {
