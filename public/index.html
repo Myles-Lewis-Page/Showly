@@ -9,7 +9,7 @@
 :root{
   --bg:#111;--surface:#1c1c1c;--surface2:#262626;--surface3:#303030;
   --border:#333;--accent:#e53e3e;--text:#f0f0f0;--muted:#888;
-  --green:#38a169;--blue:#3182ce;--yellow:#d69e2e;--red:#e53e3e;
+  --green:#38a169;--blue:#3182ce;--yellow:#d69e2e;--red:#e53e3e;--purple:#805ad5;
 }
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
 button{cursor:pointer;font-family:inherit;border:none;outline:none}
@@ -34,8 +34,7 @@ nav{background:var(--surface);border-bottom:1px solid var(--border);padding:0 16
 nav::-webkit-scrollbar{height:0}
 .nav-logo{font-size:18px;font-weight:700;color:var(--accent);margin-right:8px;white-space:nowrap;flex-shrink:0}
 .nav-tab{background:none;color:var(--muted);padding:6px 10px;border-radius:6px;font-size:13px;font-weight:500;transition:all .15s;white-space:nowrap;flex-shrink:0}
-.nav-tab:hover{color:var(--text);background:var(--surface2)}
-.nav-tab.on{color:var(--text);background:var(--surface2)}
+.nav-tab:hover,.nav-tab.on{color:var(--text);background:var(--surface2)}
 .nav-right{margin-left:auto;flex-shrink:0;padding-left:8px}
 .btn-logout{background:none;color:var(--muted);font-size:13px;border:1px solid var(--border);border-radius:6px;padding:5px 12px;white-space:nowrap}
 .btn-logout:hover{color:var(--text)}
@@ -56,7 +55,7 @@ nav::-webkit-scrollbar{height:0}
 .sr-actions{display:flex;gap:6px;flex-shrink:0}
 .btn-add{font-size:11px;padding:4px 10px;border-radius:99px;font-weight:600;cursor:pointer;border:none}
 .btn-add.watching{background:#2d6a4f;color:#74c69d}
-.btn-add.plan{background:#1a3a5c;color:#74b9ff}
+.btn-add.watchlist{background:#1a3a5c;color:#74b9ff}
 .btn-add:hover{opacity:.85}
 
 /* MAIN */
@@ -65,101 +64,133 @@ main{padding:16px}
 .section-label span{background:var(--surface2);border:1px solid var(--border);border-radius:99px;padding:1px 8px;font-size:11px}
 
 /* SHOW GRID */
-.show-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;margin-bottom:28px}
+.show-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:12px;margin-bottom:28px}
 .show-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden;position:relative;cursor:pointer;transition:border-color .15s}
 .show-card:hover{border-color:#555}
 .show-card .poster{width:100%;aspect-ratio:2/3;object-fit:cover;background:var(--surface2);display:block}
 .show-card .poster-ph{width:100%;aspect-ratio:2/3;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:36px}
+
+/* STATUS BANNER */
+.status-banner{position:absolute;top:0;left:0;right:0;padding:4px 8px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;text-align:center}
+.banner-green{background:rgba(56,161,105,.85);color:#fff}
+.banner-yellow{background:rgba(214,158,46,.85);color:#fff}
+.banner-red{background:rgba(229,62,62,.85);color:#fff}
+
 .show-card .card-body{padding:8px}
 .show-card .card-title{font-size:13px;font-weight:500;line-height:1.3;margin-bottom:2px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-.show-card .card-year{font-size:11px;color:var(--muted);margin-bottom:6px}
+.show-card .card-dates{font-size:10px;color:var(--muted);margin-bottom:4px}
 .card-actions{display:flex;gap:4px;flex-wrap:wrap}
 .ca-btn{font-size:10px;padding:3px 7px;border-radius:99px;border:1px solid var(--border);background:none;color:var(--muted);cursor:pointer;transition:all .1s}
 .ca-btn:hover{border-color:var(--muted);color:var(--text)}
 .ca-btn.aw{border-color:#38a169;color:#38a169;background:rgba(56,161,105,.12)}
 .ca-btn.ac{border-color:#3182ce;color:#3182ce;background:rgba(49,130,206,.12)}
-.ca-btn.ag{border-color:#805ad5;color:#805ad5;background:rgba(128,90,213,.12)}
-.ca-btn.ap{border-color:#3182ce;color:#3182ce;background:rgba(49,130,206,.12)}
+.ca-btn.af{border-color:#805ad5;color:#805ad5;background:rgba(128,90,213,.12)}
+.ca-btn.awl{border-color:#667eea;color:#667eea;background:rgba(102,126,234,.12)}
 .ca-btn.au{border-color:#d69e2e;color:#d69e2e;background:rgba(214,158,46,.12)}
 .ca-btn.ad{border-color:#e53e3e;color:#e53e3e;background:rgba(229,62,62,.12)}
 .ca-btn.del{color:#555;padding:3px 6px}
 .ca-btn.del:hover{color:#e53e3e;border-color:#e53e3e}
-.status-dot{position:absolute;top:8px;right:8px;width:8px;height:8px;border-radius:50%}
-.dot-watching{background:var(--green)}
-.dot-continuing{background:#3182ce}
-.dot-done{background:#805ad5}
-.dot-plan{background:var(--blue)}
-.dot-paused{background:var(--yellow)}
-.dot-dropped{background:var(--red)}
-.ep-progress{font-size:10px;color:var(--muted);margin-top:4px}
-.ep-bar{height:2px;background:var(--surface3);border-radius:99px;margin-top:3px;overflow:hidden}
-.ep-bar-fill{height:100%;background:var(--accent);border-radius:99px;transition:width .3s}
+
+/* NEXT EP ON CARD */
+.next-ep{background:var(--surface2);border-top:1px solid var(--border);padding:8px;display:flex;align-items:center;gap:8px}
+.next-ep-info{flex:1;min-width:0}
+.next-ep-label{font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:2px}
+.next-ep-title{font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text)}
+.next-ep-num{font-size:11px;color:var(--muted);margin-top:1px}
+.btn-watched-ep{background:var(--green);color:#fff;border:none;border-radius:6px;padding:5px 10px;font-size:11px;font-weight:600;cursor:pointer;flex-shrink:0;white-space:nowrap}
+.btn-watched-ep:hover{opacity:.85}
+.btn-watched-ep:disabled{opacity:.5;cursor:not-allowed}
+
+/* PROGRESS BAR */
+.ep-prog-wrap{padding:0 8px 6px}
+.ep-prog-row{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:4px}
+.ep-prog-bar{height:3px;background:var(--surface3);border-radius:99px;overflow:hidden}
+.ep-prog-fill{height:100%;background:var(--accent);border-radius:99px;transition:width .4s}
 
 .empty{text-align:center;padding:40px 20px;color:var(--muted);font-size:14px;grid-column:1/-1}
 .empty-icon{font-size:36px;margin-bottom:10px}
 
-/* REC */
+/* REC GRID */
 .rec-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
-.rec-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden}
+.rec-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden;cursor:pointer}
+.rec-card:hover{border-color:#555}
 .rec-card .poster{width:100%;aspect-ratio:2/3;object-fit:cover;background:var(--surface2)}
 .rec-card .poster-ph{width:100%;aspect-ratio:2/3;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:36px}
 .rec-body{padding:8px}
 .rec-title{font-size:13px;font-weight:500;line-height:1.3;margin-bottom:2px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-.rec-meta{font-size:11px;color:var(--muted);margin-bottom:6px}
-.btn-rec{width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:5px;font-size:12px;cursor:pointer}
-.btn-rec:hover{border-color:var(--accent);color:var(--accent)}
+.rec-meta{font-size:11px;color:var(--muted)}
 
-/* ── DETAIL PANEL ─────────────────────────────────────────────────────── */
+/* STATS */
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px;margin-bottom:24px}
+.stat-box{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;text-align:center}
+.stat-num{font-size:28px;font-weight:700;color:var(--accent)}
+.stat-label{font-size:11px;color:var(--muted);margin-top:4px;text-transform:uppercase;letter-spacing:.05em}
+.stats-section{margin-bottom:28px}
+.stats-title{font-size:13px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:12px}
+.stats-row{display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--surface);border:1px solid var(--border);border-radius:8px;margin-bottom:6px}
+.stats-rank{font-size:13px;font-weight:700;color:var(--muted);width:20px;flex-shrink:0}
+.stats-name{flex:1;font-size:14px;font-weight:500}
+.stats-val{font-size:13px;color:var(--muted);flex-shrink:0}
+.stats-bar-wrap{flex:1;height:4px;background:var(--surface3);border-radius:99px;overflow:hidden}
+.stats-bar{height:100%;background:var(--accent);border-radius:99px}
+.genre-chip{display:inline-block;background:var(--surface2);border:1px solid var(--border);border-radius:99px;padding:4px 12px;font-size:12px;margin:0 4px 6px 0}
+
+/* ── DETAIL PANEL ── */
 #detail-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:99;opacity:0;transition:opacity .2s;pointer-events:none}
 #detail-overlay.open{opacity:1;pointer-events:all}
-#detail-panel{position:fixed;top:0;right:0;bottom:0;width:min(560px,100vw);background:var(--surface);border-left:1px solid var(--border);z-index:100;overflow-y:auto;transform:translateX(100%);transition:transform .25s ease;display:flex;flex-direction:column}
+#detail-panel{position:fixed;top:0;right:0;bottom:0;width:min(580px,100vw);background:var(--surface);border-left:1px solid var(--border);z-index:100;overflow-y:auto;transform:translateX(100%);transition:transform .25s ease}
 #detail-panel.open{transform:translateX(0)}
-
 .panel-backdrop{width:100%;height:200px;object-fit:cover;object-position:top;opacity:.5;display:block}
 .panel-backdrop-ph{width:100%;height:200px;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:64px}
 .panel-close{position:absolute;top:12px;left:12px;background:rgba(0,0,0,.6);color:#fff;border:none;border-radius:99px;padding:6px 14px;font-size:13px;font-weight:500;cursor:pointer;z-index:10}
-.panel-close:hover{background:rgba(0,0,0,.8)}
-
-.panel-body{padding:0 16px 32px;flex:1}
+.panel-close:hover{background:rgba(0,0,0,.85)}
+.panel-body{padding:0 16px 32px}
 .panel-top{display:flex;gap:14px;margin-top:-60px;margin-bottom:16px;position:relative}
 .panel-poster{width:90px;height:135px;border-radius:8px;object-fit:cover;border:2px solid var(--border);flex-shrink:0;background:var(--surface2)}
 .panel-poster-ph{width:90px;height:135px;border-radius:8px;border:2px solid var(--border);flex-shrink:0;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:32px}
 .panel-info{padding-top:68px;flex:1;min-width:0}
-.panel-title{font-size:20px;font-weight:700;line-height:1.2;margin-bottom:4px}
-.panel-meta{font-size:12px;color:var(--muted);display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px}
-.panel-meta span{display:flex;align-items:center;gap:3px}
+.panel-title{font-size:20px;font-weight:700;line-height:1.2;margin-bottom:6px}
+.panel-meta{font-size:12px;color:var(--muted);display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px}
+.panel-dates{font-size:12px;color:var(--muted);margin-bottom:8px}
 .panel-genres{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:12px}
 .genre-tag{font-size:11px;background:var(--surface2);border:1px solid var(--border);border-radius:99px;padding:2px 9px}
-.panel-status-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px}
+.panel-section-title{font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:8px;margin-top:20px}
+.panel-status-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
 .ps-btn{font-size:11px;padding:5px 11px;border-radius:99px;border:1px solid var(--border);background:none;color:var(--muted);cursor:pointer;transition:all .15s}
 .ps-btn:hover{color:var(--text);border-color:#555}
 .ps-btn.aw{border-color:#38a169;color:#38a169;background:rgba(56,161,105,.12)}
 .ps-btn.ac{border-color:#3182ce;color:#3182ce;background:rgba(49,130,206,.12)}
-.ps-btn.ag{border-color:#805ad5;color:#805ad5;background:rgba(128,90,213,.12)}
-.ps-btn.ap{border-color:#3182ce;color:#3182ce;background:rgba(49,130,206,.12)}
+.ps-btn.af{border-color:#805ad5;color:#805ad5;background:rgba(128,90,213,.12)}
+.ps-btn.awl{border-color:#667eea;color:#667eea;background:rgba(102,126,234,.12)}
 .ps-btn.au{border-color:#d69e2e;color:#d69e2e;background:rgba(214,158,46,.12)}
 .ps-btn.ad{border-color:#e53e3e;color:#e53e3e;background:rgba(229,62,62,.12)}
-.panel-overview{font-size:14px;line-height:1.7;color:var(--muted);margin-bottom:20px}
+.panel-overview{font-size:14px;line-height:1.7;color:var(--muted);margin-bottom:4px}
+
+/* PANEL STATS */
+.panel-stats{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
+.p-stat{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center}
+.p-stat-num{font-size:22px;font-weight:700}
+.p-stat-label{font-size:10px;color:var(--muted);margin-top:3px;text-transform:uppercase;letter-spacing:.04em}
+.p-stat-sub{font-size:10px;color:var(--muted);margin-top:2px}
 
 /* CAST */
-.panel-section-title{font-size:13px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin-bottom:10px;margin-top:20px}
 .cast-scroll{display:flex;gap:10px;overflow-x:auto;padding-bottom:4px}
 .cast-scroll::-webkit-scrollbar{height:0}
 .cast-item{flex-shrink:0;width:64px;text-align:center}
 .cast-img{width:64px;height:64px;border-radius:50%;object-fit:cover;background:var(--surface2);margin-bottom:4px}
-.cast-name{font-size:11px;line-height:1.3;color:var(--text)}
+.cast-name{font-size:11px;line-height:1.3}
 .cast-char{font-size:10px;color:var(--muted);margin-top:1px}
 
-/* SEASONS / EPISODES */
+/* SEASONS */
 .season-tabs{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;margin-bottom:12px}
 .season-tabs::-webkit-scrollbar{height:0}
 .s-tab{flex-shrink:0;background:var(--surface2);border:1px solid var(--border);color:var(--muted);padding:5px 12px;border-radius:99px;font-size:12px;cursor:pointer}
 .s-tab.on{background:var(--accent);border-color:var(--accent);color:#fff}
-.season-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.season-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:6px}
 .season-progress{font-size:12px;color:var(--muted)}
 .btn-mark-season{font-size:11px;padding:4px 12px;border-radius:99px;border:1px solid var(--border);background:none;color:var(--muted);cursor:pointer}
-.btn-mark-season:hover{border-color:var(--green);color:var(--green)}
-.btn-mark-season.all-watched{border-color:var(--green);color:var(--green);background:rgba(56,161,105,.1)}
+.btn-mark-season:hover,.btn-mark-season.all-watched{border-color:var(--green);color:var(--green)}
+.btn-mark-season.all-watched{background:rgba(56,161,105,.1)}
 .episodes-list{display:flex;flex-direction:column;gap:6px}
 .ep-row{display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--surface2);border-radius:8px;border:1px solid var(--border);cursor:pointer;transition:border-color .15s;user-select:none}
 .ep-row:hover{border-color:#444}
@@ -173,9 +204,15 @@ main{padding:16px}
 .ep-check{width:20px;height:20px;border-radius:50%;border:2px solid var(--border);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:11px;transition:all .15s}
 .ep-row.watched .ep-check{background:var(--green);border-color:var(--green);color:#fff}
 
-/* Episode detail modal */
+/* TOTAL PROGRESS */
+.total-progress{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:12px}
+.total-prog-row{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:5px}
+.total-prog-bar{height:4px;background:var(--surface3);border-radius:99px;overflow:hidden}
+.total-prog-fill{height:100%;background:var(--accent);border-radius:99px;transition:width .3s}
+
+/* EP MODAL */
 #ep-modal{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:150;display:flex;align-items:center;justify-content:center;padding:20px}
-.ep-modal-box{background:var(--surface);border:1px solid var(--border);border-radius:12px;width:100%;max-width:480px;overflow:hidden;max-height:80vh;overflow-y:auto}
+.ep-modal-box{background:var(--surface);border:1px solid var(--border);border-radius:12px;width:100%;max-width:480px;max-height:80vh;overflow-y:auto}
 .ep-modal-still{width:100%;aspect-ratio:16/9;object-fit:cover;background:var(--surface2)}
 .ep-modal-still-ph{width:100%;aspect-ratio:16/9;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:48px}
 .ep-modal-body{padding:16px}
@@ -184,10 +221,10 @@ main{padding:16px}
 .ep-modal-overview{font-size:14px;line-height:1.7;color:var(--muted);margin-bottom:14px}
 .ep-modal-actions{display:flex;gap:8px}
 .ep-modal-watch{flex:1;background:var(--green);color:#fff;border:none;border-radius:8px;padding:10px;font-size:14px;font-weight:600;cursor:pointer}
-.ep-modal-watch.watched-state{background:var(--surface2);border:1px solid var(--green);color:var(--green)}
+.ep-modal-watch.ws{background:var(--surface2);border:1px solid var(--green);color:var(--green)}
 .ep-modal-close{background:var(--surface2);border:1px solid var(--border);color:var(--muted);border-radius:8px;padding:10px 16px;font-size:14px;cursor:pointer}
 
-/* REC DETAIL MODAL */
+/* REC MODAL */
 #rec-modal{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:160;display:flex;align-items:center;justify-content:center;padding:20px}
 .rec-modal-box{background:var(--surface);border:1px solid var(--border);border-radius:12px;width:100%;max-width:500px;max-height:85vh;overflow-y:auto}
 .rec-modal-backdrop{width:100%;height:160px;object-fit:cover;object-position:top;opacity:.5}
@@ -199,43 +236,28 @@ main{padding:16px}
 .rec-modal-info{padding-top:52px;flex:1;min-width:0}
 .rec-modal-title{font-size:18px;font-weight:700;line-height:1.2;margin-bottom:4px}
 .rec-modal-meta{font-size:12px;color:var(--muted);display:flex;gap:10px;flex-wrap:wrap;margin-bottom:8px}
-.rec-modal-genres{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:12px}
 .rec-modal-overview{font-size:14px;line-height:1.7;color:var(--muted);margin-bottom:16px}
-.rec-modal-cast{display:flex;gap:10px;overflow-x:auto;padding-bottom:4px;margin-bottom:16px}
-.rec-modal-cast::-webkit-scrollbar{height:0}
 .rec-add-label{font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
 .rec-add-btns{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
-.btn-rec-list{padding:9px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;border:none;transition:opacity .15s}
+.btn-rec-list{padding:9px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;border:none}
 .btn-rec-list:hover{opacity:.85}
 .btn-rec-list:disabled{opacity:.5;cursor:not-allowed}
 .btn-rec-list.watching{background:#2d6a4f;color:#74c69d}
-.btn-rec-list.plan{background:#1a3a5c;color:#74b9ff}
+.btn-rec-list.watchlist{background:#1a3a5c;color:#74b9ff}
 .btn-rec-list.paused{background:#44370b;color:#ffd60a}
 .btn-rec-list.dropped{background:#4a1010;color:#ff6b6b}
 .btn-rec-close{width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--muted);border-radius:8px;padding:9px;font-size:13px;cursor:pointer}
-.btn-rec-close:hover{color:var(--text)}
-.ep-prog-wrap{padding:0 8px 8px}
-.ep-prog-row{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:4px}
-.ep-prog-bar{height:3px;background:var(--surface3);border-radius:99px;overflow:hidden}
-.ep-prog-fill{height:100%;background:var(--accent);border-radius:99px;transition:width .4s ease}
-.panel-stats{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
-.stat-box{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center}
-.stat-box-num{font-size:22px;font-weight:700;color:var(--text)}
-.stat-box-label{font-size:11px;color:var(--muted);margin-top:3px;text-transform:uppercase;letter-spacing:.04em}
-.stat-box-sub{font-size:10px;color:var(--muted);margin-top:2px}border-top:1px solid var(--border);padding:8px;display:flex;align-items:center;gap:8px}
-.next-ep-info{flex:1;min-width:0}
-.next-ep-label{font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:2px}
-.next-ep-title{font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text)}
-.next-ep-num{font-size:11px;color:var(--muted);margin-top:1px}
-.btn-watched-ep{background:var(--green);color:#fff;border:none;border-radius:6px;padding:5px 10px;font-size:11px;font-weight:600;cursor:pointer;flex-shrink:0;white-space:nowrap}
-.btn-watched-ep:hover{opacity:.85}
-.btn-watched-ep:disabled{opacity:.5;cursor:not-allowed}
-.next-ep-done{font-size:11px;color:var(--green);padding:0 4px;flex-shrink:0}bottom:20px;right:20px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 16px;font-size:13px;z-index:999;animation:fadeUp .2s ease;box-shadow:0 4px 20px rgba(0,0,0,.4)}
+.cast-scroll-rec{display:flex;gap:10px;overflow-x:auto;padding-bottom:4px;margin-bottom:14px}
+.cast-scroll-rec::-webkit-scrollbar{height:0}
+
+/* TOAST */
+.toast{position:fixed;bottom:20px;right:20px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 16px;font-size:13px;z-index:999;animation:fadeUp .2s ease;box-shadow:0 4px 20px rgba(0,0,0,.4)}
 @keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 
 @media(max-width:500px){
   .show-grid,.rec-grid{grid-template-columns:repeat(auto-fill,minmax(130px,1fr))}
   #detail-panel{width:100vw}
+  .stats-grid{grid-template-columns:repeat(2,1fr)}
 }
 </style>
 </head>
@@ -246,10 +268,8 @@ main{padding:16px}
   <div class="login-box">
     <h1>Show Tracker</h1>
     <p>Track what you're watching</p>
-    <label>Username</label>
-    <input type="text" id="lu" autocomplete="username"/>
-    <label>Password</label>
-    <input type="password" id="lp" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()"/>
+    <label>Username</label><input type="text" id="lu" autocomplete="username"/>
+    <label>Password</label><input type="password" id="lp" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()"/>
     <button class="btn-submit" onclick="doLogin()">Sign in</button>
     <div class="login-err" id="lerr"></div>
   </div>
@@ -260,12 +280,13 @@ main{padding:16px}
   <nav>
     <span class="nav-logo">📺</span>
     <button class="nav-tab on" onclick="setTab('watching')" id="t-watching">Watching</button>
-    <button class="nav-tab" onclick="setTab('continuing')" id="t-continuing">Continuing</button>
-    <button class="nav-tab" onclick="setTab('done')" id="t-done">Done</button>
-    <button class="nav-tab" onclick="setTab('plan')" id="t-plan">Plan to Watch</button>
+    <button class="nav-tab" onclick="setTab('caughtup')" id="t-caughtup">Caught Up</button>
+    <button class="nav-tab" onclick="setTab('finished')" id="t-finished">Show Finished</button>
+    <button class="nav-tab" onclick="setTab('watchlist')" id="t-watchlist">Watchlist</button>
     <button class="nav-tab" onclick="setTab('paused')" id="t-paused">Paused</button>
     <button class="nav-tab" onclick="setTab('dropped')" id="t-dropped">Not Continuing</button>
     <button class="nav-tab" onclick="setTab('recs')" id="t-recs">Recommendations</button>
+    <button class="nav-tab" onclick="setTab('stats')" id="t-stats">Stats</button>
     <div class="nav-right"><button class="btn-logout" onclick="doLogout()">Sign out</button></div>
   </nav>
 
@@ -276,49 +297,27 @@ main{padding:16px}
   </div>
 
   <main>
-    <div id="tab-watching">
-      <div class="section-label">Currently Watching <span id="cnt-watching">0</span></div>
-      <div class="show-grid" id="grid-watching"></div>
-    </div>
-    <div id="tab-continuing" class="hide">
-      <div class="section-label">Continuing — Caught Up <span id="cnt-continuing">0</span></div>
-      <div class="show-grid" id="grid-continuing"></div>
-    </div>
-    <div id="tab-done" class="hide">
-      <div class="section-label">Done <span id="cnt-done">0</span></div>
-      <div class="show-grid" id="grid-done"></div>
-    </div>
-    <div id="tab-plan" class="hide">
-      <div class="section-label">Plan to Watch <span id="cnt-plan">0</span></div>
-      <div class="show-grid" id="grid-plan"></div>
-    </div>
-    <div id="tab-paused" class="hide">
-      <div class="section-label">Paused <span id="cnt-paused">0</span></div>
-      <div class="show-grid" id="grid-paused"></div>
-    </div>
-    <div id="tab-dropped" class="hide">
-      <div class="section-label">Not Continuing <span id="cnt-dropped">0</span></div>
-      <div class="show-grid" id="grid-dropped"></div>
-    </div>
-    <div id="tab-recs" class="hide">
-      <div class="section-label">Recommended for You</div>
-      <div class="rec-grid" id="grid-recs"></div>
-    </div>
+    <div id="tab-watching"><div class="section-label">Currently Watching <span id="cnt-watching">0</span></div><div class="show-grid" id="grid-watching"></div></div>
+    <div id="tab-caughtup" class="hide"><div class="section-label">Caught Up <span id="cnt-caughtup">0</span></div><div class="show-grid" id="grid-caughtup"></div></div>
+    <div id="tab-finished" class="hide"><div class="section-label">Show Finished <span id="cnt-finished">0</span></div><div class="show-grid" id="grid-finished"></div></div>
+    <div id="tab-watchlist" class="hide"><div class="section-label">Watchlist <span id="cnt-watchlist">0</span></div><div class="show-grid" id="grid-watchlist"></div></div>
+    <div id="tab-paused" class="hide"><div class="section-label">Paused <span id="cnt-paused">0</span></div><div class="show-grid" id="grid-paused"></div></div>
+    <div id="tab-dropped" class="hide"><div class="section-label">Not Continuing <span id="cnt-dropped">0</span></div><div class="show-grid" id="grid-dropped"></div></div>
+    <div id="tab-recs" class="hide"><div class="section-label">Recommended for You</div><div class="rec-grid" id="grid-recs"></div></div>
+    <div id="tab-stats" class="hide" style="max-width:680px"><div class="section-label">Your Stats</div><div id="stats-content"></div></div>
   </main>
 </div>
 
 <!-- DETAIL PANEL -->
 <div id="detail-overlay" onclick="closeDetail()"></div>
-<div id="detail-panel">
-  <div id="detail-content"></div>
-</div>
+<div id="detail-panel"><div id="detail-content"></div></div>
 
-<!-- EPISODE MODAL -->
+<!-- EP MODAL -->
 <div id="ep-modal" class="hide" onclick="if(event.target===this)closeEpModal()">
   <div class="ep-modal-box" id="ep-modal-content"></div>
 </div>
 
-<!-- REC DETAIL MODAL -->
+<!-- REC MODAL -->
 <div id="rec-modal" class="hide" onclick="if(event.target===this)closeRecModal()">
   <div class="rec-modal-box" id="rec-modal-content"></div>
 </div>
@@ -326,743 +325,679 @@ main{padding:16px}
 <script>
 const IMG = 'https://image.tmdb.org/t/p';
 let shows = [];
-let watchedEps = new Map(); // tmdb_id -> Set of "s_e" keys
-let nextEps = new Map();   // tmdb_id -> next episode info
+let watchedEps = new Map();
+let nextEps = new Map();
+let showDetails = new Map(); // cache TMDB details
 let currentDetail = null;
 let currentSeason = null;
 let searchTimer = null;
 
 // ── API ───────────────────────────────────────────────────────────────────────
-async function api(url, opts = {}) {
-  const r = await fetch(url, {
-    headers: { 'Content-Type': 'application/json' },
-    ...opts,
-    body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
-  });
-  return r.json().catch(() => ({}));
+async function api(url, opts={}) {
+  const r = await fetch(url, { headers:{'Content-Type':'application/json'}, ...opts, body:opts.body!==undefined?JSON.stringify(opts.body):undefined });
+  return r.json().catch(()=>({}));
 }
 
 // ── AUTH ──────────────────────────────────────────────────────────────────────
 async function doLogin() {
-  const res = await api('/api/login', { method:'POST', body:{
-    username: document.getElementById('lu').value.trim(),
-    password: document.getElementById('lp').value
-  }});
-  if (res.ok) startApp();
-  else document.getElementById('lerr').textContent = 'Wrong username or password';
+  const res = await api('/api/login',{method:'POST',body:{username:document.getElementById('lu').value.trim(),password:document.getElementById('lp').value}});
+  if (res.ok) startApp(); else document.getElementById('lerr').textContent='Wrong username or password';
 }
 async function doLogout() { await api('/api/logout',{method:'POST'}); location.reload(); }
 async function init() { const r = await api('/api/me'); if (r.ok) startApp(); }
 
 // ── START ─────────────────────────────────────────────────────────────────────
 async function startApp() {
-  document.getElementById('login').style.display = 'none';
+  document.getElementById('login').style.display='none';
   document.getElementById('app').classList.remove('hide');
   shows = await api('/api/shows');
   renderAll();
-  // Load next episodes in background for watching shows
   loadNextEpisodes();
 }
 
-async function loadNextEpisodes() {
-  const active = shows.filter(s => ['watching','continuing'].includes(s.status));
-  await Promise.all(active.map(async s => {
-    const data = await api(`/api/next-episode/${s.tmdb_id}`);
-    nextEps.set(s.tmdb_id, data);
-    updateCardNextEp(s);
-    // Auto-move to correct status
-    if (data.suggested_status && data.suggested_status !== s.status &&
-        ['watching','continuing','done'].includes(s.status)) {
-      autoMoveStatus(s, data.suggested_status);
-    }
-  }));
-}
+// ── UTILS ─────────────────────────────────────────────────────────────────────
+function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
+function sLabel(s){return{watching:'Watching ▶',caughtup:'Caught Up 🔄',finished:'Show Finished ✅',watchlist:'Watchlist 📋',paused:'Paused ⏸',dropped:'Not Continuing 🚫'}[s]||s;}
+function sIcon(s){return{watching:'▶️',caughtup:'🔄',finished:'✅',watchlist:'📋',paused:'⏸️',dropped:'🚫'}[s]||'📺';}
+function fmtDate(d){if(!d)return'';const p=d.split('-');return p.length===3?`${parseInt(p[1])}/${parseInt(p[2])}/${p[0]}`:d;}
+function toast(msg){const t=document.createElement('div');t.className='toast';t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),2200);}
 
-async function autoMoveStatus(show, newStatus) {
-  const res = await api(`/api/shows/${show.id}`, { method:'PATCH', body:{ status: newStatus } });
-  if (res.id) {
-    show.status = newStatus;
-    renderAll();
-  }
-}
-
-// ── RENDER ────────────────────────────────────────────────────────────────────
+// ── RENDER ALL ────────────────────────────────────────────────────────────────
 function renderAll() {
-  const groups = { watching:[], continuing:[], done:[], plan:[], paused:[], dropped:[] };
-  shows.forEach(s => { if (groups[s.status]) groups[s.status].push(s); });
-  Object.entries(groups).forEach(([status, list]) => {
-    document.getElementById('cnt-'+status).textContent = list.length;
-    const grid = document.getElementById('grid-'+status);
-    if (!list.length) {
-      grid.innerHTML = `<div class="empty"><div class="empty-icon">${sIcon(status)}</div>Nothing here yet</div>`;
-      return;
-    }
-    grid.innerHTML = list.map(s => showCard(s)).join('');
+  const groups={watching:[],caughtup:[],finished:[],watchlist:[],paused:[],dropped:[]};
+  shows.forEach(s=>{if(groups[s.status])groups[s.status].push(s);});
+  // already sorted alpha from server
+  Object.entries(groups).forEach(([status,list])=>{
+    const cnt=document.getElementById('cnt-'+status);
+    if(cnt) cnt.textContent=list.length;
+    const grid=document.getElementById('grid-'+status);
+    if(!grid) return;
+    if(!list.length){grid.innerHTML=`<div class="empty"><div class="empty-icon">${sIcon(status)}</div>Nothing here yet</div>`;return;}
+    grid.innerHTML=list.map(s=>showCard(s)).join('');
   });
 }
 
 function showCard(s) {
   const next = nextEps.get(s.tmdb_id);
+  const det = showDetails.get(s.tmdb_id);
   const poster = s.poster_path
-    ? `<img class="poster" src="${IMG}/w300${s.poster_path}" alt="${esc(s.title)}" loading="lazy" onerror="this.outerHTML='<div class=poster-ph>📺</div>'"/>`
-    : `<div class="poster-ph">📺</div>`;
-  const nextEpHTML = ['watching','continuing'].includes(s.status) ? buildNextEpHTML(s, next) : '';
-  const progressHTML = ['watching','continuing'].includes(s.status) ? buildProgressHTML(next) : '';
+    ?`<img class="poster" src="${IMG}/w300${s.poster_path}" alt="${esc(s.title)}" loading="lazy" onerror="this.outerHTML='<div class=poster-ph>📺</div>'"/>`
+    :`<div class="poster-ph">📺</div>`;
+
+  // Banner
+  let banner='';
+  if(det){
+    const tmdbStatus=det.status;
+    const activelyReleasing=next?.actively_releasing;
+    if(tmdbStatus==='Ended'||tmdbStatus==='Canceled'||tmdbStatus==='Cancelled'){
+      banner=`<div class="status-banner banner-red">Series Ended</div>`;
+    } else if(activelyReleasing){
+      banner=`<div class="status-banner banner-green">Now Airing</div>`;
+    } else if(tmdbStatus==='Returning Series'||tmdbStatus==='In Production'){
+      banner=`<div class="status-banner banner-yellow">Coming Back</div>`;
+    }
+  }
+
+  const nextEpHTML = ['watching','caughtup'].includes(s.status) ? buildNextEpHTML(s,next) : '';
+  const progressHTML = ['watching','caughtup'].includes(s.status) ? buildProgressHTML(next) : '';
+
+  // Dates for card
+  const startYear = s.year||'';
+  const endDate = det?.last_air_date ? fmtDate(det.last_air_date) : '';
+  const dateStr = det ? (det.status==='Ended'||det.status==='Canceled'||det.status==='Cancelled'
+    ? `${startYear} – ${endDate}`
+    : startYear) : startYear;
+
   return `<div class="show-card" id="card-${s.id}">
-    <div class="status-dot dot-${s.status}"></div>
-    <div onclick="openDetail(${s.tmdb_id},${s.id})">${poster}
-      <div class="card-body">
+    ${banner}
+    <div onclick="openDetail(${s.tmdb_id},${s.id})" style="${banner?'margin-top:0':''}">
+      ${poster}
+      <div class="card-body" style="${banner?'padding-top:12px':''}">
         <div class="card-title">${esc(s.title)}</div>
-        <div class="card-year">${s.year||''}</div>
+        <div class="card-dates">${dateStr}</div>
       </div>
     </div>
     <div id="next-ep-${s.id}">${nextEpHTML}</div>
     <div id="prog-${s.id}">${progressHTML}</div>
     <div style="padding:0 8px 8px">
       <div class="card-actions">
-        <button class="ca-btn ${s.status==='watching'?'aw':''}" onclick="setStatus(event,${s.id},'watching')">▶</button>
-        <button class="ca-btn ${s.status==='continuing'?'ac':''}" onclick="setStatus(event,${s.id},'continuing')">🔄</button>
-        <button class="ca-btn ${s.status==='done'?'ag':''}" onclick="setStatus(event,${s.id},'done')">✅</button>
-        <button class="ca-btn ${s.status==='plan'?'ap':''}" onclick="setStatus(event,${s.id},'plan')">📋</button>
-        <button class="ca-btn ${s.status==='paused'?'au':''}" onclick="setStatus(event,${s.id},'paused')">⏸</button>
-        <button class="ca-btn ${s.status==='dropped'?'ad':''}" onclick="setStatus(event,${s.id},'dropped')">🚫</button>
+        <button class="ca-btn ${s.status==='watching'?'aw':''}" onclick="setStatus(event,${s.id},'watching')" title="Watching">▶</button>
+        <button class="ca-btn ${s.status==='caughtup'?'ac':''}" onclick="setStatus(event,${s.id},'caughtup')" title="Caught Up">🔄</button>
+        <button class="ca-btn ${s.status==='finished'?'af':''}" onclick="setStatus(event,${s.id},'finished')" title="Finished">✅</button>
+        <button class="ca-btn ${s.status==='watchlist'?'awl':''}" onclick="setStatus(event,${s.id},'watchlist')" title="Watchlist">📋</button>
+        <button class="ca-btn ${s.status==='paused'?'au':''}" onclick="setStatus(event,${s.id},'paused')" title="Paused">⏸</button>
+        <button class="ca-btn ${s.status==='dropped'?'ad':''}" onclick="setStatus(event,${s.id},'dropped')" title="Not Continuing">🚫</button>
         <button class="ca-btn del" onclick="deleteShow(event,${s.id})" title="Remove">✕</button>
       </div>
     </div>
   </div>`;
 }
 
-function buildProgressHTML(next) {
-  if (!next || next.error) return '';
-  const watched = next.total_watched || 0;
-  const total = next.total_aired || 0;
-  if (!total) return '';
-  const pct = Math.min(100, Math.round((watched / total) * 100));
-  return `<div class="ep-prog-wrap">
-    <div class="ep-prog-row">
-      <span>${watched} / ${total} episodes</span>
-      <span>${pct}%</span>
-    </div>
-    <div class="ep-prog-bar"><div class="ep-prog-fill" style="width:${pct}%"></div></div>
-  </div>`;
-}
-
 function buildNextEpHTML(show, next) {
-  if (!next) return `<div class="next-ep"><div class="next-ep-info"><div class="next-ep-label">Next Episode</div><div class="next-ep-num" style="color:var(--muted)">Loading...</div></div></div>`;
-  if (next.error) return '';
-
-  // Still has unwatched aired episodes — show next up button
-  if (!next.all_watched) {
+  if(!next) return `<div class="next-ep"><div class="next-ep-info"><div class="next-ep-label">Next Episode</div><div class="next-ep-num" style="color:var(--muted)">Loading...</div></div></div>`;
+  if(next.error) return '';
+  if(!next.all_watched) {
     return `<div class="next-ep">
       <div class="next-ep-info">
         <div class="next-ep-label">Next Up</div>
         <div class="next-ep-title">${esc(next.name||'Episode '+next.episode_number)}</div>
         <div class="next-ep-num">S${next.season_number} E${next.episode_number}</div>
       </div>
-      <button class="btn-watched-ep" id="watched-btn-${show.id}" onclick="markNextWatched(event,${show.id},${show.tmdb_id},${next.season_number},${next.episode_number})">
-        ✓ Watched
-      </button>
+      <button class="btn-watched-ep" id="watched-btn-${show.id}" onclick="markNextWatched(event,${show.id},${show.tmdb_id},${next.season_number},${next.episode_number})">✓ Watched</button>
     </div>`;
   }
-
-  // All caught up — show is ended/cancelled
-  if (next.show_ended) {
-    return `<div class="next-ep"><div class="next-ep-info"><div class="next-ep-label">Status</div><div class="next-ep-title" style="color:var(--green)">🎉 Complete — All watched</div></div></div>`;
+  if(next.show_ended) return `<div class="next-ep"><div class="next-ep-info"><div class="next-ep-label">Status</div><div class="next-ep-title" style="color:var(--green)">🎉 All caught up</div></div></div>`;
+  if(next.next_air_date) {
+    const days=Math.ceil((new Date(next.next_air_date)-new Date())/(1000*60*60*24));
+    const dStr=days<=0?'Airs today!':days===1?'Tomorrow':`${days} days`;
+    return `<div class="next-ep"><div class="next-ep-info">
+      <div class="next-ep-label">Next Episode</div>
+      <div class="next-ep-title">S${next.next_air_season} E${next.next_air_ep}</div>
+      <div class="next-ep-num" style="color:${days<=3?'#ffd60a':'var(--muted)'}">📅 ${fmtDate(next.next_air_date)} · ${dStr}</div>
+    </div></div>`;
   }
-
-  // All caught up — show still airing, show next air date
-  if (next.next_air_date) {
-    const daysUntil = Math.ceil((new Date(next.next_air_date) - new Date()) / (1000*60*60*24));
-    const daysStr = daysUntil <= 0 ? 'Airs today!' : daysUntil === 1 ? 'Tomorrow' : `${daysUntil} days`;
-    const dateStr = new Date(next.next_air_date).toLocaleDateString('en-US', { month:'short', day:'numeric' });
-    return `<div class="next-ep">
-      <div class="next-ep-info">
-        <div class="next-ep-label">Next Episode</div>
-        <div class="next-ep-title">S${next.next_air_season} E${next.next_air_ep}</div>
-        <div class="next-ep-num" style="color:${daysUntil<=3?'#ffd60a':'var(--muted)'}">📅 ${dateStr} · ${daysStr}</div>
-      </div>
-    </div>`;
-  }
-
-  // Caught up, still airing, no known air date
   return `<div class="next-ep"><div class="next-ep-info"><div class="next-ep-label">Next Episode</div><div class="next-ep-title" style="color:var(--muted)">TBD</div><div class="next-ep-num">No air date yet</div></div></div>`;
 }
 
+function buildProgressHTML(next) {
+  if(!next||next.error) return '';
+  const w=next.total_watched||0, t=next.total_aired||0;
+  if(!t) return '';
+  const pct=Math.min(100,Math.round((w/t)*100));
+  return `<div class="ep-prog-wrap">
+    <div class="ep-prog-row"><span>${w} / ${t} episodes</span><span>${pct}%</span></div>
+    <div class="ep-prog-bar"><div class="ep-prog-fill" style="width:${pct}%"></div></div>
+  </div>`;
+}
+
 function updateCardNextEp(show) {
-  const next = nextEps.get(show.tmdb_id);
-  const nextContainer = document.getElementById('next-ep-'+show.id);
-  if (nextContainer) nextContainer.innerHTML = buildNextEpHTML(show, next);
-  const progContainer = document.getElementById('prog-'+show.id);
-  if (progContainer) progContainer.innerHTML = buildProgressHTML(next);
+  const next=nextEps.get(show.tmdb_id);
+  const nc=document.getElementById('next-ep-'+show.id);
+  if(nc) nc.innerHTML=buildNextEpHTML(show,next);
+  const pc=document.getElementById('prog-'+show.id);
+  if(pc) pc.innerHTML=buildProgressHTML(next);
 }
 
-async function markNextWatched(event, showId, tmdbId, season, epNum) {
-  event.stopPropagation();
-  const btn = document.getElementById('watched-btn-'+showId);
-  if (btn) { btn.disabled = true; btn.textContent = '...'; }
-
-  await api('/api/episodes', { method:'POST', body:{ tmdb_id:tmdbId, season_number:season, episode_number:epNum } });
-
-  const epSet = watchedEps.get(parseInt(tmdbId)) || watchedEps.get(tmdbId) || new Set();
-  epSet.add(`${season}_${epNum}`);
-  watchedEps.set(tmdbId, epSet);
-
-  const next = await api(`/api/next-episode/${tmdbId}`);
-  nextEps.set(tmdbId, next);
-
-  const show = shows.find(s => s.id === showId);
-  if (show) {
-    // Auto-move if suggested status differs and show is in an auto-managed status
-    if (next.suggested_status && next.suggested_status !== show.status &&
-        ['watching','continuing','done'].includes(show.status)) {
-      await autoMoveStatus(show, next.suggested_status);
+// ── LOAD NEXT EPISODES ────────────────────────────────────────────────────────
+async function loadNextEpisodes() {
+  const active=shows.filter(s=>['watching','caughtup'].includes(s.status));
+  await Promise.all(active.map(async s=>{
+    const data=await api(`/api/next-episode/${s.tmdb_id}`);
+    nextEps.set(s.tmdb_id, data);
+    // Cache show-level info from this response
+    if(data.tmdb_status) showDetails.set(s.tmdb_id, {status:data.tmdb_status, actively_releasing:data.actively_releasing, last_air_date:data.last_air_date, first_air_date:data.first_air_date});
+    updateCardNextEp(s);
+    if(data.suggested_status && data.suggested_status!==s.status && ['watching','caughtup','finished'].includes(s.status)) {
+      autoMoveStatus(s, data.suggested_status);
     }
-    updateCardNextEp(show);
-  }
-
-  toast(`S${season}E${epNum} watched ✓`);
+  }));
 }
 
-function sIcon(s) { return {watching:'▶️',continuing:'🔄',done:'✅',plan:'📋',paused:'⏸️',dropped:'🚫'}[s]||'📺'; }
+async function autoMoveStatus(show, newStatus) {
+  const res=await api(`/api/shows/${show.id}`,{method:'PATCH',body:{status:newStatus}});
+  if(res.id){show.status=newStatus;renderAll();}
+}
 
 // ── STATUS / DELETE ───────────────────────────────────────────────────────────
 async function setStatus(event, id, newStatus) {
   event.stopPropagation();
-  const res = await api(`/api/shows/${id}`, { method:'PATCH', body:{status:newStatus} });
-  if (!res.id) return;
-  const show = shows.find(s => s.id === id);
-  if (!show) return;
-  show.status = newStatus;
+  const res=await api(`/api/shows/${id}`,{method:'PATCH',body:{status:newStatus}});
+  if(!res.id) return;
+  const show=shows.find(s=>s.id===id);
+  if(!show) return;
+  show.status=newStatus;
   renderAll();
   toast(sLabel(newStatus));
-  if (currentDetail?.id === id) renderPanelStatusBtns(newStatus, id);
-  // Load next ep if moved to watching
-  if (newStatus === 'watching') {
-    const next = await api(`/api/next-episode/${show.tmdb_id}`);
-    nextEps.set(show.tmdb_id, next);
-    updateCardNextEp(show);
+  if(currentDetail?.id===id) renderPanelStatusBtns(newStatus,id);
+  if(newStatus==='watching'||newStatus==='caughtup') {
+    api(`/api/next-episode/${show.tmdb_id}`).then(next=>{nextEps.set(show.tmdb_id,next);updateCardNextEp(show);});
   }
 }
 
 async function deleteShow(event, id) {
   event.stopPropagation();
-  await api(`/api/shows/${id}`, { method:'DELETE' });
-  shows = shows.filter(s => s.id !== id);
+  await api(`/api/shows/${id}`,{method:'DELETE'});
+  shows=shows.filter(s=>s.id!==id);
   renderAll();
   toast('Removed');
 }
 
-function renderPanelStatusBtns(status, showId) {
-  const row = document.getElementById('panel-status-row');
-  if (!row) return;
-  row.innerHTML = panelStatusHTML(status, showId);
-}
-
-function panelStatusHTML(status, showId) {
-  return [
-    ['watching','▶ Watching','aw'],
-    ['continuing','🔄 Continuing','ac'],
-    ['done','✅ Done','ag'],
-    ['plan','📋 Plan','ap'],
-    ['paused','⏸ Paused','au'],
-    ['dropped','🚫 Drop','ad'],
-  ].map(([s,label,cls]) =>
-    `<button class="ps-btn ${status===s?cls:''}" onclick="setPanelStatus('${s}',${showId})">${label}</button>`
-  ).join('');
-}
-
-async function setPanelStatus(newStatus, showId) {
-  const res = await api(`/api/shows/${showId}`, { method:'PATCH', body:{status:newStatus} });
-  if (!res.id) return;
-  const show = shows.find(s => s.id === showId);
-  if (show) show.status = newStatus;
-  renderAll();
-  renderPanelStatusBtns(newStatus, showId);
-  toast(sLabel(newStatus));
-}
-
 // ── TABS ──────────────────────────────────────────────────────────────────────
 function setTab(tab) {
-  ['watching','continuing','done','plan','paused','dropped','recs'].forEach(t => {
-    document.getElementById('tab-'+t).classList.toggle('hide', t!==tab);
-    document.getElementById('t-'+t).classList.toggle('on', t===tab);
+  ['watching','caughtup','finished','watchlist','paused','dropped','recs','stats'].forEach(t=>{
+    document.getElementById('tab-'+t).classList.toggle('hide',t!==tab);
+    document.getElementById('t-'+t).classList.toggle('on',t===tab);
   });
-  document.getElementById('search-wrap').classList.toggle('hide', tab==='recs');
-  if (tab==='recs') loadRecs();
+  document.getElementById('search-wrap').classList.toggle('hide',tab==='recs'||tab==='stats');
+  if(tab==='recs') loadRecs();
+  if(tab==='stats') loadStats();
 }
 
 // ── SEARCH ────────────────────────────────────────────────────────────────────
-function onSearch(q) {
+function onSearch(q){
   clearTimeout(searchTimer);
-  if (!q.trim()) { document.getElementById('search-results').classList.add('hide'); return; }
-  searchTimer = setTimeout(() => doSearch(q), 300);
+  if(!q.trim()){document.getElementById('search-results').classList.add('hide');return;}
+  searchTimer=setTimeout(()=>doSearch(q),300);
 }
-
 async function doSearch(q) {
-  const results = await api('/api/search?q='+encodeURIComponent(q));
-  const res = document.getElementById('search-results');
-  if (!results.length) { res.classList.add('hide'); return; }
-  res.innerHTML = results.map(r => {
-    const inList = shows.some(s => s.tmdb_id === r.tmdb_id);
-    const posterEl = r.poster_path
-      ? `<img class="sr-poster" src="${IMG}/w92${r.poster_path}" alt=""/>`
-      : `<div class="sr-poster" style="display:flex;align-items:center;justify-content:center">📺</div>`;
-    return `<div class="sr-item">
-      ${posterEl}
+  const results=await api('/api/search?q='+encodeURIComponent(q));
+  const res=document.getElementById('search-results');
+  if(!results.length){res.classList.add('hide');return;}
+  res.innerHTML=results.map(r=>{
+    const inList=shows.some(s=>s.tmdb_id===r.tmdb_id);
+    const pe=r.poster_path?`<img class="sr-poster" src="${IMG}/w92${r.poster_path}" alt=""/>`:`<div class="sr-poster" style="display:flex;align-items:center;justify-content:center">📺</div>`;
+    return `<div class="sr-item">${pe}
       <div class="sr-info"><div class="sr-title">${esc(r.title)}</div><div class="sr-year">${r.year||''}</div></div>
-      <div class="sr-actions">
-        ${inList
-          ? `<span style="font-size:11px;color:var(--muted);padding:4px 8px">Added ✓</span>`
-          : `<button class="btn-add watching" onmousedown="addShow(event,${JSON.stringify(r).replace(/"/g,'&quot;')},'watching')">▶ Watching</button>
-             <button class="btn-add plan" onmousedown="addShow(event,${JSON.stringify(r).replace(/"/g,'&quot;')},'plan')">📋 Plan</button>`
-        }
-      </div>
+      <div class="sr-actions">${inList
+        ?`<span style="font-size:11px;color:var(--muted);padding:4px 8px">Added ✓</span>`
+        :`<button class="btn-add watching" onmousedown="addShow(event,${JSON.stringify(r).replace(/"/g,'&quot;')},'watching')">▶ Watching</button>
+          <button class="btn-add watchlist" onmousedown="addShow(event,${JSON.stringify(r).replace(/"/g,'&quot;')},'watchlist')">📋 Watchlist</button>`
+      }</div>
     </div>`;
   }).join('');
   res.classList.remove('hide');
 }
-
-function closeSearch() { document.getElementById('search-results').classList.add('hide'); }
-
-async function addShow(event, show, status) {
+function closeSearch(){document.getElementById('search-results').classList.add('hide');}
+async function addShow(event,show,status){
   event.preventDefault();
-  const res = await api('/api/shows', { method:'POST', body:{...show, status} });
-  if (res.id) {
-    const idx = shows.findIndex(s => s.tmdb_id === res.tmdb_id);
-    if (idx >= 0) shows[idx] = res; else shows.unshift(res);
+  const res=await api('/api/shows',{method:'POST',body:{...show,status}});
+  if(res.id){
+    const idx=shows.findIndex(s=>s.tmdb_id===res.tmdb_id);
+    if(idx>=0) shows[idx]=res; else shows.push(res);
+    shows.sort((a,b)=>a.title.localeCompare(b.title));
     renderAll();
+    if(status==='watching') api(`/api/next-episode/${show.tmdb_id}`).then(next=>{nextEps.set(show.tmdb_id,next);updateCardNextEp(res);});
     toast(`Added to ${sLabel(status)}`);
   }
   closeSearch();
-  document.getElementById('search-input').value = '';
+  document.getElementById('search-input').value='';
+}
+
+// ── MARK NEXT WATCHED ─────────────────────────────────────────────────────────
+async function markNextWatched(event,showId,tmdbId,season,epNum){
+  event.stopPropagation();
+  const btn=document.getElementById('watched-btn-'+showId);
+  if(btn){btn.disabled=true;btn.textContent='...';}
+  const id=parseInt(tmdbId);
+  await api('/api/episodes',{method:'POST',body:{tmdb_id:id,season_number:parseInt(season),episode_number:parseInt(epNum)}});
+  const epSet=watchedEps.get(id)||new Set();
+  epSet.add(`${season}_${epNum}`);
+  watchedEps.set(id,epSet);
+  const next=await api(`/api/next-episode/${id}`);
+  nextEps.set(id,next);
+  const show=shows.find(s=>s.tmdb_id===id);
+  if(show){
+    if(next.suggested_status&&next.suggested_status!==show.status&&['watching','caughtup','finished'].includes(show.status)){
+      await autoMoveStatus(show,next.suggested_status);
+    }
+    updateCardNextEp(show);
+  }
+  toast(`S${season}E${epNum} watched ✓`);
 }
 
 // ── DETAIL PANEL ──────────────────────────────────────────────────────────────
-async function openDetail(tmdbId, showId) {
-  currentDetail = { tmdbId, id: showId };
-  const overlay = document.getElementById('detail-overlay');
-  const panel = document.getElementById('detail-panel');
-  const content = document.getElementById('detail-content');
-  content.innerHTML = '<div style="padding:40px;text-align:center;color:var(--muted)">Loading...</div>';
-  overlay.classList.add('open');
-  panel.classList.add('open');
-  document.body.style.overflow = 'hidden';
+async function openDetail(tmdbId,showId){
+  currentDetail={tmdbId,id:showId};
+  const overlay=document.getElementById('detail-overlay');
+  const panel=document.getElementById('detail-panel');
+  const content=document.getElementById('detail-content');
+  content.innerHTML='<div style="padding:40px;text-align:center;color:var(--muted)">Loading...</div>';
+  overlay.classList.add('open'); panel.classList.add('open');
+  document.body.style.overflow='hidden';
 
-  const [details, epData] = await Promise.all([
-    api(`/api/tmdb/show/${tmdbId}`),
-    api(`/api/episodes/${tmdbId}`),
-  ]);
+  const id=parseInt(tmdbId);
+  const [details,epData]=await Promise.all([api(`/api/tmdb/show/${id}`),api(`/api/episodes/${id}`)]);
 
-  // Store watched episodes for this show — use integer key consistently
-  const epSet = new Set(Array.isArray(epData) ? epData.map(e => `${e.season_number}_${e.episode_number}`) : []);
-  watchedEps.set(tmdbId, epSet);
-  watchedEps.set(parseInt(tmdbId), epSet);
+  const epSet=new Set(Array.isArray(epData)?epData.map(e=>`${e.season_number}_${e.episode_number}`):[]);
+  watchedEps.set(id,epSet);
 
-  const show = shows.find(s => s.id === showId);
-  const status = show?.status || 'watching';
-  const seasons = (details.seasons||[]).filter(s => s.season_number > 0);
-  const cast = (details.credits?.cast||[]).slice(0,12);
-  const backdrop = details.backdrop_path ? `${IMG}/w1280${details.backdrop_path}` : null;
-  const poster = details.poster_path ? `${IMG}/w300${details.poster_path}` : null;
+  // Cache details
+  showDetails.set(id,{status:details.status,actively_releasing:nextEps.get(id)?.actively_releasing,last_air_date:details.last_air_date,first_air_date:details.first_air_date});
 
-  // Compute progress stats
-  const totalEps = details.number_of_episodes || 0;
-  const watchedCount = epSet.size;
-  const remaining = Math.max(0, totalEps - watchedCount);
-  const avgRuntime = details.episode_run_time?.[0] || 45; // minutes
-  const totalMinLeft = remaining * avgRuntime;
-  const hoursLeft = Math.floor(totalMinLeft / 60);
-  const minsLeft = totalMinLeft % 60;
-  const timeLeftStr = hoursLeft > 0
-    ? (minsLeft > 0 ? `${hoursLeft}h ${minsLeft}m` : `${hoursLeft}h`)
-    : `${minsLeft}m`;
-  const pct = totalEps > 0 ? Math.min(100, Math.round((watchedCount / totalEps) * 100)) : 0;
+  const show=shows.find(s=>s.id===showId);
+  const status=show?.status||'watching';
+  const seasons=(details.seasons||[]).filter(s=>s.season_number>0);
+  const cast=(details.credits?.cast||[]).slice(0,12);
+  const backdrop=details.backdrop_path?`${IMG}/w1280${details.backdrop_path}`:null;
+  const poster=details.poster_path?`${IMG}/w300${details.poster_path}`:null;
 
-  const statsHTML = totalEps > 0 ? `
-    <div class="panel-section-title">Your Progress</div>
-    <div class="ep-prog-row" style="margin-bottom:6px">
-      <span style="font-size:12px;color:var(--muted)">${watchedCount} of ${totalEps} episodes watched</span>
-      <span style="font-size:12px;color:var(--muted)">${pct}%</span>
+  // Stats
+  const totalEps=details.number_of_episodes||0;
+  const watchedCount=epSet.size;
+  const remaining=Math.max(0,totalEps-watchedCount);
+  const avgRuntime=details.episode_run_time?.[0]||45;
+  const minsLeft=remaining*avgRuntime;
+  const h=Math.floor(minsLeft/60),m=minsLeft%60;
+  const timeStr=remaining===0?'🎉':h>0?(m>0?`${h}h ${m}m`:`${h}h`):`${m}m`;
+  const pct=totalEps>0?Math.min(100,Math.round((watchedCount/totalEps)*100)):0;
+
+  // Dates
+  const startDate=fmtDate(details.first_air_date)||show?.year||'';
+  const endDate=details.last_air_date?fmtDate(details.last_air_date):'';
+  const showEnded=['Ended','Canceled','Cancelled'].includes(details.status);
+  const dateRange=showEnded&&endDate?`${startDate} – ${endDate}`:startDate?`Started ${startDate}`:'';
+
+  // Determine current season (first unwatched)
+  const nextEpInfo=nextEps.get(id);
+  const defaultSeason=nextEpInfo&&!nextEpInfo.all_watched?nextEpInfo.season_number:(seasons[0]?.season_number||1);
+
+  const statsHTML=totalEps>0?`
+    <div class="panel-section-title">Progress</div>
+    <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:5px">
+      <span>${watchedCount} of ${totalEps} episodes</span><span>${pct}%</span>
     </div>
     <div class="ep-prog-bar" style="margin-bottom:14px"><div class="ep-prog-fill" style="width:${pct}%"></div></div>
     <div class="panel-stats">
-      <div class="stat-box">
-        <div class="stat-box-num">${remaining}</div>
-        <div class="stat-box-label">Episodes Left</div>
-        ${totalEps ? `<div class="stat-box-sub">of ${totalEps} total</div>` : ''}
-      </div>
-      <div class="stat-box">
-        <div class="stat-box-num">${remaining === 0 ? '🎉' : timeLeftStr}</div>
-        <div class="stat-box-label">${remaining === 0 ? 'All done!' : 'Time Remaining'}</div>
-        ${remaining > 0 ? `<div class="stat-box-sub">~${avgRuntime}m per ep</div>` : ''}
-      </div>
-    </div>` : '';
+      <div class="p-stat"><div class="p-stat-num">${remaining}</div><div class="p-stat-label">Episodes Left</div><div class="p-stat-sub">of ${totalEps} total</div></div>
+      <div class="p-stat"><div class="p-stat-num">${timeStr}</div><div class="p-stat-label">${remaining===0?'All done!':'Time Remaining'}</div>${remaining>0?`<div class="p-stat-sub">~${avgRuntime}m per ep</div>`:''}</div>
+    </div>`:'';
 
-  content.innerHTML = `
+  content.innerHTML=`
     <button class="panel-close" onclick="closeDetail()">← Close</button>
-    ${backdrop
-      ? `<img class="panel-backdrop" src="${backdrop}" alt=""/>`
-      : `<div class="panel-backdrop-ph">📺</div>`}
+    ${backdrop?`<img class="panel-backdrop" src="${backdrop}" alt=""/>`:`<div class="panel-backdrop-ph">📺</div>`}
     <div class="panel-body">
       <div class="panel-top">
-        ${poster
-          ? `<img class="panel-poster" src="${poster}" alt="${esc(details.name||'')}"/>`
-          : `<div class="panel-poster-ph">📺</div>`}
+        ${poster?`<img class="panel-poster" src="${poster}" alt="${esc(details.name||'')}"/>`:`<div class="panel-poster-ph">📺</div>`}
         <div class="panel-info">
           <div class="panel-title">${esc(details.name||'')}</div>
           <div class="panel-meta">
-            ${details.first_air_date ? `<span>📅 ${details.first_air_date.slice(0,4)}</span>` : ''}
-            ${details.vote_average ? `<span>⭐ ${details.vote_average.toFixed(1)}</span>` : ''}
-            ${details.number_of_seasons ? `<span>📺 ${details.number_of_seasons} season${details.number_of_seasons>1?'s':''}</span>` : ''}
-            ${details.number_of_episodes ? `<span>${details.number_of_episodes} eps</span>` : ''}
-            ${details.status ? `<span>${details.status}</span>` : ''}
+            ${details.vote_average?`<span>⭐ ${details.vote_average.toFixed(1)}</span>`:''}
+            ${details.number_of_seasons?`<span>📺 ${details.number_of_seasons} season${details.number_of_seasons>1?'s':''}</span>`:''}
+            ${details.number_of_episodes?`<span>${details.number_of_episodes} eps</span>`:''}
+            ${details.status?`<span>${details.status}</span>`:''}
           </div>
+          ${dateRange?`<div class="panel-dates">📅 ${dateRange}</div>`:''}
           <div class="panel-genres">${(details.genres||[]).map(g=>`<span class="genre-tag">${esc(g.name)}</span>`).join('')}</div>
         </div>
       </div>
-
       <div class="panel-section-title">Status</div>
-      <div class="panel-status-row" id="panel-status-row">${panelStatusHTML(status, showId)}</div>
-
+      <div class="panel-status-row" id="panel-status-row">${panelStatusHTML(status,showId)}</div>
       ${statsHTML}
-
-      ${details.overview ? `<div class="panel-overview">${esc(details.overview)}</div>` : ''}
-
-      ${cast.length ? `
+      ${details.overview?`<div class="panel-overview">${esc(details.overview)}</div>`:''}
+      ${cast.length?`
         <div class="panel-section-title">Cast</div>
-        <div class="cast-scroll">${cast.map(c => `
+        <div class="cast-scroll">${cast.map(c=>`
           <div class="cast-item">
-            ${c.profile_path
-              ? `<img class="cast-img" src="${IMG}/w185${c.profile_path}" alt="" onerror="this.style.background='var(--surface3)'"/>`
-              : `<div class="cast-img" style="display:flex;align-items:center;justify-content:center;font-size:24px">👤</div>`}
-            <div class="cast-name">${esc(c.name)}</div>
-            <div class="cast-char">${esc(c.character||'')}</div>
+            ${c.profile_path?`<img class="cast-img" src="${IMG}/w185${c.profile_path}" alt="" onerror="this.style.background='var(--surface3)'"/>`:`<div class="cast-img" style="display:flex;align-items:center;justify-content:center;font-size:24px">👤</div>`}
+            <div class="cast-name">${esc(c.name)}</div><div class="cast-char">${esc(c.character||'')}</div>
           </div>`).join('')}
-        </div>` : ''}
-
-      ${seasons.length ? `
+        </div>`:''}
+      ${seasons.length?`
         <div class="panel-section-title">Episodes</div>
-        <div class="season-tabs" id="season-tabs">
-          ${seasons.map(s => `<button class="s-tab ${s.season_number===1?'on':''}" onclick="loadSeason(${tmdbId},${showId},${s.season_number})" id="stab-${s.season_number}">S${s.season_number}</button>`).join('')}
-        </div>
-        <div id="season-content"><div style="text-align:center;padding:20px;color:var(--muted)">Loading...</div></div>
-      ` : ''}
+        <div id="total-progress-wrap"></div>
+        <div class="season-tabs" id="season-tabs">${seasons.map(s=>`<button class="s-tab ${s.season_number===defaultSeason?'on':''}" onclick="loadSeason(${id},${showId},${s.season_number})" id="stab-${s.season_number}">S${s.season_number}</button>`).join('')}</div>
+        <div id="season-content"><div style="text-align:center;padding:20px;color:var(--muted)">Loading...</div></div>`:''}
     </div>`;
 
-  if (seasons.length) loadSeason(tmdbId, showId, 1);
+  if(seasons.length) loadSeason(id,showId,defaultSeason);
 }
 
-async function loadSeason(tmdbId, showId, seasonNum) {
-  currentSeason = seasonNum;
-  // Update tab highlight
-  document.querySelectorAll('.s-tab').forEach(t => {
-    t.classList.toggle('on', parseInt(t.id.replace('stab-','')) === seasonNum);
-  });
-  const container = document.getElementById('season-content');
-  if (!container) return;
-  container.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted)">Loading...</div>';
+function panelStatusHTML(status,showId){
+  return[['watching','▶ Watching','aw'],['caughtup','🔄 Caught Up','ac'],['finished','✅ Finished','af'],['watchlist','📋 Watchlist','awl'],['paused','⏸ Paused','au'],['dropped','🚫 Drop','ad']]
+    .map(([s,l,c])=>`<button class="ps-btn ${status===s?c:''}" onclick="setPanelStatus('${s}',${showId})">${l}</button>`).join('');
+}
+function renderPanelStatusBtns(status,showId){const r=document.getElementById('panel-status-row');if(r)r.innerHTML=panelStatusHTML(status,showId);}
+async function setPanelStatus(newStatus,showId){
+  const res=await api(`/api/shows/${showId}`,{method:'PATCH',body:{status:newStatus}});
+  if(!res.id) return;
+  const show=shows.find(s=>s.id===showId);
+  if(show){show.status=newStatus;renderAll();}
+  renderPanelStatusBtns(newStatus,showId);
+  toast(sLabel(newStatus));
+}
 
-  const data = await api(`/api/tmdb/show/${tmdbId}/season/${seasonNum}`);
-  const episodes = (data.episodes||[]);
-  const epSet = watchedEps.get(parseInt(tmdbId)) || watchedEps.get(tmdbId) || new Set();
-  const watchedInSeason = episodes.filter(e => epSet.has(`${seasonNum}_${e.episode_number}`)).length;
-  const allWatched = episodes.length > 0 && watchedInSeason === episodes.length;
+// ── SEASON / EPISODES ─────────────────────────────────────────────────────────
+async function loadSeason(tmdbId,showId,seasonNum){
+  currentSeason=seasonNum;
+  document.querySelectorAll('.s-tab').forEach(t=>t.classList.toggle('on',parseInt(t.id.replace('stab-',''))===seasonNum));
+  const container=document.getElementById('season-content');
+  if(!container) return;
+  container.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted)">Loading...</div>';
+  const id=parseInt(tmdbId);
+  const data=await api(`/api/tmdb/show/${id}/season/${seasonNum}`);
+  const episodes=data.episodes||[];
+  const epSet=watchedEps.get(id)||new Set();
+  const watchedInSeason=episodes.filter(e=>epSet.has(`${seasonNum}_${e.episode_number}`)).length;
+  const allWatched=episodes.length>0&&watchedInSeason===episodes.length;
 
-  container.innerHTML = `
+  // Update total progress
+  updateTotalProgress(id);
+
+  container.innerHTML=`
     <div class="season-header">
-      <span class="season-progress">${watchedInSeason} / ${episodes.length} watched</span>
+      <span class="season-progress">${watchedInSeason} / ${episodes.length} watched this season</span>
       <button class="btn-mark-season ${allWatched?'all-watched':''}" id="mark-season-btn"
-        onclick="toggleSeasonWatched(${tmdbId},${showId},${seasonNum},${JSON.stringify(episodes.map(e=>e.episode_number))},${allWatched})">
-        ${allWatched ? '✓ All Watched' : 'Mark All Watched'}
+        onclick="toggleSeasonWatched(${id},${showId},${seasonNum},${JSON.stringify(episodes.map(e=>e.episode_number))},${allWatched})">
+        ${allWatched?'✓ All Watched':'Mark All Watched'}
       </button>
     </div>
-    <div class="episodes-list">
-      ${episodes.map(ep => {
-        const watched = epSet.has(`${seasonNum}_${ep.episode_number}`);
-        const still = ep.still_path ? `${IMG}/w300${ep.still_path}` : null;
-        return `<div class="ep-row ${watched?'watched':''}" id="ep-${tmdbId}-${seasonNum}-${ep.episode_number}"
-          onclick="clickEpisode(event,${tmdbId},${showId},${seasonNum},${ep.episode_number},'${esc(ep.name||'Episode '+ep.episode_number)}','${ep.still_path||''}','${esc((ep.overview||'').replace(/'/g,"&#39;"))}','${ep.air_date||''}')">
-          <span class="ep-num">${ep.episode_number}</span>
-          ${still
-            ? `<img class="ep-still" src="${still}" alt="" loading="lazy" onerror="this.outerHTML='<div class=ep-still-ph>📺</div>'"/>`
-            : `<div class="ep-still-ph">📺</div>`}
-          <div class="ep-info">
-            <div class="ep-name">${esc(ep.name||'Episode '+ep.episode_number)}</div>
-            <div class="ep-date">${ep.air_date||''}</div>
-          </div>
-          <div class="ep-check" id="epchk-${tmdbId}-${seasonNum}-${ep.episode_number}">${watched?'✓':''}</div>
-        </div>`;
-      }).join('')}
-    </div>`;
+    <div class="episodes-list">${episodes.map(ep=>{
+      const watched=epSet.has(`${seasonNum}_${ep.episode_number}`);
+      const still=ep.still_path?`${IMG}/w300${ep.still_path}`:null;
+      return `<div class="ep-row ${watched?'watched':''}" id="ep-${id}-${seasonNum}-${ep.episode_number}"
+        onclick="clickEpisode(event,${id},${showId},${seasonNum},${ep.episode_number},'${esc(ep.name||'Episode '+ep.episode_number)}','${ep.still_path||''}','${esc((ep.overview||'').replace(/'/g,"&#39;"))}','${ep.air_date||''}')">
+        <span class="ep-num">${ep.episode_number}</span>
+        ${still?`<img class="ep-still" src="${still}" alt="" loading="lazy" onerror="this.outerHTML='<div class=ep-still-ph>📺</div>'"/>`:`<div class="ep-still-ph">📺</div>`}
+        <div class="ep-info">
+          <div class="ep-name">${esc(ep.name||'Episode '+ep.episode_number)}</div>
+          <div class="ep-date">${ep.air_date?fmtDate(ep.air_date):''}</div>
+        </div>
+        <div class="ep-check" id="epchk-${id}-${seasonNum}-${ep.episode_number}">${watched?'✓':''}</div>
+      </div>`;
+    }).join('')}</div>`;
 }
 
-function clickEpisode(event, tmdbId, showId, season, epNum, name, stillPath, overview, airDate) {
-  // If clicking the check area toggle directly, otherwise show modal
-  const target = event.target;
-  if (target.classList.contains('ep-check') || target.closest('.ep-check')) {
-    toggleEpisode(tmdbId, showId, season, epNum);
-  } else {
-    openEpModal(tmdbId, showId, season, epNum, name, stillPath, overview, airDate);
-  }
+function updateTotalProgress(tmdbId){
+  const wrap=document.getElementById('total-progress-wrap');
+  if(!wrap) return;
+  const epSet=watchedEps.get(parseInt(tmdbId))||new Set();
+  const next=nextEps.get(parseInt(tmdbId));
+  const totalAired=next?.total_aired||0;
+  if(!totalAired){wrap.innerHTML='';return;}
+  const w=epSet.size,pct=Math.min(100,Math.round((w/totalAired)*100));
+  wrap.innerHTML=`<div class="total-progress">
+    <div class="total-prog-row"><span>Total: ${w} / ${totalAired} episodes watched</span><span>${pct}%</span></div>
+    <div class="total-prog-bar"><div class="total-prog-fill" style="width:${pct}%"></div></div>
+  </div>`;
 }
 
-async function toggleEpisode(tmdbId, showId, season, epNum) {
-  const id = parseInt(tmdbId);
-  const key = `${season}_${epNum}`;
-  const epSet = watchedEps.get(id) || watchedEps.get(tmdbId) || new Set();
-  const row = document.getElementById(`ep-${tmdbId}-${season}-${epNum}`);
-  const chk = document.getElementById(`epchk-${tmdbId}-${season}-${epNum}`);
+function clickEpisode(event,tmdbId,showId,season,epNum,name,stillPath,overview,airDate){
+  const target=event.target;
+  if(target.classList.contains('ep-check')||target.closest('.ep-check')) toggleEpisode(tmdbId,showId,season,epNum);
+  else openEpModal(tmdbId,showId,season,epNum,name,stillPath,overview,airDate);
+}
 
-  if (epSet.has(key)) {
-    const res = await api('/api/episodes', { method:'DELETE', body:{ tmdb_id:id, season_number:parseInt(season), episode_number:parseInt(epNum) } });
+async function toggleEpisode(tmdbId,showId,season,epNum){
+  const id=parseInt(tmdbId);
+  const key=`${season}_${epNum}`;
+  const epSet=watchedEps.get(id)||new Set();
+  const row=document.getElementById(`ep-${id}-${season}-${epNum}`);
+  const chk=document.getElementById(`epchk-${id}-${season}-${epNum}`);
+  if(epSet.has(key)){
+    await api('/api/episodes',{method:'DELETE',body:{tmdb_id:id,season_number:parseInt(season),episode_number:parseInt(epNum)}});
     epSet.delete(key);
-    if (row) row.classList.remove('watched');
-    if (chk) chk.textContent = '';
+    if(row) row.classList.remove('watched');
+    if(chk) chk.textContent='';
   } else {
-    const res = await api('/api/episodes', { method:'POST', body:{ tmdb_id:id, season_number:parseInt(season), episode_number:parseInt(epNum) } });
-    if (res.ok === false) { toast('Error saving — try again'); return; }
+    await api('/api/episodes',{method:'POST',body:{tmdb_id:id,season_number:parseInt(season),episode_number:parseInt(epNum)}});
     epSet.add(key);
-    if (row) row.classList.add('watched');
-    if (chk) chk.textContent = '✓';
+    if(row) row.classList.add('watched');
+    if(chk) chk.textContent='✓';
   }
-  watchedEps.set(id, epSet);
-  watchedEps.set(tmdbId, epSet); // set both string and int keys
-  updateSeasonProgress(tmdbId, season);
-  const show = shows.find(s => s.tmdb_id === id || s.tmdb_id === tmdbId);
-  if (show && ['watching','continuing'].includes(show.status)) {
-    api(`/api/next-episode/${id}`).then(next => {
-      nextEps.set(id, next);
-      nextEps.set(tmdbId, next);
-      updateCardNextEp(show);
-    });
+  watchedEps.set(id,epSet);
+  updateSeasonProgress(id,season);
+  updateTotalProgress(id);
+  const show=shows.find(s=>s.tmdb_id===id);
+  if(show&&['watching','caughtup'].includes(show.status)){
+    api(`/api/next-episode/${id}`).then(next=>{nextEps.set(id,next);updateCardNextEp(show);});
   }
 }
 
-async function toggleSeasonWatched(tmdbId, showId, season, epNums, currentlyAllWatched) {
-  const id = parseInt(tmdbId);
-  const epSet = watchedEps.get(id) || watchedEps.get(tmdbId) || new Set();
-  if (currentlyAllWatched) {
-    await api('/api/episodes/season', { method:'DELETE', body:{ tmdb_id:id, season_number:parseInt(season) } });
-    epNums.forEach(n => epSet.delete(`${season}_${n}`));
+async function toggleSeasonWatched(tmdbId,showId,season,epNums,currentlyAllWatched){
+  const id=parseInt(tmdbId);
+  const epSet=watchedEps.get(id)||new Set();
+  if(currentlyAllWatched){
+    await api('/api/episodes/season',{method:'DELETE',body:{tmdb_id:id,season_number:parseInt(season)}});
+    epNums.forEach(n=>epSet.delete(`${season}_${n}`));
   } else {
-    await api('/api/episodes/season', { method:'POST', body:{ tmdb_id:id, season_number:parseInt(season), episodes:epNums.map(Number) } });
-    epNums.forEach(n => epSet.add(`${season}_${n}`));
+    await api('/api/episodes/season',{method:'POST',body:{tmdb_id:id,season_number:parseInt(season),episodes:epNums.map(Number)}});
+    epNums.forEach(n=>epSet.add(`${season}_${n}`));
   }
-  watchedEps.set(id, epSet);
-  watchedEps.set(tmdbId, epSet);
-  loadSeason(tmdbId, showId, season);
-  const show = shows.find(s => s.tmdb_id === id || s.tmdb_id === tmdbId);
-  if (show && ['watching','continuing'].includes(show.status)) {
-    api(`/api/next-episode/${id}`).then(next => {
-      nextEps.set(id, next);
-      nextEps.set(tmdbId, next);
-      updateCardNextEp(show);
-    });
+  watchedEps.set(id,epSet);
+  // Check if we should auto-move status
+  const show=shows.find(s=>s.tmdb_id===id);
+  if(!currentlyAllWatched&&show&&['watching','caughtup','finished'].includes(show.status)){
+    const next=await api(`/api/next-episode/${id}`);
+    nextEps.set(id,next);
+    if(next.suggested_status&&next.suggested_status!==show.status) await autoMoveStatus(show,next.suggested_status);
+    updateCardNextEp(show);
   }
-  toast(currentlyAllWatched ? 'Season unmarked' : 'Season marked watched ✓');
+  loadSeason(id,showId,season);
+  toast(currentlyAllWatched?'Season unmarked':'Season marked watched ✓');
 }
 
-function updateSeasonProgress(tmdbId, season) {
-  const epSet = watchedEps.get(parseInt(tmdbId)) || watchedEps.get(tmdbId) || new Set();
-  const rows = document.querySelectorAll(`[id^="ep-${tmdbId}-${season}-"]`);
-  const total = rows.length;
-  const watched = [...rows].filter(r => r.classList.contains('watched')).length;
-  const prog = document.querySelector('.season-progress');
-  if (prog) prog.textContent = `${watched} / ${total} watched`;
-  const btn = document.getElementById('mark-season-btn');
-  if (btn) {
-    const allDone = watched === total && total > 0;
-    btn.textContent = allDone ? '✓ All Watched' : 'Mark All Watched';
-    btn.classList.toggle('all-watched', allDone);
-  }
+function updateSeasonProgress(tmdbId,season){
+  const rows=document.querySelectorAll(`[id^="ep-${tmdbId}-${season}-"]`);
+  const total=rows.length;
+  const watched=[...rows].filter(r=>r.classList.contains('watched')).length;
+  const prog=document.querySelector('.season-progress');
+  if(prog) prog.textContent=`${watched} / ${total} watched this season`;
+  const btn=document.getElementById('mark-season-btn');
+  if(btn){const all=watched===total&&total>0;btn.textContent=all?'✓ All Watched':'Mark All Watched';btn.classList.toggle('all-watched',all);}
 }
 
-// ── EPISODE MODAL ─────────────────────────────────────────────────────────────
-function openEpModal(tmdbId, showId, season, epNum, name, stillPath, overview, airDate) {
-  const epSet = watchedEps.get(parseInt(tmdbId)) || watchedEps.get(tmdbId) || new Set();
-  const watched = epSet.has(`${season}_${epNum}`);
-  const still = stillPath ? `${IMG}/w780${stillPath}` : null;
-  document.getElementById('ep-modal-content').innerHTML = `
-    ${still
-      ? `<img class="ep-modal-still" src="${still}" alt=""/>`
-      : `<div class="ep-modal-still-ph">📺</div>`}
+// ── EP MODAL ──────────────────────────────────────────────────────────────────
+function openEpModal(tmdbId,showId,season,epNum,name,stillPath,overview,airDate){
+  const id=parseInt(tmdbId);
+  const epSet=watchedEps.get(id)||new Set();
+  const watched=epSet.has(`${season}_${epNum}`);
+  const still=stillPath?`${IMG}/w780${stillPath}`:null;
+  document.getElementById('ep-modal-content').innerHTML=`
+    ${still?`<img class="ep-modal-still" src="${still}" alt=""/>`:`<div class="ep-modal-still-ph">📺</div>`}
     <div class="ep-modal-body">
       <div class="ep-modal-title">${esc(name)}</div>
-      <div class="ep-modal-meta">
-        <span>S${season} E${epNum}</span>
-        ${airDate ? `<span>📅 ${airDate}</span>` : ''}
-      </div>
-      ${overview ? `<div class="ep-modal-overview">${esc(overview)}</div>` : ''}
+      <div class="ep-modal-meta"><span>S${season} E${epNum}</span>${airDate?`<span>📅 ${fmtDate(airDate)}</span>`:''}</div>
+      ${overview?`<div class="ep-modal-overview">${esc(overview)}</div>`:''}
       <div class="ep-modal-actions">
-        <button class="ep-modal-watch ${watched?'watched-state':''}" id="ep-modal-watch-btn"
-          onclick="toggleEpisodeFromModal(${tmdbId},${showId},${season},${epNum})">
-          ${watched ? '✓ Watched — Mark Unwatched' : '▶ Mark as Watched'}
+        <button class="ep-modal-watch ${watched?'ws':''}" id="ep-modal-watch-btn" onclick="toggleEpisodeFromModal(${id},${showId},${season},${epNum})">
+          ${watched?'✓ Watched — Mark Unwatched':'▶ Mark as Watched'}
         </button>
         <button class="ep-modal-close" onclick="closeEpModal()">Close</button>
       </div>
     </div>`;
   document.getElementById('ep-modal').classList.remove('hide');
 }
-
-async function toggleEpisodeFromModal(tmdbId, showId, season, epNum) {
-  await toggleEpisode(tmdbId, showId, season, epNum);
-  const epSet = watchedEps.get(parseInt(tmdbId)) || watchedEps.get(tmdbId) || new Set();
-  const watched = epSet.has(`${season}_${epNum}`);
-  const btn = document.getElementById('ep-modal-watch-btn');
-  if (btn) {
-    btn.textContent = watched ? '✓ Watched — Mark Unwatched' : '▶ Mark as Watched';
-    btn.className = `ep-modal-watch ${watched?'watched-state':''}`;
-  }
+async function toggleEpisodeFromModal(tmdbId,showId,season,epNum){
+  await toggleEpisode(tmdbId,showId,season,epNum);
+  const id=parseInt(tmdbId);
+  const epSet=watchedEps.get(id)||new Set();
+  const watched=epSet.has(`${season}_${epNum}`);
+  const btn=document.getElementById('ep-modal-watch-btn');
+  if(btn){btn.textContent=watched?'✓ Watched — Mark Unwatched':'▶ Mark as Watched';btn.className=`ep-modal-watch ${watched?'ws':''}`;}
 }
+function closeEpModal(){document.getElementById('ep-modal').classList.add('hide');}
+function closeDetail(){document.getElementById('detail-overlay').classList.remove('open');document.getElementById('detail-panel').classList.remove('open');document.body.style.overflow='';currentDetail=null;currentSeason=null;}
 
-function closeEpModal() { document.getElementById('ep-modal').classList.add('hide'); }
-
-function closeDetail() {
-  document.getElementById('detail-overlay').classList.remove('open');
-  document.getElementById('detail-panel').classList.remove('open');
-  document.body.style.overflow = '';
-  currentDetail = null;
-  currentSeason = null;
-}
-
-// ── RECOMMENDATIONS ───────────────────────────────────────────────────────────
-async function loadRecs() {
-  const grid = document.getElementById('grid-recs');
-  grid.innerHTML = '<div class="empty"><div class="empty-icon">⏳</div>Loading...</div>';
-  const recs = await api('/api/recommendations');
-  if (!recs.length) {
-    grid.innerHTML = '<div class="empty"><div class="empty-icon">🤷</div>Add some shows first to get recommendations</div>';
-    return;
-  }
-  grid.innerHTML = recs.map(r => {
-    const inList = shows.some(s => s.tmdb_id === r.tmdb_id);
-    const poster = r.poster_path
-      ? `<img class="poster" src="${IMG}/w300${r.poster_path}" alt="${esc(r.title)}" loading="lazy"/>`
-      : `<div class="poster-ph">📺</div>`;
-    return `<div class="rec-card" style="cursor:pointer" onclick="openRecModal(${JSON.stringify(r).replace(/"/g,'&quot;')})">
-      ${poster}
-      <div class="rec-body">
+// ── RECS ──────────────────────────────────────────────────────────────────────
+async function loadRecs(){
+  const grid=document.getElementById('grid-recs');
+  grid.innerHTML='<div class="empty"><div class="empty-icon">⏳</div>Loading...</div>';
+  const recs=await api('/api/recommendations');
+  if(!recs.length){grid.innerHTML='<div class="empty"><div class="empty-icon">🤷</div>Add some shows first to get recommendations</div>';return;}
+  grid.innerHTML=recs.map(r=>{
+    const inList=shows.some(s=>s.tmdb_id===r.tmdb_id);
+    const poster=r.poster_path?`<img class="poster" src="${IMG}/w300${r.poster_path}" alt="${esc(r.title)}" loading="lazy"/>`:`<div class="poster-ph">📺</div>`;
+    return `<div class="rec-card" onclick="openRecModal(${JSON.stringify(r).replace(/"/g,'&quot;')})">
+      ${poster}<div class="rec-body">
         <div class="rec-title">${esc(r.title)}</div>
         <div class="rec-meta">${r.year||''}${r.rating?` · ⭐ ${r.rating.toFixed(1)}`:''}</div>
-        ${inList
-          ? `<div style="font-size:12px;color:var(--green);padding:4px 0">✓ In your list</div>`
-          : `<div style="font-size:12px;color:var(--muted);padding:4px 0">Tap to see more</div>`}
-      </div>
-    </div>`;
+        ${inList?`<div style="font-size:11px;color:var(--green);padding:3px 0">✓ In your list</div>`:`<div style="font-size:11px;color:var(--muted);padding:3px 0">Tap to see more</div>`}
+      </div></div>`;
   }).join('');
 }
 
-async function openRecModal(show) {
+async function openRecModal(show){
   document.getElementById('rec-modal').classList.remove('hide');
-  document.getElementById('rec-modal-content').innerHTML =
-    '<div style="padding:40px;text-align:center;color:var(--muted)">Loading...</div>';
-
-  // Fetch full details from TMDB
-  const details = await api(`/api/tmdb/show/${show.tmdb_id}`);
-  const inList = shows.some(s => s.tmdb_id === show.tmdb_id);
-  const existing = shows.find(s => s.tmdb_id === show.tmdb_id);
-
-  const backdrop = details.backdrop_path ? `${IMG}/w780${details.backdrop_path}` : null;
-  const poster = details.poster_path ? `${IMG}/w300${details.poster_path}` : null;
-  const cast = (details.credits?.cast || []).slice(0, 10);
-  const genres = (details.genres || []);
-
-  document.getElementById('rec-modal-content').innerHTML = `
-    ${backdrop
-      ? `<img class="rec-modal-backdrop" src="${backdrop}" alt=""/>`
-      : `<div class="rec-modal-backdrop-ph">📺</div>`}
+  document.getElementById('rec-modal-content').innerHTML='<div style="padding:40px;text-align:center;color:var(--muted)">Loading...</div>';
+  const details=await api(`/api/tmdb/show/${show.tmdb_id}`);
+  const inList=shows.some(s=>s.tmdb_id===show.tmdb_id);
+  const existing=shows.find(s=>s.tmdb_id===show.tmdb_id);
+  const backdrop=details.backdrop_path?`${IMG}/w780${details.backdrop_path}`:null;
+  const poster=details.poster_path?`${IMG}/w300${details.poster_path}`:null;
+  const cast=(details.credits?.cast||[]).slice(0,10);
+  document.getElementById('rec-modal-content').innerHTML=`
+    ${backdrop?`<img class="rec-modal-backdrop" src="${backdrop}" alt=""/>`:`<div class="rec-modal-backdrop-ph">📺</div>`}
     <div class="rec-modal-inner">
       <div class="rec-modal-top">
-        ${poster
-          ? `<img class="rec-modal-poster" src="${poster}" alt="${esc(details.name||'')}"/>`
-          : `<div class="rec-modal-poster-ph">📺</div>`}
+        ${poster?`<img class="rec-modal-poster" src="${poster}" alt="${esc(details.name||'')}"/>`:`<div class="rec-modal-poster-ph">📺</div>`}
         <div class="rec-modal-info">
           <div class="rec-modal-title">${esc(details.name||show.title)}</div>
           <div class="rec-modal-meta">
-            ${details.first_air_date ? `<span>📅 ${details.first_air_date.slice(0,4)}</span>` : ''}
-            ${details.vote_average ? `<span>⭐ ${details.vote_average.toFixed(1)}</span>` : ''}
-            ${details.number_of_seasons ? `<span>📺 ${details.number_of_seasons} season${details.number_of_seasons>1?'s':''}</span>` : ''}
-            ${details.number_of_episodes ? `<span>${details.number_of_episodes} eps</span>` : ''}
+            ${details.first_air_date?`<span>📅 ${fmtDate(details.first_air_date)}</span>`:''}
+            ${details.vote_average?`<span>⭐ ${details.vote_average.toFixed(1)}</span>`:''}
+            ${details.number_of_seasons?`<span>📺 ${details.number_of_seasons} season${details.number_of_seasons>1?'s':''}</span>`:''}
           </div>
-          ${genres.length ? `<div class="rec-modal-genres">${genres.map(g=>`<span class="genre-tag">${esc(g.name)}</span>`).join('')}</div>` : ''}
+          <div style="display:flex;flex-wrap:wrap;gap:4px">${(details.genres||[]).map(g=>`<span class="genre-tag">${esc(g.name)}</span>`).join('')}</div>
         </div>
       </div>
-
-      ${details.overview ? `<div class="rec-modal-overview">${esc(details.overview)}</div>` : ''}
-
-      ${cast.length ? `
-        <div class="rec-add-label" style="margin-bottom:8px">Cast</div>
-        <div class="rec-modal-cast">${cast.map(c => `
+      ${details.overview?`<div class="rec-modal-overview">${esc(details.overview)}</div>`:''}
+      ${cast.length?`<div class="rec-add-label" style="margin-bottom:8px">Cast</div>
+        <div class="cast-scroll-rec">${cast.map(c=>`
           <div class="cast-item">
-            ${c.profile_path
-              ? `<img class="cast-img" src="${IMG}/w185${c.profile_path}" alt="" onerror="this.style.background='var(--surface3)'"/>`
-              : `<div class="cast-img" style="display:flex;align-items:center;justify-content:center;font-size:20px">👤</div>`}
-            <div class="cast-name">${esc(c.name)}</div>
-            <div class="cast-char">${esc(c.character||'')}</div>
-          </div>`).join('')}
-        </div>` : ''}
-
+            ${c.profile_path?`<img class="cast-img" src="${IMG}/w185${c.profile_path}" alt="" onerror="this.style.background='var(--surface3)'"/>`:`<div class="cast-img" style="display:flex;align-items:center;justify-content:center;font-size:20px">👤</div>`}
+            <div class="cast-name">${esc(c.name)}</div><div class="cast-char">${esc(c.character||'')}</div>
+          </div>`).join('')}</div>`:''}
       <div class="rec-add-label">Add to list</div>
-      <div id="rec-modal-add-area">
-        ${inList
-          ? `<div style="text-align:center;padding:12px;font-size:14px;color:var(--green)">✓ Already in your list as <strong>${sLabel(existing.status)}</strong></div>`
-          : `<div class="rec-add-btns">
-              <button class="btn-rec-list watching" onclick="addFromRecModal(${JSON.stringify(show).replace(/"/g,'&quot;')},'watching')">▶ Watching</button>
-              <button class="btn-rec-list plan" onclick="addFromRecModal(${JSON.stringify(show).replace(/"/g,'&quot;')},'plan')">📋 Plan to Watch</button>
-              <button class="btn-rec-list paused" onclick="addFromRecModal(${JSON.stringify(show).replace(/"/g,'&quot;')},'paused')">⏸ Paused</button>
-              <button class="btn-rec-list dropped" onclick="addFromRecModal(${JSON.stringify(show).replace(/"/g,'&quot;')},'dropped')">🚫 Not Continuing</button>
-            </div>`}
+      <div id="rec-modal-add-area">${inList
+        ?`<div style="text-align:center;padding:12px;font-size:14px;color:var(--green)">✓ Already in your list as <strong>${sLabel(existing.status)}</strong></div>`
+        :`<div class="rec-add-btns">
+            <button class="btn-rec-list watching" onclick="addFromRecModal(${JSON.stringify(show).replace(/"/g,'&quot;')},'watching')">▶ Watching</button>
+            <button class="btn-rec-list watchlist" onclick="addFromRecModal(${JSON.stringify(show).replace(/"/g,'&quot;')},'watchlist')">📋 Watchlist</button>
+            <button class="btn-rec-list paused" onclick="addFromRecModal(${JSON.stringify(show).replace(/"/g,'&quot;')},'paused')">⏸ Paused</button>
+            <button class="btn-rec-list dropped" onclick="addFromRecModal(${JSON.stringify(show).replace(/"/g,'&quot;')},'dropped')">🚫 Not Continuing</button>
+          </div>`}
       </div>
       <button class="btn-rec-close" onclick="closeRecModal()">Close</button>
     </div>`;
 }
 
-async function addFromRecModal(show, status) {
-  // Disable all buttons
-  document.querySelectorAll('.btn-rec-list').forEach(b => { b.disabled = true; });
-  const res = await api('/api/shows', { method:'POST', body:{...show, status} });
-  if (res.id) {
-    const idx = shows.findIndex(s => s.tmdb_id === res.tmdb_id);
-    if (idx >= 0) shows[idx] = res; else shows.unshift(res);
+async function addFromRecModal(show,status){
+  document.querySelectorAll('.btn-rec-list').forEach(b=>{b.disabled=true;});
+  const res=await api('/api/shows',{method:'POST',body:{...show,status}});
+  if(res.id){
+    const idx=shows.findIndex(s=>s.tmdb_id===res.tmdb_id);
+    if(idx>=0) shows[idx]=res; else shows.push(res);
+    shows.sort((a,b)=>a.title.localeCompare(b.title));
     renderAll();
-    if (status === 'watching') {
-      api(`/api/next-episode/${show.tmdb_id}`).then(next => {
-        nextEps.set(show.tmdb_id, next);
-        const s = shows.find(s => s.tmdb_id === show.tmdb_id);
-        if (s) updateCardNextEp(s);
-      });
-    }
-    // Update modal to show added state
-    document.getElementById('rec-modal-add-area').innerHTML =
-      `<div style="text-align:center;padding:12px;font-size:14px;color:var(--green)">✓ Added to <strong>${sLabel(status)}</strong></div>`;
-    // Refresh rec card
-    loadRecs();
-    toast(`Added to ${sLabel(status)}`);
-  } else {
-    document.querySelectorAll('.btn-rec-list').forEach(b => { b.disabled = false; });
-  }
+    if(status==='watching') api(`/api/next-episode/${show.tmdb_id}`).then(next=>{nextEps.set(show.tmdb_id,next);const s=shows.find(x=>x.tmdb_id===show.tmdb_id);if(s)updateCardNextEp(s);});
+    document.getElementById('rec-modal-add-area').innerHTML=`<div style="text-align:center;padding:12px;font-size:14px;color:var(--green)">✓ Added to <strong>${sLabel(status)}</strong></div>`;
+    loadRecs(); toast(`Added to ${sLabel(status)}`);
+  } else { document.querySelectorAll('.btn-rec-list').forEach(b=>{b.disabled=false;}); }
 }
+function closeRecModal(){document.getElementById('rec-modal').classList.add('hide');}
 
-function closeRecModal() { document.getElementById('rec-modal').classList.add('hide'); }
+// ── STATS ─────────────────────────────────────────────────────────────────────
+async function loadStats(){
+  const container=document.getElementById('stats-content');
+  container.innerHTML='<div style="text-align:center;padding:40px;color:var(--muted)">Loading...</div>';
+  const [statsData,allEps]=await Promise.all([api('/api/stats'),api('/api/episodes/all')]);
+  const allShows=statsData.shows||[];
+  const topEps=statsData.topEps||[];
 
-async function addRecShow(btn, show) {
-  btn.textContent = 'Adding...'; btn.disabled = true;
-  const res = await api('/api/shows', { method:'POST', body:{...show, status:'watching'} });
-  if (res.id) {
-    const idx = shows.findIndex(s => s.tmdb_id === res.tmdb_id);
-    if (idx >= 0) shows[idx] = res; else shows.unshift(res);
-    renderAll();
-    btn.textContent = '✓ Added';
-    toast('Added to Watching');
-  } else { btn.textContent = '+ Add to Watching'; btn.disabled = false; }
-}
+  // Count by status
+  const counts={watching:0,caughtup:0,finished:0,watchlist:0,paused:0,dropped:0};
+  allShows.forEach(s=>{if(counts[s.status]!==undefined)counts[s.status]++;});
+  const totalTracked=allShows.length;
 
-// ── UTILS ─────────────────────────────────────────────────────────────────────
-function esc(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
-function sLabel(s) { return {watching:'Watching ▶',continuing:'Continuing 🔄',done:'Done ✅',plan:'Plan to Watch 📋',paused:'Paused ⏸',dropped:'Not Continuing 🚫'}[s]||s; }
-function toast(msg) {
-  const t = document.createElement('div'); t.className='toast'; t.textContent=msg;
-  document.body.appendChild(t); setTimeout(()=>t.remove(),2000);
+  // Total episodes watched
+  const totalWatched=allEps.total||0;
+  const totalHours=Math.round(totalWatched*45/60);
+
+  // Genre breakdown — need details from TMDB — use cached
+  const genreCounts={};
+  allShows.forEach(s=>{
+    const det=showDetails.get(s.tmdb_id);
+    if(det?.genres) det.genres.forEach(g=>{genreCounts[g.name]=(genreCounts[g.name]||0)+1;});
+  });
+  const topGenres=Object.entries(genreCounts).sort((a,b)=>b[1]-a[1]).slice(0,8);
+
+  // Top shows by episode count
+  const epMap=new Map(topEps.map(r=>[parseInt(r.tmdb_id),parseInt(r.ep_count)]));
+  const topShows=topEps.map(r=>{
+    const show=allShows.find(s=>s.tmdb_id===parseInt(r.tmdb_id));
+    return show?{...show,ep_count:parseInt(r.ep_count)}:null;
+  }).filter(Boolean).slice(0,10);
+  const maxEps=topShows[0]?.ep_count||1;
+
+  container.innerHTML=`
+    <div class="stats-grid">
+      <div class="stat-box"><div class="stat-num">${totalTracked}</div><div class="stat-label">Shows Tracked</div></div>
+      <div class="stat-box"><div class="stat-num">${counts.watching}</div><div class="stat-label">Watching</div></div>
+      <div class="stat-box"><div class="stat-num">${counts.finished}</div><div class="stat-label">Finished</div></div>
+      <div class="stat-box"><div class="stat-num">${totalWatched}</div><div class="stat-label">Episodes Watched</div></div>
+      <div class="stat-box"><div class="stat-num">${totalHours}h</div><div class="stat-label">Est. Time Watched</div></div>
+      <div class="stat-box"><div class="stat-num">${counts.watchlist}</div><div class="stat-label">In Watchlist</div></div>
+    </div>
+
+    ${topShows.length?`
+    <div class="stats-section">
+      <div class="stats-title">Top 10 Shows by Episodes Watched</div>
+      ${topShows.map((s,i)=>`
+        <div class="stats-row" onclick="openDetail(${s.tmdb_id},${s.id})" style="cursor:pointer">
+          <div class="stats-rank">#${i+1}</div>
+          ${s.poster_path?`<img src="${IMG}/w92${s.poster_path}" style="width:32px;height:48px;border-radius:4px;object-fit:cover;flex-shrink:0" alt=""/>`:`<div style="width:32px;height:48px;border-radius:4px;background:var(--surface3);flex-shrink:0;display:flex;align-items:center;justify-content:center">📺</div>`}
+          <div class="stats-name">${esc(s.title)}</div>
+          <div class="stats-bar-wrap"><div class="stats-bar" style="width:${Math.round((s.ep_count/maxEps)*100)}%"></div></div>
+          <div class="stats-val">${s.ep_count} eps</div>
+        </div>`).join('')}
+    </div>`:''}
+
+    ${topGenres.length?`
+    <div class="stats-section">
+      <div class="stats-title">Top Genres</div>
+      <div>${topGenres.map(([g,c])=>`<span class="genre-chip">${g} <strong>${c}</strong></span>`).join('')}</div>
+    </div>`:'<div style="color:var(--muted);font-size:14px">Open some shows to see genre stats</div>'}
+  `;
 }
 
 init();
