@@ -400,7 +400,7 @@ function showCard(s) {
 
   // Dates — use stored last_air_date directly from show object
   const startYear = s.year||'';
-  const endDate = s.last_air_date ? fmtDate(s.last_air_date) : '';
+  const endDate = s.last_air_date ? s.last_air_date.slice(0, 4) : '';
   const showEnded = ['Ended','Canceled','Cancelled'].includes(tmdbStatus||'');
   let dateStr = startYear;
   if(showEnded && endDate) dateStr = `${startYear} – ${endDate}`;
