@@ -379,38 +379,36 @@ function renderAll() {
 
 function showCard(s) {
   const next = nextEps.get(s.tmdb_id);
-  const det = showDetails.get(s.tmdb_id);
   const poster = s.poster_path
     ?`<img class="poster" src="${IMG}/w300${s.poster_path}" alt="${esc(s.title)}" loading="lazy" onerror="this.outerHTML='<div class=poster-ph>📺</div>'"/>`
     :`<div class="poster-ph">📺</div>`;
 
-  // Banner
+  // Banner — use tmdb_status stored on show, fallback to nextEps data
+  const tmdbStatus = s.tmdb_status || showDetails.get(s.tmdb_id)?.status;
+  const activelyReleasing = next?.actively_releasing ?? showDetails.get(s.tmdb_id)?.actively_releasing;
   let banner='';
-  if(det){
-    const tmdbStatus=det.status;
-    const activelyReleasing=next?.actively_releasing;
-    if(tmdbStatus==='Ended'||tmdbStatus==='Canceled'||tmdbStatus==='Cancelled'){
-      banner=`<div class="status-banner banner-red">Series Ended</div>`;
-    } else if(activelyReleasing){
-      banner=`<div class="status-banner banner-green">Now Airing</div>`;
-    } else if(tmdbStatus==='Returning Series'||tmdbStatus==='In Production'){
-      banner=`<div class="status-banner banner-yellow">Coming Back</div>`;
-    }
+  if(tmdbStatus==='Ended'||tmdbStatus==='Canceled'||tmdbStatus==='Cancelled'){
+    banner=`<div class="status-banner banner-red">Series Ended</div>`;
+  } else if(activelyReleasing){
+    banner=`<div class="status-banner banner-green">Now Airing</div>`;
+  } else if(tmdbStatus==='Returning Series'||tmdbStatus==='In Production'){
+    banner=`<div class="status-banner banner-yellow">Coming Back</div>`;
   }
 
   const nextEpHTML = ['watching','caughtup'].includes(s.status) ? buildNextEpHTML(s,next) : '';
   const progressHTML = ['watching','caughtup'].includes(s.status) ? buildProgressHTML(next) : '';
 
-  // Dates for card
+  // Dates — use stored last_air_date directly from show object
   const startYear = s.year||'';
-  const endDate = det?.last_air_date ? fmtDate(det.last_air_date) : '';
-  const dateStr = det ? (det.status==='Ended'||det.status==='Canceled'||det.status==='Cancelled'
-    ? `${startYear} – ${endDate}`
-    : startYear) : startYear;
+  const endDate = s.last_air_date ? fmtDate(s.last_air_date) : '';
+  const showEnded = ['Ended','Canceled','Cancelled'].includes(tmdbStatus||'');
+  let dateStr = startYear;
+  if(showEnded && endDate) dateStr = `${startYear} – ${endDate}`;
+  else if(startYear) dateStr = `${startYear} –`;
 
   return `<div class="show-card" id="card-${s.id}">
     ${banner}
-    <div onclick="openDetail(${s.tmdb_id},${s.id})" style="${banner?'margin-top:0':''}">
+    <div onclick="openDetail(${s.tmdb_id},${s.id})">
       ${poster}
       <div class="card-body" style="${banner?'padding-top:12px':''}">
         <div class="card-title">${esc(s.title)}</div>
@@ -480,14 +478,22 @@ function updateCardNextEp(show) {
 
 // ── LOAD NEXT EPISODES ────────────────────────────────────────────────────────
 async function loadNextEpisodes() {
-  const active=shows.filter(s=>['watching','caughtup'].includes(s.status));
-  await Promise.all(active.map(async s=>{
-    const data=await api(`/api/next-episode/${s.tmdb_id}`);
+  const active = shows.filter(s => ['watching','caughtup'].includes(s.status));
+  await Promise.all(active.map(async s => {
+    const data = await api(`/api/next-episode/${s.tmdb_id}`);
     nextEps.set(s.tmdb_id, data);
-    // Cache show-level info from this response
-    if(data.tmdb_status) showDetails.set(s.tmdb_id, {status:data.tmdb_status, actively_releasing:data.actively_releasing, last_air_date:data.last_air_date, first_air_date:data.first_air_date});
+    // Update show object with fresh date/status info
+    if (data.tmdb_status) {
+      s.tmdb_status = data.tmdb_status;
+      s.last_air_date = data.last_air_date || s.last_air_date;
+      showDetails.set(s.tmdb_id, { status: data.tmdb_status, actively_releasing: data.actively_releasing, last_air_date: data.last_air_date });
+    }
     updateCardNextEp(s);
-    if(data.suggested_status && data.suggested_status!==s.status && ['watching','caughtup','finished'].includes(s.status)) {
+    // Re-render this card to update banner and dates
+    const card = document.getElementById('card-' + s.id);
+    if (card) card.outerHTML = showCard(s);
+    // Auto-move status
+    if (data.suggested_status && data.suggested_status !== s.status && ['watching','caughtup','finished'].includes(s.status)) {
       autoMoveStatus(s, data.suggested_status);
     }
   }));

@@ -19,6 +19,7 @@ async function initDB() {
     CREATE TABLE IF NOT EXISTS shows (
       id SERIAL PRIMARY KEY, tmdb_id INTEGER NOT NULL UNIQUE, title TEXT NOT NULL,
       poster_path TEXT, year TEXT, overview TEXT, status TEXT NOT NULL DEFAULT 'watching',
+      last_air_date TEXT, tmdb_status TEXT,
       added_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW()
     );
     CREATE TABLE IF NOT EXISTS watched_episodes (
@@ -32,6 +33,9 @@ async function initDB() {
     ALTER TABLE shows ADD CONSTRAINT shows_status_check
       CHECK (status IN ('watching','caughtup','finished','watchlist','paused','dropped'));
   `).catch(() => {});
+  // Add new columns if they don't exist
+  await pool.query(`ALTER TABLE shows ADD COLUMN IF NOT EXISTS last_air_date TEXT`).catch(()=>{});
+  await pool.query(`ALTER TABLE shows ADD COLUMN IF NOT EXISTS tmdb_status TEXT`).catch(()=>{});
   console.log('DB ready');
 }
 
@@ -111,37 +115,54 @@ app.get('/api/next-episode/:tmdb_id', requireLogin, async (req, res) => {
     const showEnded = ['Ended','Canceled','Cancelled'].includes(showData.status);
     const nextEpData = showData.next_episode_to_air;
     const lastEpData = showData.last_episode_to_air;
-    let totalAired = 0;
+    const activelyReleasing = !!nextEpData || (lastEpData?.air_date && (new Date() - new Date(lastEpData.air_date)) < 14*24*60*60*1000);
+    const baseInfo = {
+      show_ended: showEnded, first_air_date: showData.first_air_date,
+      last_air_date: showData.last_air_date, tmdb_status: showData.status,
+      actively_releasing: activelyReleasing,
+      next_air_date: nextEpData?.air_date || null,
+      next_air_season: nextEpData?.season_number || null,
+      next_air_ep: nextEpData?.episode_number || null,
+    };
 
+    // First pass: collect ALL aired episodes across all seasons
+    const allSeasonEps = [];
     for (const season of seasons) {
       const seasonData = await tmdb(`/tv/${tmdb_id}/season/${season.season_number}`);
       const episodes = (seasonData.episodes||[]).filter(e => e.air_date && new Date(e.air_date) <= new Date());
-      totalAired += episodes.length;
+      allSeasonEps.push({ season_number: season.season_number, episodes });
+    }
+    const totalAired = allSeasonEps.reduce((sum, s) => sum + s.episodes.length, 0);
+
+    // Second pass: find first unwatched episode
+    for (const { season_number, episodes } of allSeasonEps) {
       for (const ep of episodes) {
-        if (!watchedSet.has(`${season.season_number}_${ep.episode_number}`)) {
+        if (!watchedSet.has(`${season_number}_${ep.episode_number}`)) {
+          // Save date/status info back to shows table
+          await pool.query('UPDATE shows SET last_air_date=$1, tmdb_status=$2 WHERE tmdb_id=$3',
+            [showData.last_air_date||null, showData.status||null, tmdb_id]).catch(()=>{});
           return res.json({
-            season_number: season.season_number, episode_number: ep.episode_number,
+            ...baseInfo,
+            season_number, episode_number: ep.episode_number,
             name: ep.name, air_date: ep.air_date, still_path: ep.still_path,
             total_watched: watchedSet.size, total_aired: totalAired,
-            show_ended: showEnded, suggested_status: 'watching',
-            first_air_date: showData.first_air_date, last_air_date: showData.last_air_date,
-            tmdb_status: showData.status,
+            suggested_status: 'watching',
           });
         }
       }
     }
 
-    // Determine if actively releasing (new ep in last 14 days or next ep coming)
-    const activelyReleasing = !!nextEpData || (lastEpData?.air_date && (new Date() - new Date(lastEpData.air_date)) < 14*24*60*60*1000);
+    // Save date/status info back to shows table for instant card display
+    await pool.query(
+      'UPDATE shows SET last_air_date=$1, tmdb_status=$2 WHERE tmdb_id=$3',
+      [showData.last_air_date||null, showData.status||null, tmdb_id]
+    ).catch(()=>{});
 
+    // All aired episodes watched
     res.json({
+      ...baseInfo,
       all_watched: true, total_watched: watchedSet.size, total_aired: totalAired,
-      show_ended: showEnded, suggested_status: showEnded ? 'finished' : 'caughtup',
-      next_air_date: nextEpData?.air_date || null,
-      next_air_season: nextEpData?.season_number || null,
-      next_air_ep: nextEpData?.episode_number || null,
-      first_air_date: showData.first_air_date, last_air_date: showData.last_air_date,
-      tmdb_status: showData.status, actively_releasing: activelyReleasing,
+      suggested_status: showEnded ? 'finished' : 'caughtup',
     });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
