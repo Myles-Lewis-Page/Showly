@@ -317,7 +317,14 @@ main{padding:16px}
   </div>
 
   <main>
-    <div id="tab-watching"><div class="section-label">Currently Watching <span id="cnt-watching">0</span></div><div class="show-grid" id="grid-watching"></div></div>
+    <div id="tab-watching">
+      <div class="section-label">Currently Watching <span id="cnt-watching">0</span></div>
+      <div class="show-grid" id="grid-watching"></div>
+      <div id="upcoming-section" style="margin-top:24px">
+        <div class="section-label">Upcoming <span id="cnt-upcoming">0</span></div>
+        <div class="show-grid" id="grid-upcoming"></div>
+      </div>
+    </div>
     <div id="tab-caughtup" class="hide"><div class="section-label">Caught Up <span id="cnt-caughtup">0</span></div><div class="show-grid" id="grid-caughtup"></div></div>
     <div id="tab-finished" class="hide"><div class="section-label">Show Finished <span id="cnt-finished">0</span></div><div class="show-grid" id="grid-finished"></div></div>
     <div id="tab-watchlist" class="hide"><div class="section-label">Watchlist <span id="cnt-watchlist">0</span></div><div class="show-grid" id="grid-watchlist"></div></div>
@@ -391,10 +398,34 @@ function toast(msg){const t=document.createElement('div');t.className='toast';t.
 
 // ── RENDER ALL ────────────────────────────────────────────────────────────────
 function renderAll() {
-  const groups={watching:[],caughtup:[],finished:[],watchlist:[],paused:[],dropped:[]};
-  shows.forEach(s=>{if(groups[s.status])groups[s.status].push(s);});
-  // already sorted alpha from server
-  Object.entries(groups).forEach(([status,list])=>{
+  const groups={watching:[],upcoming:[],caughtup:[],finished:[],watchlist:[],paused:[],dropped:[]};
+  shows.forEach(s=>{
+    if(s.status==='caughtup'){
+      // Split caughtup into upcoming (next ep ≤90 days) vs truly caught up
+      const next=nextEps.get(s.tmdb_id);
+      const daysUntil=next?.next_air_date ? Math.ceil((new Date(next.next_air_date)-new Date())/(1000*60*60*24)) : null;
+      if(daysUntil!==null && daysUntil<=90 && daysUntil>=-1) groups.upcoming.push(s);
+      else groups.caughtup.push(s);
+    } else if(groups[s.status]!==undefined){
+      groups[s.status].push(s);
+    }
+  });
+
+  // Watching grid
+  const wcnt=document.getElementById('cnt-watching');
+  if(wcnt) wcnt.textContent=groups.watching.length;
+  const wgrid=document.getElementById('grid-watching');
+  if(wgrid) wgrid.innerHTML=groups.watching.length?groups.watching.map(s=>showCard(s)).join(''):`<div class="empty"><div class="empty-icon">▶️</div>Nothing here yet</div>`;
+
+  // Upcoming section (inside watching tab)
+  const ucnt=document.getElementById('cnt-upcoming');
+  if(ucnt) ucnt.textContent=groups.upcoming.length;
+  const ugrid=document.getElementById('grid-upcoming');
+  if(ugrid) ugrid.innerHTML=groups.upcoming.length?groups.upcoming.map(s=>showCard(s)).join(''):`<div class="empty" style="padding:20px"><div style="font-size:13px;color:var(--muted)">No upcoming shows within 90 days</div></div>`;
+
+  // Other tabs
+  ['caughtup','finished','watchlist','paused','dropped'].forEach(status=>{
+    const list=groups[status];
     const cnt=document.getElementById('cnt-'+status);
     if(cnt) cnt.textContent=list.length;
     const grid=document.getElementById('grid-'+status);
@@ -445,10 +476,6 @@ function showCard(s) {
     <div id="next-ep-${s.id}">${nextEpHTML}</div>
     <div id="prog-${s.id}">${progressHTML}</div>
     <div style="padding:0 8px 8px">
-      ${s.status==='watching'?`<select class="platform-select" onchange="setPlatform(event,${s.id},this.value)" title="Where are you watching?">
-        <option value="">📺 Select platform...</option>
-        ${buildPlatformOptions(s.tmdb_id, s.platform)}
-      </select>`:''}
       ${s.status==='watchlist'&&s.platform?`<div class="platform-badge">📺 ${esc(s.platform)}</div>`:''}
       <div class="card-actions" style="margin-top:6px">
         <button class="ca-btn ${s.status==='watching'?'aw':''}" onclick="setStatus(event,${s.id},'watching')" title="Watching">▶</button>
@@ -548,9 +575,11 @@ async function loadNextEpisodes() {
   }
 }
 
-async function autoMoveStatus(show, newStatus) {
-  const res=await api(`/api/shows/${show.id}`,{method:'PATCH',body:{status:newStatus}});
-  if(res.id){show.status=newStatus;renderAll();}
+async function autoMoveStatus(show, suggestedStatus) {
+  // For caughtup, also check if it should be upcoming (next ep ≤90 days)
+  // Both upcoming and truly-caughtup use 'caughtup' in DB — renderAll splits them visually
+  const res = await api(`/api/shows/${show.id}`, {method:'PATCH', body:{status: suggestedStatus}});
+  if (res.id) { show.status = suggestedStatus; renderAll(); }
 }
 
 // ── STATUS / DELETE ───────────────────────────────────────────────────────────
@@ -710,8 +739,26 @@ async function openDetail(tmdbId,showId){
   const nextEpInfo=nextEps.get(id);
   const defaultSeason=nextEpInfo&&!nextEpInfo.all_watched?nextEpInfo.season_number:(seasons[0]?.season_number||1);
 
+  // Last aired episode checker
+  const lastEp=details.last_episode_to_air;
+  const lastEpKey=lastEp?`${lastEp.season_number}_${lastEp.episode_number}`:null;
+  const lastEpWatched=lastEpKey?epSet.has(lastEpKey):false;
+  const lastEpBanner=lastEp?`
+    <div id="last-ep-banner" style="background:${lastEpWatched?'rgba(56,161,105,.1)':'rgba(229,62,62,.08)'};border:1px solid ${lastEpWatched?'rgba(56,161,105,.3)':'rgba(229,62,62,.3)'};border-radius:10px;padding:10px 14px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:10px">
+      <div>
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:2px">Last Aired Episode</div>
+        <div style="font-size:13px;font-weight:500">${esc(lastEp.name||'S'+lastEp.season_number+'E'+lastEp.episode_number)}</div>
+        <div style="font-size:11px;color:var(--muted)">S${lastEp.season_number} E${lastEp.episode_number}${lastEp.air_date?' · '+fmtDate(lastEp.air_date):''}</div>
+      </div>
+      <button id="last-ep-btn" onclick="toggleLastEp(${id},${showId},${lastEp.season_number},${lastEp.episode_number})"
+        style="flex-shrink:0;padding:6px 12px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;border:none;background:${lastEpWatched?'var(--surface3)':'var(--green)'};color:${lastEpWatched?'var(--muted)':'#fff'}">
+        ${lastEpWatched?'✓ Watched':'Mark Watched'}
+      </button>
+    </div>`:'';
+
   const statsHTML=totalEps>0?`
     <div class="panel-section-title">Progress</div>
+    ${lastEpBanner}
     <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:5px">
       <span>${watchedCount} of ${totalEps} episodes</span><span>${pct}%</span>
     </div>
@@ -720,6 +767,22 @@ async function openDetail(tmdbId,showId){
       <div class="p-stat"><div class="p-stat-num">${remaining}</div><div class="p-stat-label">Episodes Left</div><div class="p-stat-sub">of ${totalEps} total</div></div>
       <div class="p-stat"><div class="p-stat-num">${timeStr}</div><div class="p-stat-label">${remaining===0?'All done!':'Time Remaining'}</div>${remaining>0?`<div class="p-stat-sub">~${avgRuntime}m per ep</div>`:''}</div>
     </div>`:'';
+
+  // Where to watch — clickable, selecting sets platform
+  const providers = details.streaming_providers || [];
+  const whereToWatchHTML = providers.length ? `
+    <div class="panel-section-title">Where to Watch</div>
+    <div class="provider-row" style="flex-wrap:wrap">
+      ${providers.slice(0,8).map(p=>{
+        const isSelected = show?.platform === p.provider_name;
+        return `<div class="provider-chip ${isSelected?'provider-selected':''}" style="cursor:pointer;border:2px solid ${isSelected?'var(--green)':'var(--border)'};background:${isSelected?'rgba(56,161,105,.1)':'var(--surface2)'}" onclick="selectProviderPlatform(${showId},'${esc(p.provider_name)}',this)">
+          ${p.logo_path?`<img class="provider-logo" src="https://image.tmdb.org/t/p/w92${p.logo_path}" alt=""/>`:''} 
+          <span>${esc(p.provider_name)}</span>
+          ${isSelected?'<span style="color:var(--green);font-size:10px;margin-left:2px">✓</span>':''}
+        </div>`;
+      }).join('')}
+    </div>
+    ${show?.platform?`<div id="watching-on-label" style="font-size:12px;color:var(--green);margin-top:8px">▶ Watching on ${esc(show.platform)}</div>`:`<div id="watching-on-label"></div>`}`:'';
 
   content.innerHTML=`
     <button class="panel-close" onclick="closeDetail()">← Close</button>
@@ -734,27 +797,18 @@ async function openDetail(tmdbId,showId){
             ${details.number_of_seasons?`<span>📺 ${details.number_of_seasons} season${details.number_of_seasons>1?'s':''}</span>`:''}
             ${details.number_of_episodes?`<span>${details.number_of_episodes} eps</span>`:''}
             ${details.status?`<span>${details.status}</span>`:''}
+            ${show?.platform?`<span style="color:var(--green)">▶ ${esc(show.platform)}</span>`:''}
           </div>
           ${dateRange?`<div class="panel-dates">📅 ${dateRange}</div>`:''}
           <div class="panel-genres">${(details.genres||[]).map(g=>`<span class="genre-tag">${esc(g.name)}</span>`).join('')}</div>
-          ${details.streaming_providers?.length?`
-            <div style="margin-top:8px;font-size:11px;color:var(--muted);margin-bottom:4px">Where to Watch</div>
-            <div class="provider-row">${details.streaming_providers.slice(0,6).map(p=>`
-              <div class="provider-chip">
-                ${p.logo_path?`<img class="provider-logo" src="https://image.tmdb.org/t/p/w92${p.logo_path}" alt=""/>`:''} 
-                ${esc(p.provider_name)}
-              </div>`).join('')}
-            </div>`:''}
         </div>
       </div>
+
+      ${whereToWatchHTML}
+
       <div class="panel-section-title">Status</div>
       <div class="panel-status-row" id="panel-status-row">${panelStatusHTML(status,showId)}</div>
-      ${status==='watching'?`
-        <div class="panel-section-title">Platform</div>
-        <select class="platform-select" style="max-width:280px" onchange="setPlatformFromPanel(${showId},this.value)">
-          <option value="">Select platform...</option>
-          ${buildPlatformOptions(id, show?.platform)}
-        </select>`:''}
+
       ${statsHTML}
       ${details.overview?`<div class="panel-overview">${esc(details.overview)}</div>`:''}
       ${cast.length?`
@@ -800,6 +854,75 @@ function buildPlatformOptions(tmdbId, selectedPlatform) {
   }
 
   return options.map(p => `<option value="${esc(p)}" ${selectedPlatform===p?'selected':''}>${esc(p)}</option>`).join('');
+}
+
+async function selectProviderPlatform(showId, platform, el) {
+  const show = shows.find(s => s.id === showId);
+  const isSame = show?.platform === platform;
+  const newPlatform = isSame ? '' : platform;
+  const res = await api(`/api/shows/${showId}`, { method:'PATCH', body:{ platform: newPlatform } });
+  if (res.id) {
+    if (show) show.platform = newPlatform;
+    // Update all provider chips
+    document.querySelectorAll('.provider-chip').forEach(chip => {
+      chip.style.border = '2px solid var(--border)';
+      chip.style.background = 'var(--surface2)';
+      const check = chip.querySelector('.pcheck');
+      if (check) check.remove();
+    });
+    if (newPlatform) {
+      el.style.border = '2px solid var(--green)';
+      el.style.background = 'rgba(56,161,105,.1)';
+    }
+    // Update "watching on" label
+    const watchingOn = document.getElementById('watching-on-label');
+    if (watchingOn) watchingOn.textContent = newPlatform ? `▶ Watching on ${newPlatform}` : '';
+    // Update card dropdown
+    renderAll();
+    toast(newPlatform ? `Watching on ${newPlatform}` : 'Platform cleared');
+  }
+}
+
+async function toggleLastEp(tmdbId, showId, season, epNum) {
+  const id = parseInt(tmdbId);
+  const key = `${season}_${epNum}`;
+  const epSet = watchedEps.get(id) || new Set();
+  const wasWatched = epSet.has(key);
+  if (wasWatched) {
+    await api('/api/episodes', { method:'DELETE', body:{ tmdb_id:id, season_number:parseInt(season), episode_number:parseInt(epNum) } });
+    epSet.delete(key);
+  } else {
+    await api('/api/episodes', { method:'POST', body:{ tmdb_id:id, season_number:parseInt(season), episode_number:parseInt(epNum) } });
+    epSet.add(key);
+  }
+  watchedEps.set(id, epSet);
+  const nowWatched = !wasWatched;
+  // Update banner UI
+  const banner = document.getElementById('last-ep-banner');
+  const btn = document.getElementById('last-ep-btn');
+  if (banner) {
+    banner.style.background = nowWatched ? 'rgba(56,161,105,.1)' : 'rgba(229,62,62,.08)';
+    banner.style.border = `1px solid ${nowWatched ? 'rgba(56,161,105,.3)' : 'rgba(229,62,62,.3)'}`;
+  }
+  if (btn) {
+    btn.textContent = nowWatched ? '✓ Watched' : 'Mark Watched';
+    btn.style.background = nowWatched ? 'var(--surface3)' : 'var(--green)';
+    btn.style.color = nowWatched ? 'var(--muted)' : '#fff';
+  }
+  // Also update season episode row if visible
+  const row = document.getElementById(`ep-${id}-${season}-${epNum}`);
+  const chk = document.getElementById(`epchk-${id}-${season}-${epNum}`);
+  if (row) row.classList.toggle('watched', nowWatched);
+  if (chk) chk.textContent = nowWatched ? '✓' : '';
+  // Refresh next ep and auto-move
+  const next = await api(`/api/next-episode/${id}`);
+  nextEps.set(id, next);
+  const show = shows.find(s => s.tmdb_id === id);
+  if (show && ['watching','caughtup','finished'].includes(show.status) && next.suggested_status !== show.status) {
+    await autoMoveStatus(show, next.suggested_status);
+  }
+  if (show) updateCardNextEp(show);
+  toast(nowWatched ? 'Marked as watched ✓' : 'Marked as unwatched');
 }
 
 async function setPlatformFromPanel(showId, platform) {
