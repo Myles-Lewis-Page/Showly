@@ -84,7 +84,14 @@ app.get('/api/tmdb/show/:id', requireLogin, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/api/tmdb/show/:id/season/:season', requireLogin, async (req, res) => {
+app.get('/api/tmdb/show/:id/providers', requireLogin, async (req, res) => {
+  try {
+    const data = await tmdb(`/tv/${req.params.id}/watch/providers`);
+    const us = data.results?.US || {};
+    const providers = (us.flatrate || us.free || []).map(p => ({ provider_name: p.provider_name, logo_path: p.logo_path }));
+    res.json(providers);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
   try { res.json(await tmdb(`/tv/${req.params.id}/season/${req.params.season}`)); }
   catch (e) { res.status(500).json({ error: e.message }); }
 });

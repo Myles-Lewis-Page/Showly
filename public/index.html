@@ -337,6 +337,7 @@ let shows = [];
 let watchedEps = new Map();
 let nextEps = new Map();
 let showDetails = new Map(); // cache TMDB details
+let showProviders = new Map(); // tmdb_id -> [{provider_name}]
 let currentDetail = null;
 let currentSeason = null;
 let searchTimer = null;
@@ -429,7 +430,7 @@ function showCard(s) {
     <div style="padding:0 8px 8px">
       ${s.status==='watching'?`<select class="platform-select" onchange="setPlatform(event,${s.id},this.value)" title="Where are you watching?">
         <option value="">📺 Select platform...</option>
-        ${['Netflix','Hulu','Disney+','Max','Apple TV+','Peacock','Paramount+','Amazon Prime','Crunchyroll','AMC+','Showtime','Fubo','ESPN+','YouTube TV','Other'].map(p=>`<option value="${p}" ${s.platform===p?'selected':''}>${p}</option>`).join('')}
+        ${buildPlatformOptions(s.tmdb_id, s.platform)}
       </select>`:''}
       ${s.status==='watchlist'&&s.platform?`<div class="platform-badge">📺 ${esc(s.platform)}</div>`:''}
       <div class="card-actions" style="margin-top:6px">
@@ -497,8 +498,12 @@ async function loadNextEpisodes() {
 
   // Load watching/caughtup first (they need next-ep info urgently)
   await Promise.all(active.map(async s => {
-    const data = await api(`/api/next-episode/${s.tmdb_id}`);
+    const [data, providers] = await Promise.all([
+      api(`/api/next-episode/${s.tmdb_id}`),
+      api(`/api/tmdb/show/${s.tmdb_id}/providers`),
+    ]);
     nextEps.set(s.tmdb_id, data);
+    if (Array.isArray(providers)) showProviders.set(s.tmdb_id, providers);
     if (data.tmdb_status) {
       s.tmdb_status = data.tmdb_status;
       s.last_air_date = data.last_air_date || s.last_air_date;
@@ -654,6 +659,9 @@ async function openDetail(tmdbId,showId){
   const epSet=new Set(Array.isArray(epData)?epData.map(e=>`${e.season_number}_${e.episode_number}`):[]);
   watchedEps.set(id,epSet);
 
+  // Cache providers and details
+  if (Array.isArray(details.streaming_providers)) showProviders.set(id, details.streaming_providers);
+
   // Cache details
   showDetails.set(id,{status:details.status,actively_releasing:nextEps.get(id)?.actively_releasing,last_air_date:details.last_air_date,first_air_date:details.first_air_date});
 
@@ -727,7 +735,7 @@ async function openDetail(tmdbId,showId){
         <div class="panel-section-title">Platform</div>
         <select class="platform-select" style="max-width:280px" onchange="setPlatformFromPanel(${showId},this.value)">
           <option value="">Select platform...</option>
-          ${['Netflix','Hulu','Disney+','Max','Apple TV+','Peacock','Paramount+','Amazon Prime','Crunchyroll','AMC+','Showtime','Fubo','ESPN+','YouTube TV','Other'].map(p=>`<option value="${p}" ${show?.platform===p?'selected':''}>${p}</option>`).join('')}
+          ${buildPlatformOptions(id, show?.platform)}
         </select>`:''}
       ${statsHTML}
       ${details.overview?`<div class="panel-overview">${esc(details.overview)}</div>`:''}
@@ -747,6 +755,17 @@ async function openDetail(tmdbId,showId){
     </div>`;
 
   if(seasons.length) loadSeason(id,showId,defaultSeason);
+}
+
+function buildPlatformOptions(tmdbId, selectedPlatform) {
+  const providers = showProviders.get(tmdbId);
+  if (providers && providers.length) {
+    // Use only the show's actual streaming platforms
+    return providers.map(p => `<option value="${esc(p.provider_name)}" ${selectedPlatform===p.provider_name?'selected':''}>${esc(p.provider_name)}</option>`).join('');
+  }
+  // Fallback full list while providers are loading
+  return ['Netflix','Hulu','Disney+','Max','Apple TV+','Peacock','Paramount+','Amazon Prime','Crunchyroll','AMC+','Showtime','Fubo','ESPN+','YouTube TV','Other']
+    .map(p=>`<option value="${p}" ${selectedPlatform===p?'selected':''}>${p}</option>`).join('');
 }
 
 async function setPlatformFromPanel(showId, platform) {
