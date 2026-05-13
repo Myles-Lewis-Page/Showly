@@ -38,7 +38,12 @@ async function initDB() {
   await pool.query(`ALTER TABLE shows ADD COLUMN IF NOT EXISTS tmdb_status TEXT`).catch(()=>{});
   await pool.query(`ALTER TABLE shows ADD COLUMN IF NOT EXISTS platform TEXT`).catch(()=>{});
   await pool.query(`ALTER TABLE shows ADD COLUMN IF NOT EXISTS genres TEXT`).catch(()=>{});
-  console.log('DB ready');
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS user_settings (
+      key TEXT PRIMARY KEY,
+      value TEXT
+    );
+  `);
 }
 
 const requireLogin = (req, res, next) => req.session?.ok ? next() : res.status(401).json({ error: 'Not logged in' });
@@ -81,6 +86,26 @@ app.get('/api/tmdb/show/:id', requireLogin, async (req, res) => {
     const usProviders = providers.results?.US || {};
     const streamingProviders = usProviders.flatrate || usProviders.free || [];
     res.json({ ...details, credits, streaming_providers: streamingProviders });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/settings', requireLogin, async (req, res) => {
+  try {
+    const r = await pool.query('SELECT key, value FROM user_settings');
+    const settings = {};
+    r.rows.forEach(row => { settings[row.key] = row.value; });
+    res.json(settings);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/settings', requireLogin, async (req, res) => {
+  try {
+    const { key, value } = req.body;
+    await pool.query(
+      'INSERT INTO user_settings (key, value) VALUES ($1,$2) ON CONFLICT (key) DO UPDATE SET value=$2',
+      [key, value]
+    );
+    res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 

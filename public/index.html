@@ -259,6 +259,16 @@ main{padding:16px}
 .stats-sort{display:flex;gap:8px;margin-bottom:16px}
 .sort-btn{background:var(--surface2);border:1px solid var(--border);color:var(--muted);padding:6px 14px;border-radius:99px;font-size:12px;cursor:pointer;font-family:inherit}
 .sort-btn.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.settings-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:16px}
+.settings-card h3{font-size:15px;font-weight:600;margin-bottom:4px}
+.settings-card p{font-size:13px;color:var(--muted);margin-bottom:16px}
+.services-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px}
+.service-toggle{display:flex;align-items:center;gap:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;cursor:pointer;transition:all .15s;font-size:13px;user-select:none}
+.service-toggle:hover{border-color:#555}
+.service-toggle.on{border-color:var(--green);background:rgba(56,161,105,.1);color:var(--green)}
+.service-toggle input{display:none}
+.service-check{width:16px;height:16px;border-radius:4px;border:2px solid var(--border);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:10px;transition:all .15s}
+.service-toggle.on .service-check{background:var(--green);border-color:var(--green);color:#fff}
 /* TOAST */
 .toast{position:fixed;bottom:20px;right:20px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 16px;font-size:13px;z-index:999;animation:fadeUp .2s ease;box-shadow:0 4px 20px rgba(0,0,0,.4)}
 @keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
@@ -296,6 +306,7 @@ main{padding:16px}
     <button class="nav-tab" onclick="setTab('dropped')" id="t-dropped">Not Continuing</button>
     <button class="nav-tab" onclick="setTab('recs')" id="t-recs">Recommendations</button>
     <button class="nav-tab" onclick="setTab('stats')" id="t-stats">Stats</button>
+    <button class="nav-tab" onclick="setTab('settings')" id="t-settings">⚙ Settings</button>
     <div class="nav-right"><button class="btn-logout" onclick="doLogout()">Sign out</button></div>
   </nav>
 
@@ -314,6 +325,7 @@ main{padding:16px}
     <div id="tab-dropped" class="hide"><div class="section-label">Not Continuing <span id="cnt-dropped">0</span></div><div class="show-grid" id="grid-dropped"></div></div>
     <div id="tab-recs" class="hide"><div class="section-label">Recommended for You</div><div class="rec-grid" id="grid-recs"></div></div>
     <div id="tab-stats" class="hide" style="max-width:680px"><div class="section-label">Your Stats</div><div id="stats-content"></div></div>
+    <div id="tab-settings" class="hide" style="max-width:500px"><div class="section-label">Settings</div><div id="settings-content"></div></div>
   </main>
 </div>
 
@@ -336,8 +348,9 @@ const IMG = 'https://image.tmdb.org/t/p';
 let shows = [];
 let watchedEps = new Map();
 let nextEps = new Map();
-let showDetails = new Map(); // cache TMDB details
-let showProviders = new Map(); // tmdb_id -> [{provider_name}]
+let showDetails = new Map();
+let showProviders = new Map();
+let ownedServices = new Set(); // services the user has subscriptions to
 let currentDetail = null;
 let currentSeason = null;
 let searchTimer = null;
@@ -360,7 +373,11 @@ async function init() { const r = await api('/api/me'); if (r.ok) startApp(); }
 async function startApp() {
   document.getElementById('login').style.display='none';
   document.getElementById('app').classList.remove('hide');
-  shows = await api('/api/shows');
+  const [showsData, settings] = await Promise.all([api('/api/shows'), api('/api/settings')]);
+  shows = showsData;
+  if (settings?.owned_services) {
+    ownedServices = new Set(settings.owned_services.split(',').filter(Boolean));
+  }
   renderAll();
   loadNextEpisodes();
 }
@@ -572,13 +589,14 @@ async function deleteShow(event, id) {
 
 // ── TABS ──────────────────────────────────────────────────────────────────────
 function setTab(tab) {
-  ['watching','caughtup','finished','watchlist','paused','dropped','recs','stats'].forEach(t=>{
+  ['watching','caughtup','finished','watchlist','paused','dropped','recs','stats','settings'].forEach(t=>{
     document.getElementById('tab-'+t).classList.toggle('hide',t!==tab);
     document.getElementById('t-'+t).classList.toggle('on',t===tab);
   });
-  document.getElementById('search-wrap').classList.toggle('hide',tab==='recs'||tab==='stats');
+  document.getElementById('search-wrap').classList.toggle('hide',tab==='recs'||tab==='stats'||tab==='settings');
   if(tab==='recs') loadRecs();
   if(tab==='stats') loadStats();
+  if(tab==='settings') loadSettings();
 }
 
 // ── SEARCH ────────────────────────────────────────────────────────────────────
@@ -757,15 +775,31 @@ async function openDetail(tmdbId,showId){
   if(seasons.length) loadSeason(id,showId,defaultSeason);
 }
 
+const ALL_SERVICES = ['Netflix','Hulu','Disney+','Max','Apple TV+','Peacock','Paramount+','Amazon Prime','Crunchyroll','AMC+','Showtime','Fubo','ESPN+','YouTube TV','Other'];
+
 function buildPlatformOptions(tmdbId, selectedPlatform) {
   const providers = showProviders.get(tmdbId);
+  let options = [];
+
   if (providers && providers.length) {
-    // Use only the show's actual streaming platforms
-    return providers.map(p => `<option value="${esc(p.provider_name)}" ${selectedPlatform===p.provider_name?'selected':''}>${esc(p.provider_name)}</option>`).join('');
+    // Show's actual streaming platforms
+    let filtered = providers.map(p => p.provider_name);
+    // If user has set owned services, only show intersection
+    if (ownedServices.size > 0) {
+      const intersection = filtered.filter(p => ownedServices.has(p));
+      // If none match owned, show all of the show's providers
+      filtered = intersection.length ? intersection : filtered;
+    }
+    options = filtered;
+  } else if (ownedServices.size > 0) {
+    // No provider data yet but user has owned services set
+    options = [...ownedServices];
+  } else {
+    // Full fallback list
+    options = ALL_SERVICES;
   }
-  // Fallback full list while providers are loading
-  return ['Netflix','Hulu','Disney+','Max','Apple TV+','Peacock','Paramount+','Amazon Prime','Crunchyroll','AMC+','Showtime','Fubo','ESPN+','YouTube TV','Other']
-    .map(p=>`<option value="${p}" ${selectedPlatform===p?'selected':''}>${p}</option>`).join('');
+
+  return options.map(p => `<option value="${esc(p)}" ${selectedPlatform===p?'selected':''}>${esc(p)}</option>`).join('');
 }
 
 async function setPlatformFromPanel(showId, platform) {
@@ -943,7 +977,39 @@ async function toggleEpisodeFromModal(tmdbId,showId,season,epNum){
 function closeEpModal(){document.getElementById('ep-modal').classList.add('hide');}
 function closeDetail(){document.getElementById('detail-overlay').classList.remove('open');document.getElementById('detail-panel').classList.remove('open');document.body.style.overflow='';currentDetail=null;currentSeason=null;}
 
-// ── RECS ──────────────────────────────────────────────────────────────────────
+// ── SETTINGS ──────────────────────────────────────────────────────────────────
+function loadSettings() {
+  const container = document.getElementById('settings-content');
+  container.innerHTML = `
+    <div class="settings-card">
+      <h3>My Streaming Services</h3>
+      <p>Select the services you subscribe to. Platform dropdowns will only show these options.</p>
+      <div class="services-grid">
+        ${ALL_SERVICES.filter(s => s !== 'Other').map(s => `
+          <label class="service-toggle ${ownedServices.has(s)?'on':''}" onclick="toggleService('${s}',this)">
+            <div class="service-check">${ownedServices.has(s)?'✓':''}</div>
+            ${esc(s)}
+          </label>`).join('')}
+      </div>
+    </div>`;
+}
+
+async function toggleService(name, el) {
+  if (ownedServices.has(name)) {
+    ownedServices.delete(name);
+    el.classList.remove('on');
+    el.querySelector('.service-check').textContent = '';
+  } else {
+    ownedServices.add(name);
+    el.classList.add('on');
+    el.querySelector('.service-check').textContent = '✓';
+  }
+  // Save to DB
+  await api('/api/settings', { method:'POST', body:{ key:'owned_services', value:[...ownedServices].join(',') }});
+  // Re-render all cards so dropdowns update
+  renderAll();
+  loadNextEpisodes();
+}
 async function loadRecs(){
   const grid=document.getElementById('grid-recs');
   grid.innerHTML='<div class="empty"><div class="empty-icon">⏳</div>Loading...</div>';
