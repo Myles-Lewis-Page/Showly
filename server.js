@@ -80,13 +80,14 @@ app.get('/api/tmdb/show/:id', requireLogin, async (req, res) => {
       tmdb(`/tv/${req.params.id}/watch/providers`),
     ]);
     const usProviders = providers.results?.US || {};
-    const allProviders = [
-      ...(usProviders.flatrate||[]),
-      ...(usProviders.free||[]),
-      ...(usProviders.buy||[]),
-      ...(usProviders.rent||[]),
-    ];
-    // Deduplicate — strip ad/tier suffixes and keep one entry per base name
+    const subscriptionServices = new Set(['Disney+','Apple TV+','Max','Hulu','Netflix','Peacock','Paramount+','Amazon Prime','MGM+','Crunchyroll','AMC+','Showtime','Fubo','ESPN+','YouTube TV']);
+    const flatrate = [...(usProviders.flatrate||[]), ...(usProviders.free||[])];
+    // For buy/rent, only include known subscription services (e.g. Disney+ shows appear under buy)
+    const buyRentSubs = [...(usProviders.buy||[]), ...(usProviders.rent||[])].filter(p => {
+      const base = p.provider_name.replace(/\s+(with Ads?|Standard with Ads?|Standard|Basic|Premium Plus|Premium)\s*$/i,'').trim();
+      return subscriptionServices.has(base);
+    });
+    const allProviders = [...flatrate, ...buyRentSubs];
     const seen = new Set();
     const streamingProviders = allProviders.filter(p => {
       const base = p.provider_name
@@ -169,12 +170,13 @@ app.get('/api/tmdb/show/:id/providers', requireLogin, async (req, res) => {
   try {
     const data = await tmdb(`/tv/${req.params.id}/watch/providers`);
     const us = data.results?.US || {};
-    const allProviders = [
-      ...(us.flatrate||[]),
-      ...(us.free||[]),
-      ...(us.buy||[]),
-      ...(us.rent||[]),
-    ];
+    const subscriptionServices = new Set(['Disney+','Apple TV+','Max','Hulu','Netflix','Peacock','Paramount+','Amazon Prime','MGM+','Crunchyroll','AMC+','Showtime','Fubo','ESPN+','YouTube TV']);
+    const flatrate = [...(us.flatrate||[]), ...(us.free||[])];
+    const buyRentSubs = [...(us.buy||[]), ...(us.rent||[])].filter(p => {
+      const base = p.provider_name.replace(/\s+(with Ads?|Standard with Ads?|Standard|Basic|Premium Plus|Premium)\s*$/i,'').trim();
+      return subscriptionServices.has(base);
+    });
+    const allProviders = [...flatrate, ...buyRentSubs];
     const seen = new Set();
     const providers = allProviders.filter(p => {
       const base = p.provider_name
