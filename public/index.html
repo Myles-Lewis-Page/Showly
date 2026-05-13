@@ -250,6 +250,15 @@ main{padding:16px}
 .cast-scroll-rec{display:flex;gap:10px;overflow-x:auto;padding-bottom:4px;margin-bottom:14px}
 .cast-scroll-rec::-webkit-scrollbar{height:0}
 
+.platform-select{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:5px 8px;color:var(--text);font-size:11px;cursor:pointer;margin-top:6px;font-family:inherit}
+.platform-select:focus{border-color:var(--accent);outline:none}
+.platform-badge{display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--muted);margin-top:3px}
+.provider-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+.provider-chip{display:flex;align-items:center;gap:6px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:5px 10px;font-size:12px}
+.provider-logo{width:20px;height:20px;border-radius:4px;object-fit:cover}
+.stats-sort{display:flex;gap:8px;margin-bottom:16px}
+.sort-btn{background:var(--surface2);border:1px solid var(--border);color:var(--muted);padding:6px 14px;border-radius:99px;font-size:12px;cursor:pointer;font-family:inherit}
+.sort-btn.on{background:var(--accent);border-color:var(--accent);color:#fff}
 /* TOAST */
 .toast{position:fixed;bottom:20px;right:20px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 16px;font-size:13px;z-index:999;animation:fadeUp .2s ease;box-shadow:0 4px 20px rgba(0,0,0,.4)}
 @keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
@@ -418,7 +427,12 @@ function showCard(s) {
     <div id="next-ep-${s.id}">${nextEpHTML}</div>
     <div id="prog-${s.id}">${progressHTML}</div>
     <div style="padding:0 8px 8px">
-      <div class="card-actions">
+      ${s.status==='watching'?`<select class="platform-select" onchange="setPlatform(event,${s.id},this.value)" title="Where are you watching?">
+        <option value="">📺 Select platform...</option>
+        ${['Netflix','Hulu','Disney+','Max','Apple TV+','Peacock','Paramount+','Amazon Prime','Crunchyroll','AMC+','Showtime','Fubo','ESPN+','YouTube TV','Other'].map(p=>`<option value="${p}" ${s.platform===p?'selected':''}>${p}</option>`).join('')}
+      </select>`:''}
+      ${s.status==='watchlist'&&s.platform?`<div class="platform-badge">📺 ${esc(s.platform)}</div>`:''}
+      <div class="card-actions" style="margin-top:6px">
         <button class="ca-btn ${s.status==='watching'?'aw':''}" onclick="setStatus(event,${s.id},'watching')" title="Watching">▶</button>
         <button class="ca-btn ${s.status==='caughtup'?'ac':''}" onclick="setStatus(event,${s.id},'caughtup')" title="Caught Up">🔄</button>
         <button class="ca-btn ${s.status==='finished'?'af':''}" onclick="setStatus(event,${s.id},'finished')" title="Finished">✅</button>
@@ -518,6 +532,16 @@ async function autoMoveStatus(show, newStatus) {
 }
 
 // ── STATUS / DELETE ───────────────────────────────────────────────────────────
+async function setPlatform(event, id, platform) {
+  event.stopPropagation();
+  const res = await api(`/api/shows/${id}`, { method:'PATCH', body:{ platform } });
+  if (res.id) {
+    const show = shows.find(s => s.id === id);
+    if (show) show.platform = platform;
+    if (platform) toast(`Platform set to ${platform}`);
+  }
+}
+
 async function setStatus(event, id, newStatus) {
   event.stopPropagation();
   const res=await api(`/api/shows/${id}`,{method:'PATCH',body:{status:newStatus}});
@@ -687,10 +711,24 @@ async function openDetail(tmdbId,showId){
           </div>
           ${dateRange?`<div class="panel-dates">📅 ${dateRange}</div>`:''}
           <div class="panel-genres">${(details.genres||[]).map(g=>`<span class="genre-tag">${esc(g.name)}</span>`).join('')}</div>
+          ${details.streaming_providers?.length?`
+            <div style="margin-top:8px;font-size:11px;color:var(--muted);margin-bottom:4px">Where to Watch</div>
+            <div class="provider-row">${details.streaming_providers.slice(0,6).map(p=>`
+              <div class="provider-chip">
+                ${p.logo_path?`<img class="provider-logo" src="https://image.tmdb.org/t/p/w92${p.logo_path}" alt=""/>`:''} 
+                ${esc(p.provider_name)}
+              </div>`).join('')}
+            </div>`:''}
         </div>
       </div>
       <div class="panel-section-title">Status</div>
       <div class="panel-status-row" id="panel-status-row">${panelStatusHTML(status,showId)}</div>
+      ${status==='watching'?`
+        <div class="panel-section-title">Platform</div>
+        <select class="platform-select" style="max-width:280px" onchange="setPlatformFromPanel(${showId},this.value)">
+          <option value="">Select platform...</option>
+          ${['Netflix','Hulu','Disney+','Max','Apple TV+','Peacock','Paramount+','Amazon Prime','Crunchyroll','AMC+','Showtime','Fubo','ESPN+','YouTube TV','Other'].map(p=>`<option value="${p}" ${show?.platform===p?'selected':''}>${p}</option>`).join('')}
+        </select>`:''}
       ${statsHTML}
       ${details.overview?`<div class="panel-overview">${esc(details.overview)}</div>`:''}
       ${cast.length?`
@@ -709,6 +747,15 @@ async function openDetail(tmdbId,showId){
     </div>`;
 
   if(seasons.length) loadSeason(id,showId,defaultSeason);
+}
+
+async function setPlatformFromPanel(showId, platform) {
+  const res = await api(`/api/shows/${showId}`, { method:'PATCH', body:{ platform } });
+  if (res.id) {
+    const show = shows.find(s => s.id === showId);
+    if (show) { show.platform = platform; renderAll(); }
+    if (platform) toast(`Platform set to ${platform}`);
+  }
 }
 
 function panelStatusHTML(status,showId){
@@ -956,66 +1003,98 @@ async function addFromRecModal(show,status){
 function closeRecModal(){document.getElementById('rec-modal').classList.add('hide');}
 
 // ── STATS ─────────────────────────────────────────────────────────────────────
+let statsSortMode = 'episodes';
+
 async function loadStats(){
   const container=document.getElementById('stats-content');
   container.innerHTML='<div style="text-align:center;padding:40px;color:var(--muted)">Loading...</div>';
-  const [statsData,allEps]=await Promise.all([api('/api/stats'),api('/api/episodes/all')]);
-  const allShows=statsData.shows||[];
-  const topEps=statsData.topEps||[];
+  const [statsData, allEps] = await Promise.all([api('/api/stats'), api('/api/episodes/all')]);
+  const allShows = statsData.shows || [];
+  const topEpsRaw = statsData.topEps || [];
 
-  // Count by status
-  const counts={watching:0,caughtup:0,finished:0,watchlist:0,paused:0,dropped:0};
+  const counts = {watching:0,caughtup:0,finished:0,watchlist:0,paused:0,dropped:0};
   allShows.forEach(s=>{if(counts[s.status]!==undefined)counts[s.status]++;});
-  const totalTracked=allShows.length;
+  const totalWatched = allEps.total || 0;
+  const totalHours = Math.round(totalWatched * 45 / 60);
 
-  // Total episodes watched
-  const totalWatched=allEps.total||0;
-  const totalHours=Math.round(totalWatched*45/60);
-
-  // Genre breakdown — need details from TMDB — use cached
-  const genreCounts={};
-  allShows.forEach(s=>{
-    const det=showDetails.get(s.tmdb_id);
-    if(det?.genres) det.genres.forEach(g=>{genreCounts[g.name]=(genreCounts[g.name]||0)+1;});
+  // Genre breakdown from stored genres column
+  const genreCounts = {};
+  allShows.forEach(s => {
+    if (s.genres) s.genres.split(',').filter(Boolean).forEach(g => { genreCounts[g.trim()] = (genreCounts[g.trim()]||0) + 1; });
   });
-  const topGenres=Object.entries(genreCounts).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  const topGenres = Object.entries(genreCounts).sort((a,b) => b[1]-a[1]).slice(0,10);
+  const maxGenre = topGenres[0]?.[1] || 1;
 
-  // Top shows by episode count
-  const epMap=new Map(topEps.map(r=>[parseInt(r.tmdb_id),parseInt(r.ep_count)]));
-  const topShows=topEps.map(r=>{
-    const show=allShows.find(s=>s.tmdb_id===parseInt(r.tmdb_id));
-    return show?{...show,ep_count:parseInt(r.ep_count)}:null;
-  }).filter(Boolean).slice(0,10);
-  const maxEps=topShows[0]?.ep_count||1;
+  // Platform breakdown
+  const platformCounts = {};
+  allShows.filter(s=>s.platform).forEach(s => { platformCounts[s.platform] = (platformCounts[s.platform]||0)+1; });
+  const topPlatforms = Object.entries(platformCounts).sort((a,b)=>b[1]-a[1]);
 
-  container.innerHTML=`
+  // Top shows with episode counts
+  const avgRuntime = 45;
+  const topShows = topEpsRaw.map(r => {
+    const show = allShows.find(s => s.tmdb_id === parseInt(r.tmdb_id));
+    return show ? {...show, ep_count: parseInt(r.ep_count), hours: Math.round(parseInt(r.ep_count) * avgRuntime / 60)} : null;
+  }).filter(Boolean).slice(0, 10);
+
+  renderStatsContent(container, counts, totalWatched, totalHours, topShows, topGenres, maxGenre, topPlatforms);
+}
+
+function renderStatsContent(container, counts, totalWatched, totalHours, topShows, topGenres, maxGenre, topPlatforms) {
+  const byHours = statsSortMode === 'hours';
+  const sorted = [...topShows].sort((a,b) => byHours ? b.hours - a.hours : b.ep_count - a.ep_count);
+  const maxVal = sorted[0] ? (byHours ? sorted[0].hours : sorted[0].ep_count) : 1;
+
+  container.innerHTML = `
     <div class="stats-grid">
-      <div class="stat-box"><div class="stat-num">${totalTracked}</div><div class="stat-label">Shows Tracked</div></div>
-      <div class="stat-box"><div class="stat-num">${counts.watching}</div><div class="stat-label">Watching</div></div>
-      <div class="stat-box"><div class="stat-num">${counts.finished}</div><div class="stat-label">Finished</div></div>
-      <div class="stat-box"><div class="stat-num">${totalWatched}</div><div class="stat-label">Episodes Watched</div></div>
-      <div class="stat-box"><div class="stat-num">${totalHours}h</div><div class="stat-label">Est. Time Watched</div></div>
+      <div class="stat-box"><div class="stat-num">${counts.watching + counts.caughtup}</div><div class="stat-label">Currently Active</div></div>
+      <div class="stat-box"><div class="stat-num">${counts.finished}</div><div class="stat-label">Show Finished</div></div>
       <div class="stat-box"><div class="stat-num">${counts.watchlist}</div><div class="stat-label">In Watchlist</div></div>
+      <div class="stat-box"><div class="stat-num">${totalWatched}</div><div class="stat-label">Episodes Watched</div></div>
+      <div class="stat-box"><div class="stat-num">${totalHours}h</div><div class="stat-label">Est. Hours Watched</div></div>
+      <div class="stat-box"><div class="stat-num">${Object.values(counts).reduce((a,b)=>a+b,0)}</div><div class="stat-label">Total Shows</div></div>
     </div>
 
-    ${topShows.length?`
+    ${topPlatforms.length?`
     <div class="stats-section">
-      <div class="stats-title">Top 10 Shows by Episodes Watched</div>
-      ${topShows.map((s,i)=>`
+      <div class="stats-title">By Platform</div>
+      ${topPlatforms.map(([p,c])=>`
+        <div class="stats-row">
+          <div class="stats-name">📺 ${esc(p)}</div>
+          <div class="stats-bar-wrap"><div class="stats-bar" style="width:${Math.round((c/topPlatforms[0][1])*100)}%"></div></div>
+          <div class="stats-val">${c} show${c!==1?'s':''}</div>
+        </div>`).join('')}
+    </div>`:''}
+
+    ${sorted.length?`
+    <div class="stats-section">
+      <div class="stats-title">Top 10 Shows</div>
+      <div class="stats-sort">
+        <button class="sort-btn ${!byHours?'on':''}" onclick="statsSortMode='episodes';loadStats()">By Episodes</button>
+        <button class="sort-btn ${byHours?'on':''}" onclick="statsSortMode='hours';loadStats()">By Hours</button>
+      </div>
+      ${sorted.map((s,i)=>`
         <div class="stats-row" onclick="openDetail(${s.tmdb_id},${s.id})" style="cursor:pointer">
           <div class="stats-rank">#${i+1}</div>
           ${s.poster_path?`<img src="${IMG}/w92${s.poster_path}" style="width:32px;height:48px;border-radius:4px;object-fit:cover;flex-shrink:0" alt=""/>`:`<div style="width:32px;height:48px;border-radius:4px;background:var(--surface3);flex-shrink:0;display:flex;align-items:center;justify-content:center">📺</div>`}
           <div class="stats-name">${esc(s.title)}</div>
-          <div class="stats-bar-wrap"><div class="stats-bar" style="width:${Math.round((s.ep_count/maxEps)*100)}%"></div></div>
-          <div class="stats-val">${s.ep_count} eps</div>
+          <div class="stats-bar-wrap"><div class="stats-bar" style="width:${Math.round(((byHours?s.hours:s.ep_count)/maxVal)*100)}%"></div></div>
+          <div class="stats-val">${byHours ? s.hours+'h' : s.ep_count+' eps'}</div>
         </div>`).join('')}
     </div>`:''}
 
     ${topGenres.length?`
     <div class="stats-section">
       <div class="stats-title">Top Genres</div>
-      <div>${topGenres.map(([g,c])=>`<span class="genre-chip">${g} <strong>${c}</strong></span>`).join('')}</div>
-    </div>`:'<div style="color:var(--muted);font-size:14px">Open some shows to see genre stats</div>'}
+      ${topGenres.map(([g,c],i)=>`
+        <div class="stats-row">
+          <div class="stats-rank">#${i+1}</div>
+          <div class="stats-name">${esc(g)}</div>
+          <div class="stats-bar-wrap"><div class="stats-bar" style="width:${Math.round((c/maxGenre)*100)}%"></div></div>
+          <div class="stats-val">${c} show${c!==1?'s':''}</div>
+        </div>`).join('')}
+    </div>`:
+    `<div style="color:var(--muted);font-size:14px;margin-top:16px">Genre data loads as you browse shows — come back after opening a few show pages.</div>`}
   `;
 }
 

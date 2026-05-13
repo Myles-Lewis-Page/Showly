@@ -36,6 +36,8 @@ async function initDB() {
   // Add new columns if they don't exist
   await pool.query(`ALTER TABLE shows ADD COLUMN IF NOT EXISTS last_air_date TEXT`).catch(()=>{});
   await pool.query(`ALTER TABLE shows ADD COLUMN IF NOT EXISTS tmdb_status TEXT`).catch(()=>{});
+  await pool.query(`ALTER TABLE shows ADD COLUMN IF NOT EXISTS platform TEXT`).catch(()=>{});
+  await pool.query(`ALTER TABLE shows ADD COLUMN IF NOT EXISTS genres TEXT`).catch(()=>{});
   console.log('DB ready');
 }
 
@@ -71,8 +73,14 @@ app.get('/api/search', requireLogin, async (req, res) => {
 
 app.get('/api/tmdb/show/:id', requireLogin, async (req, res) => {
   try {
-    const [details, credits] = await Promise.all([tmdb(`/tv/${req.params.id}`), tmdb(`/tv/${req.params.id}/credits`)]);
-    res.json({ ...details, credits });
+    const [details, credits, providers] = await Promise.all([
+      tmdb(`/tv/${req.params.id}`),
+      tmdb(`/tv/${req.params.id}/credits`),
+      tmdb(`/tv/${req.params.id}/watch/providers`),
+    ]);
+    const usProviders = providers.results?.US || {};
+    const streamingProviders = usProviders.flatrate || usProviders.free || [];
+    res.json({ ...details, credits, streaming_providers: streamingProviders });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -140,9 +148,10 @@ app.get('/api/next-episode/:tmdb_id', requireLogin, async (req, res) => {
     for (const { season_number, episodes } of allSeasonEps) {
       for (const ep of episodes) {
         if (!watchedSet.has(`${season_number}_${ep.episode_number}`)) {
-          // Save date/status info back to shows table
-          await pool.query('UPDATE shows SET last_air_date=$1, tmdb_status=$2 WHERE tmdb_id=$3',
-            [showData.last_air_date||null, showData.status||null, tmdb_id]).catch(()=>{});
+          // Save date/status/genre info back to shows table
+          const genreStr2 = (showData.genres||[]).map(g=>g.name).join(',');
+          await pool.query('UPDATE shows SET last_air_date=$1, tmdb_status=$2, genres=$3 WHERE tmdb_id=$4',
+            [showData.last_air_date||null, showData.status||null, genreStr2||null, tmdb_id]).catch(()=>{});
           return res.json({
             ...baseInfo,
             season_number, episode_number: ep.episode_number,
@@ -154,10 +163,11 @@ app.get('/api/next-episode/:tmdb_id', requireLogin, async (req, res) => {
       }
     }
 
-    // Save date/status info back to shows table for instant card display
+    // Save date/status/genre info back to shows table for instant card display
+    const genreStr = (showData.genres||[]).map(g=>g.name).join(',');
     await pool.query(
-      'UPDATE shows SET last_air_date=$1, tmdb_status=$2 WHERE tmdb_id=$3',
-      [showData.last_air_date||null, showData.status||null, tmdb_id]
+      'UPDATE shows SET last_air_date=$1, tmdb_status=$2, genres=$3 WHERE tmdb_id=$4',
+      [showData.last_air_date||null, showData.status||null, genreStr||null, tmdb_id]
     ).catch(()=>{});
 
     // All aired episodes watched
@@ -188,7 +198,14 @@ app.post('/api/shows', requireLogin, async (req, res) => {
 
 app.patch('/api/shows/:id', requireLogin, async (req, res) => {
   try {
-    const r = await pool.query('UPDATE shows SET status=$1, updated_at=NOW() WHERE id=$2 RETURNING *', [req.body.status, req.params.id]);
+    const { status, platform, genres } = req.body;
+    const fields = [], vals = [];
+    if (status !== undefined) { fields.push(`status=$${fields.length+1}`); vals.push(status); }
+    if (platform !== undefined) { fields.push(`platform=$${fields.length+1}`); vals.push(platform); }
+    if (genres !== undefined) { fields.push(`genres=$${fields.length+1}`); vals.push(genres); }
+    fields.push(`updated_at=NOW()`);
+    vals.push(req.params.id);
+    const r = await pool.query(`UPDATE shows SET ${fields.join(',')} WHERE id=$${vals.length} RETURNING *`, vals);
     if (!r.rows.length) return res.status(404).json({ error: 'Not found' });
     res.json(r.rows[0]);
   } catch (e) { res.status(500).json({ error: e.message }); }
