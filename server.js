@@ -92,6 +92,8 @@ app.get('/api/tmdb/show/:id/providers', requireLogin, async (req, res) => {
     res.json(providers);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
+
+app.get('/api/tmdb/show/:id/season/:season', requireLogin, async (req, res) => {
   try { res.json(await tmdb(`/tv/${req.params.id}/season/${req.params.season}`)); }
   catch (e) { res.status(500).json({ error: e.message }); }
 });
