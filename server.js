@@ -80,7 +80,12 @@ app.get('/api/tmdb/show/:id', requireLogin, async (req, res) => {
       tmdb(`/tv/${req.params.id}/watch/providers`),
     ]);
     const usProviders = providers.results?.US || {};
-    const allProviders = [...(usProviders.flatrate||[]), ...(usProviders.free||[])];
+    const allProviders = [
+      ...(usProviders.flatrate||[]),
+      ...(usProviders.free||[]),
+      ...(usProviders.buy||[]),
+      ...(usProviders.rent||[]),
+    ];
     // Deduplicate — strip ad/tier suffixes and keep one entry per base name
     const seen = new Set();
     const streamingProviders = allProviders.filter(p => {
@@ -164,7 +169,12 @@ app.get('/api/tmdb/show/:id/providers', requireLogin, async (req, res) => {
   try {
     const data = await tmdb(`/tv/${req.params.id}/watch/providers`);
     const us = data.results?.US || {};
-    const allProviders = [...(us.flatrate||[]), ...(us.free||[])];
+    const allProviders = [
+      ...(us.flatrate||[]),
+      ...(us.free||[]),
+      ...(us.buy||[]),
+      ...(us.rent||[]),
+    ];
     const seen = new Set();
     const providers = allProviders.filter(p => {
       const base = p.provider_name
