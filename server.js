@@ -80,7 +80,18 @@ app.get('/api/tmdb/show/:id', requireLogin, async (req, res) => {
       tmdb(`/tv/${req.params.id}/watch/providers`),
     ]);
     const usProviders = providers.results?.US || {};
-    const streamingProviders = usProviders.flatrate || usProviders.free || [];
+    const allProviders = [...(usProviders.flatrate||[]), ...(usProviders.free||[])];
+    // Deduplicate — strip ad/tier suffixes and keep one entry per base name
+    const seen = new Set();
+    const streamingProviders = allProviders.filter(p => {
+      const base = p.provider_name
+        .replace(/\s*(with Ads?|Standard with Ads?|Basic|Premium|Plus|\(.*\))\s*$/i, '')
+        .trim();
+      if (seen.has(base)) return false;
+      seen.add(base);
+      p.provider_name = base; // normalize the name
+      return true;
+    });
     res.json({ ...details, credits, streaming_providers: streamingProviders });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -153,7 +164,17 @@ app.get('/api/tmdb/show/:id/providers', requireLogin, async (req, res) => {
   try {
     const data = await tmdb(`/tv/${req.params.id}/watch/providers`);
     const us = data.results?.US || {};
-    const providers = (us.flatrate || us.free || []).map(p => ({ provider_name: p.provider_name, logo_path: p.logo_path }));
+    const allProviders = [...(us.flatrate||[]), ...(us.free||[])];
+    const seen = new Set();
+    const providers = allProviders.filter(p => {
+      const base = p.provider_name
+        .replace(/\s*(with Ads?|Standard with Ads?|Basic|Premium|Plus|\(.*\))\s*$/i, '')
+        .trim();
+      if (seen.has(base)) return false;
+      seen.add(base);
+      p.provider_name = base;
+      return true;
+    }).map(p => ({ provider_name: p.provider_name, logo_path: p.logo_path }));
     res.json(providers);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
