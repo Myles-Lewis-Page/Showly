@@ -775,7 +775,7 @@ async function openDetail(tmdbId,showId){
   if(seasons.length) loadSeason(id,showId,defaultSeason);
 }
 
-const ALL_SERVICES = ['Netflix','Hulu','Disney+','Max','Apple TV+','Peacock','Paramount+','Amazon Prime','Crunchyroll','AMC+','Showtime','Fubo','ESPN+','YouTube TV','Other'];
+const ALL_SERVICES = ['Netflix','Hulu','Disney+','Max','Apple TV+','Peacock','Paramount+','Amazon Prime','MGM+','Crunchyroll','AMC+','Showtime','Fubo','ESPN+','YouTube TV','Other'];
 
 function buildPlatformOptions(tmdbId, selectedPlatform) {
   const providers = showProviders.get(tmdbId);
