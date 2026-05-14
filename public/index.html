@@ -731,8 +731,9 @@ async function openDetail(tmdbId,showId){
   const backdrop=details.backdrop_path?`${IMG}/w1280${details.backdrop_path}`:null;
   const poster=details.poster_path?`${IMG}/w300${details.poster_path}`:null;
 
-  // Stats — use season episode counts to match what's actually trackable (excludes specials)
-  const totalEps = seasons.reduce((sum, s) => sum + (s.episode_count || 0), 0) || details.number_of_episodes || 0;
+  // Stats — use aired episodes from next-ep data (matches what's actually trackable)
+  const totalAired = nextEpInfo?.total_aired || seasons.reduce((sum,s)=>sum+(s.episode_count||0),0) || details.number_of_episodes || 0;
+  const totalEps = totalAired;
   const watchedCount = epSet.size;
   const remaining = Math.max(0, totalEps - watchedCount);
   const avgRuntime = details.episode_run_time?.[0] || 45;
