@@ -1027,6 +1027,12 @@ async function loadSeason(tmdbId,showId,seasonNum){
   // Update total progress
   updateTotalProgress(id);
 
+  // Season overview from TMDB
+  const seasonOverview = data.overview ? `
+    <div style="font-size:13px;line-height:1.6;color:var(--muted);padding:10px 0 12px;border-bottom:1px solid var(--border);margin-bottom:12px">
+      ${esc(data.overview)}
+    </div>` : '';
+
   container.innerHTML=`
     <div class="season-header">
       <span class="season-progress">${watchedInSeason} / ${episodes.length} watched</span>
@@ -1035,6 +1041,7 @@ async function loadSeason(tmdbId,showId,seasonNum){
         ${allWatched?'✓ All Watched':'Mark All Watched'}
       </button>
     </div>
+    ${seasonOverview}
     <div class="episodes-list">${episodes.map(ep=>{
       const watched=epSet.has(`${seasonNum}_${ep.episode_number}`);
 
