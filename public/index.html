@@ -335,11 +335,41 @@ main{padding:16px}
         <div class="show-grid" id="grid-upcoming"></div>
       </div>
     </div>
-    <div id="tab-caughtup" class="hide"><div class="section-label">Caught Up <span id="cnt-caughtup">0</span></div><div class="show-grid" id="grid-caughtup"></div></div>
-    <div id="tab-finished" class="hide"><div class="section-label">Show Finished <span id="cnt-finished">0</span></div><div class="show-grid" id="grid-finished"></div></div>
-    <div id="tab-watchlist" class="hide"><div class="section-label">Watchlist <span id="cnt-watchlist">0</span></div><div class="show-grid" id="grid-watchlist"></div></div>
-    <div id="tab-paused" class="hide"><div class="section-label">Paused <span id="cnt-paused">0</span></div><div class="show-grid" id="grid-paused"></div></div>
-    <div id="tab-dropped" class="hide"><div class="section-label">Not Continuing <span id="cnt-dropped">0</span></div><div class="show-grid" id="grid-dropped"></div></div>
+    <div id="tab-caughtup" class="hide">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+        <div class="section-label" style="margin-bottom:0">Caught Up <span id="cnt-caughtup">0</span></div>
+        <div class="sort-btns-shared"></div>
+      </div>
+      <div class="show-grid" id="grid-caughtup"></div>
+    </div>
+    <div id="tab-finished" class="hide">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+        <div class="section-label" style="margin-bottom:0">Show Finished <span id="cnt-finished">0</span></div>
+        <div class="sort-btns-shared"></div>
+      </div>
+      <div class="show-grid" id="grid-finished"></div>
+    </div>
+    <div id="tab-watchlist" class="hide">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+        <div class="section-label" style="margin-bottom:0">Watchlist <span id="cnt-watchlist">0</span></div>
+        <div class="sort-btns-shared"></div>
+      </div>
+      <div class="show-grid" id="grid-watchlist"></div>
+    </div>
+    <div id="tab-paused" class="hide">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+        <div class="section-label" style="margin-bottom:0">Paused <span id="cnt-paused">0</span></div>
+        <div class="sort-btns-shared"></div>
+      </div>
+      <div class="show-grid" id="grid-paused"></div>
+    </div>
+    <div id="tab-dropped" class="hide">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+        <div class="section-label" style="margin-bottom:0">Not Continuing <span id="cnt-dropped">0</span></div>
+        <div class="sort-btns-shared"></div>
+      </div>
+      <div class="show-grid" id="grid-dropped"></div>
+    </div>
     <div id="tab-recs" class="hide">
       <div class="section-label">Recommended for You</div>
       <div id="genre-filter-row" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px"></div>
@@ -410,11 +440,32 @@ async function startApp() {
 
 // ── UTILS ─────────────────────────────────────────────────────────────────────
 function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
+function sortList(list) {
+  if (sortMode === 'updated') return [...list].sort((a,b) => new Date(b.updated_at) - new Date(a.updated_at));
+  if (sortMode === 'remaining') return [...list].sort((a,b) => {
+    const ra = (nextEps.get(a.tmdb_id)?.total_aired||0) - (watchedEps.get(a.tmdb_id)||new Set()).size;
+    const rb = (nextEps.get(b.tmdb_id)?.total_aired||0) - (watchedEps.get(b.tmdb_id)||new Set()).size;
+    return rb - ra;
+  });
+  return list; // alpha — already sorted from server
+}
+
+function sortBtnsHTML() {
+  return `<div style="display:flex;gap:6px">
+    <button class="sort-btn ${sortMode==='alpha'?'on':''}" onclick="setSort('alpha')">A–Z</button>
+    <button class="sort-btn ${sortMode==='updated'?'on':''}" onclick="setSort('updated')">Recent</button>
+    <button class="sort-btn ${sortMode==='remaining'?'on':''}" onclick="setSort('remaining')">Most Left</button>
+  </div>`;
+}
+
 function setSort(mode) {
   sortMode = mode;
+  // Update watching tab buttons
   ['alpha','updated','remaining'].forEach(m => {
     document.getElementById('sort-'+m)?.classList.toggle('on', m===mode);
   });
+  // Update shared sort buttons on other tabs
+  document.querySelectorAll('.sort-btns-shared').forEach(el => el.innerHTML = sortBtnsHTML());
   renderAll();
 }
 
@@ -438,17 +489,8 @@ function renderAll() {
     }
   });
 
-  // Sort watching list
-  let watchingList = groups.watching;
-  if (sortMode === 'updated') watchingList = [...watchingList].sort((a,b) => new Date(b.updated_at) - new Date(a.updated_at));
-  else if (sortMode === 'remaining') watchingList = [...watchingList].sort((a,b) => {
-    const ra = (nextEps.get(a.tmdb_id)?.total_aired||0) - (watchedEps.get(a.tmdb_id)||new Set()).size;
-    const rb = (nextEps.get(b.tmdb_id)?.total_aired||0) - (watchedEps.get(b.tmdb_id)||new Set()).size;
-    return rb - ra;
-  });
-  // else alpha — already sorted from server
-
-  // Watching grid
+  // Watching grid (sorted)
+  const watchingList = sortList(groups.watching);
   const wcnt=document.getElementById('cnt-watching');
   if(wcnt) wcnt.textContent=watchingList.length;
   const wgrid=document.getElementById('grid-watching');
@@ -460,10 +502,9 @@ function renderAll() {
   const ugrid=document.getElementById('grid-upcoming');
   if(ugrid) ugrid.innerHTML=groups.upcoming.length?groups.upcoming.map(s=>showCard(s)).join(''):`<div class="empty" style="padding:20px"><div style="font-size:13px;color:var(--muted)">No upcoming shows within 90 days</div></div>`;
 
-
-  // Other tabs
+  // Other tabs (all sorted)
   ['caughtup','finished','watchlist','paused','dropped'].forEach(status=>{
-    const list=groups[status];
+    const list=sortList(groups[status]);
     const cnt=document.getElementById('cnt-'+status);
     if(cnt) cnt.textContent=list.length;
     const grid=document.getElementById('grid-'+status);
@@ -471,6 +512,9 @@ function renderAll() {
     if(!list.length){grid.innerHTML=`<div class="empty"><div class="empty-icon">${sIcon(status)}</div>Nothing here yet</div>`;return;}
     grid.innerHTML=list.map(s=>showCard(s)).join('');
   });
+
+  // Sync all sort button instances
+  document.querySelectorAll('.sort-btns-shared').forEach(el => el.innerHTML = sortBtnsHTML());
 }
 
 function showCard(s) {
