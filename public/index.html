@@ -321,7 +321,14 @@ main{padding:16px}
 
   <main>
     <div id="tab-watching">
-      <div class="section-label">Currently Watching <span id="cnt-watching">0</span></div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+        <div class="section-label" style="margin-bottom:0">Currently Watching <span id="cnt-watching">0</span></div>
+        <div style="display:flex;gap:6px">
+          <button class="sort-btn on" id="sort-alpha" onclick="setSort('alpha')">A–Z</button>
+          <button class="sort-btn" id="sort-updated" onclick="setSort('updated')">Recent</button>
+          <button class="sort-btn" id="sort-remaining" onclick="setSort('remaining')">Most Left</button>
+        </div>
+      </div>
       <div class="show-grid" id="grid-watching"></div>
       <div id="upcoming-section" style="margin-top:24px">
         <div class="section-label">Upcoming <span id="cnt-upcoming">0</span></div>
@@ -367,6 +374,7 @@ let showDetails = new Map();
 let showProviders = new Map();
 let ownedServices = new Set();
 let currentSimilarData = [];
+let sortMode = 'alpha'; // 'alpha' | 'updated' | 'remaining'
 let genreList = [];
 let activeGenre = null; // {id, name} or null for all // services the user has subscriptions to
 let currentDetail = null;
@@ -402,6 +410,14 @@ async function startApp() {
 
 // ── UTILS ─────────────────────────────────────────────────────────────────────
 function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
+function setSort(mode) {
+  sortMode = mode;
+  ['alpha','updated','remaining'].forEach(m => {
+    document.getElementById('sort-'+m)?.classList.toggle('on', m===mode);
+  });
+  renderAll();
+}
+
 function sLabel(s){return{watching:'Watching ▶',caughtup:'Caught Up 🔄',finished:'Show Finished ✅',watchlist:'Watchlist 📋',paused:'Paused ⏸',dropped:'Not Continuing 🚫'}[s]||s;}
 function sIcon(s){return{watching:'▶️',caughtup:'🔄',finished:'✅',watchlist:'📋',paused:'⏸️',dropped:'🚫'}[s]||'📺';}
 function fmtDate(d){if(!d)return'';const p=d.split('-');return p.length===3?`${parseInt(p[1])}/${parseInt(p[2])}/${p[0]}`:d;}
@@ -422,11 +438,21 @@ function renderAll() {
     }
   });
 
+  // Sort watching list
+  let watchingList = groups.watching;
+  if (sortMode === 'updated') watchingList = [...watchingList].sort((a,b) => new Date(b.updated_at) - new Date(a.updated_at));
+  else if (sortMode === 'remaining') watchingList = [...watchingList].sort((a,b) => {
+    const ra = (nextEps.get(a.tmdb_id)?.total_aired||0) - (watchedEps.get(a.tmdb_id)||new Set()).size;
+    const rb = (nextEps.get(b.tmdb_id)?.total_aired||0) - (watchedEps.get(b.tmdb_id)||new Set()).size;
+    return rb - ra;
+  });
+  // else alpha — already sorted from server
+
   // Watching grid
   const wcnt=document.getElementById('cnt-watching');
-  if(wcnt) wcnt.textContent=groups.watching.length;
+  if(wcnt) wcnt.textContent=watchingList.length;
   const wgrid=document.getElementById('grid-watching');
-  if(wgrid) wgrid.innerHTML=groups.watching.length?groups.watching.map(s=>showCard(s)).join(''):`<div class="empty"><div class="empty-icon">▶️</div>Nothing here yet</div>`;
+  if(wgrid) wgrid.innerHTML=watchingList.length?watchingList.map(s=>showCard(s)).join(''):`<div class="empty"><div class="empty-icon">▶️</div>Nothing here yet</div>`;
 
   // Upcoming section (inside watching tab)
   const ucnt=document.getElementById('cnt-upcoming');
@@ -1024,13 +1050,22 @@ async function loadSeason(tmdbId,showId,seasonNum){
   const watchedInSeason=episodes.filter(e=>epSet.has(`${seasonNum}_${e.episode_number}`)).length;
   const allWatched=episodes.length>0&&watchedInSeason===episodes.length;
 
+  // Season air date range
+  const airedEps = episodes.filter(e=>e.air_date);
+  const firstAir = airedEps[0]?.air_date;
+  const lastAir = airedEps[airedEps.length-1]?.air_date;
+  const seasonDateRange = firstAir ? (lastAir && lastAir !== firstAir
+    ? `${fmtDate(firstAir)} – ${fmtDate(lastAir)}`
+    : fmtDate(firstAir)) : '';
+
   // Update total progress
   updateTotalProgress(id);
 
   // Season overview from TMDB
-  const seasonOverview = data.overview ? `
+  const seasonOverview = (data.overview || seasonDateRange) ? `
     <div style="font-size:13px;line-height:1.6;color:var(--muted);padding:10px 0 12px;border-bottom:1px solid var(--border);margin-bottom:12px">
-      ${esc(data.overview)}
+      ${seasonDateRange ? `<div style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:4px">📅 ${seasonDateRange}</div>` : ''}
+      ${data.overview ? esc(data.overview) : ''}
     </div>` : '';
 
   container.innerHTML=`
@@ -1044,15 +1079,15 @@ async function loadSeason(tmdbId,showId,seasonNum){
     ${seasonOverview}
     <div class="episodes-list">${episodes.map(ep=>{
       const watched=epSet.has(`${seasonNum}_${ep.episode_number}`);
-
       const still=ep.still_path?`${IMG}/w300${ep.still_path}`:null;
+      const runtime=ep.runtime?`${ep.runtime}m`:'';
       return `<div class="ep-row ${watched?'watched':''}" id="ep-${id}-${seasonNum}-${ep.episode_number}"
         onclick="clickEpisode(event,${id},${showId},${seasonNum},${ep.episode_number},'${esc(ep.name||'Episode '+ep.episode_number)}','${ep.still_path||''}','${esc((ep.overview||'').replace(/'/g,"&#39;"))}','${ep.air_date||''}')">
         <span class="ep-num">${ep.episode_number}</span>
         ${still?`<img class="ep-still" src="${still}" alt="" loading="lazy" onerror="this.outerHTML='<div class=ep-still-ph>📺</div>'"/>`:`<div class="ep-still-ph">📺</div>`}
         <div class="ep-info">
           <div class="ep-name">${esc(ep.name||'Episode '+ep.episode_number)}</div>
-          <div class="ep-date">${ep.air_date?fmtDate(ep.air_date):''}</div>
+          <div class="ep-date">${[ep.air_date?fmtDate(ep.air_date):'', runtime].filter(Boolean).join(' · ')}</div>
         </div>
         <div class="ep-check" id="epchk-${id}-${seasonNum}-${ep.episode_number}">${watched?'✓':''}</div>
       </div>`;
@@ -1110,22 +1145,30 @@ async function toggleSeasonWatched(tmdbId,showId,season,epNums,currentlyAllWatch
   const epSet=watchedEps.get(id)||new Set();
 
   if(currentlyAllWatched){
-    await api(apiPath+'/season',{method:'DELETE',body:{tmdb_id:id,season_number:parseInt(season)}});
+    await api('/api/episodes/season',{method:'DELETE',body:{tmdb_id:id,season_number:parseInt(season)}});
     epNums.forEach(n=>epSet.delete(`${season}_${n}`));
+    watchedEps.set(id,epSet);
+    loadSeason(id,showId,season);
+    toast('Season unmarked');
   } else {
     await api('/api/episodes/season',{method:'POST',body:{tmdb_id:id,season_number:parseInt(season),episodes:epNums.map(Number)}});
     epNums.forEach(n=>epSet.add(`${season}_${n}`));
+    watchedEps.set(id,epSet);
+    loadSeason(id,showId,season);
+    toast('Season marked watched ✓');
+    // Always check if status should move after marking a season watched
+    const show=shows.find(s=>s.tmdb_id===id);
+    if(show){
+      const next=await api(`/api/next-episode/${id}`);
+      nextEps.set(id,next);
+      updateTotalProgress(id);
+      updateCardNextEp(show);
+      if(next.suggested_status && next.suggested_status!==show.status && ['watching','caughtup','finished'].includes(show.status)){
+        await autoMoveStatus(show,next.suggested_status);
+        toast(`Moved to ${sLabel(next.suggested_status)}`);
+      }
+    }
   }
-  watchedEps.set(id,epSet);
-  const show=shows.find(s=>s.tmdb_id===id);
-  if(!currentlyAllWatched&&show&&['watching','caughtup','finished'].includes(show.status)){
-    const next=await api(`/api/next-episode/${id}`);
-    nextEps.set(id,next);
-    if(next.suggested_status&&next.suggested_status!==show.status) await autoMoveStatus(show,next.suggested_status);
-    updateCardNextEp(show);
-  }
-  loadSeason(id,showId,season);
-  toast(currentlyAllWatched?'Season unmarked':'Season marked watched ✓');
 }
 
 function updateSeasonProgress(tmdbId,season){
@@ -1396,6 +1439,24 @@ function renderStatsContent(container, counts, totalWatched, totalHours, topShow
     `<div style="color:var(--muted);font-size:14px;margin-top:16px">Genre data loads as you browse shows — come back after opening a few show pages.</div>`}
   `;
 }
+
+// ── KEYBOARD SHORTCUTS ────────────────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if(e.key === 'Escape') {
+    if(!document.getElementById('ep-modal').classList.contains('hide')) { closeEpModal(); return; }
+    if(!document.getElementById('rec-modal').classList.contains('hide')) { closeRecModal(); return; }
+    if(document.getElementById('detail-panel').classList.contains('open')) { closeDetail(); return; }
+  }
+  if(document.getElementById('detail-panel').classList.contains('open') && currentSeason) {
+    const tabs = [...document.querySelectorAll('.s-tab')];
+    const idx = tabs.findIndex(t => parseInt(t.id.replace('stab-','')) === currentSeason);
+    if(e.key === 'ArrowRight' && idx < tabs.length-1) {
+      tabs[idx+1].click();
+    } else if(e.key === 'ArrowLeft' && idx > 0) {
+      tabs[idx-1].click();
+    }
+  }
+});
 
 init();
 </script>
