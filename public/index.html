@@ -709,11 +709,21 @@ async function openDetail(tmdbId,showId){
   document.body.style.overflow='hidden';
 
   const id=parseInt(tmdbId);
-  const [details,epData,similarData]=await Promise.all([
-    api(`/api/tmdb/show/${id}`),
-    api(`/api/episodes/${id}`),
-    api(`/api/tmdb/show/${id}/similar`),
-  ]);
+  let details={}, epData=[], similarData=[];
+  try {
+    [details, epData, similarData] = await Promise.all([
+      api(`/api/tmdb/show/${id}`).then(r => r||{}),
+      api(`/api/episodes/${id}`).then(r => Array.isArray(r)?r:[]),
+      api(`/api/tmdb/show/${id}/similar`).then(r => Array.isArray(r)?r:[]),
+    ]);
+  } catch(e) {
+    content.innerHTML='<div style="padding:40px;text-align:center;color:var(--muted)">Failed to load show. Try again.</div>';
+    return;
+  }
+  if(!details.name && !details.id) {
+    content.innerHTML='<div style="padding:40px;text-align:center;color:var(--muted)">Could not load show details.</div>';
+    return;
+  }
 
   const epSet=new Set(Array.isArray(epData)?epData.map(e=>`${e.season_number}_${e.episode_number}`):[]);
   watchedEps.set(id,epSet);
@@ -731,6 +741,10 @@ async function openDetail(tmdbId,showId){
   const backdrop=details.backdrop_path?`${IMG}/w1280${details.backdrop_path}`:null;
   const poster=details.poster_path?`${IMG}/w300${details.poster_path}`:null;
 
+  // Determine current season (first unwatched)
+  const nextEpInfo = nextEps.get(id) || null;
+  const defaultSeason = nextEpInfo && !nextEpInfo.all_watched ? nextEpInfo.season_number : (seasons[0]?.season_number||1);
+
   // Stats — use aired episodes from next-ep data (matches what's actually trackable)
   const totalAired = nextEpInfo?.total_aired || seasons.reduce((sum,s)=>sum+(s.episode_count||0),0) || details.number_of_episodes || 0;
   const totalEps = totalAired;
@@ -747,10 +761,6 @@ async function openDetail(tmdbId,showId){
   const endDate=details.last_air_date?fmtDate(details.last_air_date):'';
   const showEnded=['Ended','Canceled','Cancelled'].includes(details.status);
   const dateRange=showEnded&&endDate?`${startDate} – ${endDate}`:startDate?`Started ${startDate}`:'';
-
-  // Determine current season (first unwatched)
-  const nextEpInfo=nextEps.get(id);
-  const defaultSeason=nextEpInfo&&!nextEpInfo.all_watched?nextEpInfo.season_number:(seasons[0]?.season_number||1);
 
   // Last aired episode checker
   const statsHTML=totalEps>0?`
