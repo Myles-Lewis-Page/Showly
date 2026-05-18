@@ -370,8 +370,6 @@ main{padding:16px}
       </div>
       <div class="show-grid" id="grid-dropped"></div>
     </div>
-
-    <div id="tab-recs" class="hide">
     <div id="tab-recs" class="hide">
       <div class="section-label">Recommended for You</div>
       <div id="genre-filter-row" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px"></div>
@@ -1413,6 +1411,7 @@ async function loadStats(){
   allShows.forEach(s=>{if(counts[s.status]!==undefined)counts[s.status]++;});
   const totalWatched = allEps.total || 0;
   const totalMins = totalWatched * 45;
+  const totalHours = Math.round(totalMins / 60);
 
   // Genre breakdown from stored genres column
   const genreCounts = {};
