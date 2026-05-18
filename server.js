@@ -40,6 +40,19 @@ async function initDB() {
   await pool.query(`
 CREATE TABLE IF NOT EXISTS user_settings (key TEXT PRIMARY KEY, value TEXT);
   `);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS watched_movies (
+      id SERIAL PRIMARY KEY,
+      tmdb_id INTEGER NOT NULL UNIQUE,
+      title TEXT NOT NULL,
+      poster_path TEXT,
+      year TEXT,
+      overview TEXT,
+      runtime INTEGER,
+      genres TEXT,
+      watched_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `);
 }
 
 const requireLogin = (req, res, next) => req.session?.ok ? next() : res.status(401).json({ error: 'Not logged in' });
@@ -62,13 +75,84 @@ async function tmdb(endpoint, params = {}) {
 
 app.get('/api/search', requireLogin, async (req, res) => {
   try {
-    const { q } = req.query;
+    const { q, type = 'tv' } = req.query;
     if (!q?.trim()) return res.json([]);
-    const data = await tmdb('/search/tv', { query: q, include_adult: false });
+    const data = await tmdb(`/search/${type}`, { query: q, include_adult: false });
     res.json((data.results || []).slice(0, 8).map(s => ({
-      tmdb_id: s.id, title: s.name, poster_path: s.poster_path,
-      year: (s.first_air_date || '').slice(0, 4), overview: s.overview,
+      tmdb_id: s.id,
+      title: s.title || s.name,
+      poster_path: s.poster_path,
+      year: (s.release_date || s.first_air_date || '').slice(0, 4),
+      overview: s.overview,
+      media_type: type,
     })));
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/tmdb/movie/:id', requireLogin, async (req, res) => {
+  try {
+    const [details, credits, providers] = await Promise.all([
+      tmdb(`/movie/${req.params.id}`),
+      tmdb(`/movie/${req.params.id}/credits`),
+      tmdb(`/movie/${req.params.id}/watch/providers`),
+    ]);
+    const us = providers.results?.US || {};
+    const isSubscriptionService = (name) => {
+      const n = name.toLowerCase().replace(/\+/g,'plus').replace(/\s+/g,' ').trim();
+      return ['disney plus','apple tv plus','max','hulu','netflix','peacock',
+        'paramount plus','amazon prime','prime video','mgm plus','crunchyroll',
+        'amc plus','showtime','fubo','espn plus','youtube tv'
+      ].some(s => n.startsWith(s));
+    };
+    const flatrate = [...(us.flatrate||[]), ...(us.free||[])];
+    const buyRentSubs = [...(us.buy||[]), ...(us.rent||[])].filter(p => isSubscriptionService(p.provider_name));
+    const allProviders = [...flatrate, ...buyRentSubs];
+    const seen = new Set();
+    const streaming_providers = allProviders.filter(p => {
+      const base = p.provider_name.replace(/\s+(with Ads?|Standard with Ads?|Standard|Basic|Premium Plus|Premium)\s*$/i,'').trim();
+      if (seen.has(base)) return false;
+      seen.add(base); p.provider_name = base; return true;
+    });
+    res.json({ ...details, credits, streaming_providers });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/tmdb/movie/:id/similar', requireLogin, async (req, res) => {
+  try {
+    const myIds = new Set((await pool.query('SELECT tmdb_id FROM watched_movies')).rows.map(r => r.tmdb_id));
+    const data = await tmdb(`/movie/${req.params.id}/similar`);
+    res.json((data.results||[]).slice(0,12).map(s => ({
+      tmdb_id: s.id, title: s.title, poster_path: s.poster_path,
+      year: (s.release_date||'').slice(0,4), overview: s.overview,
+      rating: s.vote_average, in_list: myIds.has(s.id), media_type: 'movie',
+    })));
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Watched movies
+app.get('/api/movies', requireLogin, async (req, res) => {
+  try {
+    const r = await pool.query('SELECT * FROM watched_movies ORDER BY title ASC');
+    res.json(r.rows);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/movies', requireLogin, async (req, res) => {
+  try {
+    const { tmdb_id, title, poster_path, year, overview, runtime, genres } = req.body;
+    const r = await pool.query(
+      `INSERT INTO watched_movies (tmdb_id,title,poster_path,year,overview,runtime,genres)
+       VALUES ($1,$2,$3,$4,$5,$6,$7) ON CONFLICT (tmdb_id) DO UPDATE SET watched_at=NOW() RETURNING *`,
+      [tmdb_id, title, poster_path||null, year||null, overview||null, runtime||null, genres||null]
+    );
+    res.json(r.rows[0]);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/movies/:tmdb_id', requireLogin, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM watched_movies WHERE tmdb_id=$1', [req.params.tmdb_id]);
+    res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -242,9 +326,12 @@ app.get('/api/recommendations', requireLogin, async (req, res) => {
 
 app.get('/api/stats', requireLogin, async (req, res) => {
   try {
-    const showsData = await pool.query('SELECT * FROM shows');
-    const epData = await pool.query('SELECT tmdb_id, COUNT(*) as ep_count FROM watched_episodes GROUP BY tmdb_id ORDER BY ep_count DESC LIMIT 10');
-    res.json({ shows: showsData.rows, topEps: epData.rows });
+    const [showsData, epData, moviesData] = await Promise.all([
+      pool.query('SELECT * FROM shows'),
+      pool.query('SELECT tmdb_id, COUNT(*) as ep_count FROM watched_episodes GROUP BY tmdb_id ORDER BY ep_count DESC LIMIT 10'),
+      pool.query('SELECT COUNT(*) as count, SUM(runtime) as total_runtime FROM watched_movies'),
+    ]);
+    res.json({ shows: showsData.rows, topEps: epData.rows, movies: moviesData.rows[0] });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
