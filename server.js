@@ -72,16 +72,6 @@ app.get('/api/search', requireLogin, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-    res.json({ ...details, credits, streaming_providers });
-  } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-
-// Watched movies
-
-
-  } catch (e) { res.status(500).json({ error: e.message }); }
-});
 
 app.get('/api/tmdb/show/:id', requireLogin, async (req, res) => {
   try {
