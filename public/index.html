@@ -413,6 +413,7 @@ let showDetails = new Map();
 let showProviders = new Map();
 let ownedServices = new Set();
 let currentSimilarData = [];
+let currentSeasonEpisodes = new Map(); // key: `${tmdbId}_${season}` -> episodes array
 let sortMode = 'alpha';
 let genreList = [];
 let activeGenre = null; // {id, name} or null for all // services the user has subscriptions to
@@ -1111,6 +1112,9 @@ async function loadSeason(tmdbId,showId,seasonNum){
       ${data.overview ? esc(data.overview) : ''}
     </div>` : '';
 
+  // Store episodes for safe onclick access
+  currentSeasonEpisodes.set(`${id}_${seasonNum}`, episodes);
+
   container.innerHTML=`
     <div class="season-header">
       <span class="season-progress">${watchedInSeason} / ${episodes.length} watched</span>
@@ -1120,12 +1124,12 @@ async function loadSeason(tmdbId,showId,seasonNum){
       </button>
     </div>
     ${seasonOverview}
-    <div class="episodes-list">${episodes.map(ep=>{
+    <div class="episodes-list">${episodes.map((ep, epIdx)=>{
       const watched=epSet.has(`${seasonNum}_${ep.episode_number}`);
       const still=ep.still_path?`${IMG}/w300${ep.still_path}`:null;
       const runtime=ep.runtime?`${ep.runtime}m`:'';
       return `<div class="ep-row ${watched?'watched':''}" id="ep-${id}-${seasonNum}-${ep.episode_number}"
-        onclick="clickEpisode(event,${id},${showId},${seasonNum},${ep.episode_number},'${escAttr(ep.name||'Episode '+ep.episode_number)}','${ep.still_path||''}','${escAttr(ep.overview||'')}','${ep.air_date||''}')">
+        onclick="clickEpisode(event,${id},${showId},${seasonNum},${ep.episode_number},${epIdx})">
         <span class="ep-num">${ep.episode_number}</span>
         ${still?`<img class="ep-still" src="${still}" alt="" loading="lazy" onerror="this.outerHTML='<div class=ep-still-ph>📺</div>'"/>`:`<div class="ep-still-ph">📺</div>`}
         <div class="ep-info">
@@ -1151,10 +1155,14 @@ function updateTotalProgress(tmdbId){
   </div>`;
 }
 
-function clickEpisode(event,tmdbId,showId,season,epNum,name,stillPath,overview,airDate){
-  const target=event.target;
-  if(target.classList.contains('ep-check')||target.closest('.ep-check')) toggleEpisode(tmdbId,showId,season,epNum);
-  else openEpModal(tmdbId,showId,season,epNum,name,stillPath,overview,airDate);
+function clickEpisode(event, tmdbId, showId, season, epNum, epIdx) {
+  const ep = (currentSeasonEpisodes.get(`${tmdbId}_${season}`) || [])[epIdx] || {};
+  const target = event.target;
+  if (target.classList.contains('ep-check') || target.closest('.ep-check')) {
+    toggleEpisode(tmdbId, showId, season, epNum);
+  } else {
+    openEpModal(tmdbId, showId, season, epNum, ep.name||'Episode '+epNum, ep.still_path||'', ep.overview||'', ep.air_date||'');
+  }
 }
 
 async function toggleEpisode(tmdbId,showId,season,epNum){
