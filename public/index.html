@@ -306,7 +306,6 @@ main{padding:16px}
     <button class="nav-tab" onclick="setTab('watchlist')" id="t-watchlist">Watchlist</button>
     <button class="nav-tab" onclick="setTab('paused')" id="t-paused">Paused</button>
     <button class="nav-tab" onclick="setTab('dropped')" id="t-dropped">Not Continuing</button>
-    <button class="nav-tab" onclick="setTab('movies')" id="t-movies">Movies</button>
     <button class="nav-tab" onclick="setTab('recs')" id="t-recs">Recommendations</button>
     <button class="nav-tab" onclick="setTab('trending')" id="t-trending">Trending</button>
     <button class="nav-tab" onclick="setTab('stats')" id="t-stats">Stats</button>
@@ -315,11 +314,7 @@ main{padding:16px}
   </nav>
 
   <div class="search-wrap" id="search-wrap">
-    <div style="display:flex;gap:6px;margin-bottom:8px">
-      <button class="sort-btn on" id="stype-tv" onclick="setSearchType('tv')">📺 TV Shows</button>
-      <button class="sort-btn" id="stype-movie" onclick="setSearchType('movie')">🎬 Movies</button>
-    </div>
-    <input type="text" id="search-input" placeholder="Search..." autocomplete="off"
+    <input type="text" id="search-input" placeholder="Search for a TV show to add..." autocomplete="off"
       oninput="onSearch(this.value)" onblur="setTimeout(closeSearch,200)"/>
     <div class="search-results hide" id="search-results"></div>
   </div>
@@ -419,9 +414,6 @@ let showProviders = new Map();
 let ownedServices = new Set();
 let currentSimilarData = [];
 let sortMode = 'alpha';
-let movieSortMode = 'alpha';
-let movies = []; // watched movies
-let searchType = 'tv'; // 'tv' or 'movie'
 let genreList = [];
 let activeGenre = null; // {id, name} or null for all // services the user has subscriptions to
 let currentDetail = null;
@@ -448,7 +440,6 @@ async function startApp() {
   document.getElementById('app').classList.remove('hide');
   const [showsData, settings] = await Promise.all([api('/api/shows'), api('/api/settings')]);
   shows = showsData;
-  movies = await api('/api/movies');
   if (settings?.owned_services) {
     ownedServices = new Set(settings.owned_services.split(',').filter(Boolean));
   }
@@ -491,173 +482,6 @@ function setSort(mode) {
   // Update shared sort buttons on other tabs
   document.querySelectorAll('.sort-btns-shared').forEach(el => el.innerHTML = sortBtnsHTML());
   renderAll();
-}
-
-// ── SEARCH TYPE ───────────────────────────────────────────────────────────────
-function setSearchType(type) {
-  searchType = type;
-  document.getElementById('stype-tv')?.classList.toggle('on', type==='tv');
-  document.getElementById('stype-movie')?.classList.toggle('on', type==='movie');
-  document.getElementById('search-input').placeholder = type==='movie' ? 'Search for a movie...' : 'Search for a TV show...';
-  document.getElementById('search-results').classList.add('hide');
-  document.getElementById('search-input').value = '';
-}
-
-// ── MOVIES ────────────────────────────────────────────────────────────────────
-function setMovieSort(mode) {
-  movieSortMode = mode;
-  ['alpha','recent'].forEach(m => document.getElementById('msort-'+m)?.classList.toggle('on', m===mode));
-  renderMovies();
-}
-
-function renderMovies() {
-  const list = movieSortMode === 'recent'
-    ? [...movies].sort((a,b) => new Date(b.watched_at) - new Date(a.watched_at))
-    : [...movies].sort((a,b) => a.title.localeCompare(b.title));
-  const cnt = document.getElementById('cnt-movies');
-  if (cnt) cnt.textContent = list.length;
-  const grid = document.getElementById('grid-movies');
-  if (!grid) return;
-  if (!list.length) { grid.innerHTML = '<div class="empty"><div class="empty-icon">🎬</div>No movies watched yet</div>'; return; }
-  grid.innerHTML = list.map(m => {
-    const poster = m.poster_path
-      ? `<img class="poster" src="${IMG}/w300${m.poster_path}" alt="${esc(m.title)}" loading="lazy" onerror="this.outerHTML='<div class=poster-ph>🎬</div>'"/>`
-      : `<div class="poster-ph">🎬</div>`;
-    return `<div class="show-card" style="cursor:pointer" onclick="openMovieDetail(${m.tmdb_id})">
-      ${poster}
-      <div class="card-body">
-        <div class="card-title">${esc(m.title)}</div>
-        <div class="card-dates">${m.year||''}${m.runtime?` · ${fmtTime(m.runtime)}`:''}</div>
-      </div>
-      <div style="padding:0 6px 6px;display:flex;justify-content:flex-end">
-        <button class="ca-btn del" onclick="event.stopPropagation();removeMovie(${m.tmdb_id})" title="Remove">✕</button>
-      </div>
-    </div>`;
-  }).join('');
-}
-
-async function removeMovie(tmdbId) {
-  await api(`/api/movies/${tmdbId}`, { method:'DELETE' });
-  movies = movies.filter(m => m.tmdb_id !== tmdbId);
-  renderMovies();
-  toast('Removed');
-}
-
-async function addMovieWatched(tmdbId) {
-  // Fetch movie details and save
-  const details = await api(`/api/tmdb/movie/${tmdbId}`);
-  if (!details.id) return;
-  const genres = (details.genres||[]).map(g=>g.name).join(',');
-  const res = await api('/api/movies', { method:'POST', body:{
-    tmdb_id: details.id, title: details.title,
-    poster_path: details.poster_path, year: (details.release_date||'').slice(0,4),
-    overview: details.overview, runtime: details.runtime||null, genres,
-  }});
-  if (res.id) {
-    const idx = movies.findIndex(m => m.tmdb_id === res.tmdb_id);
-    if (idx >= 0) movies[idx] = res; else movies.push(res);
-    renderMovies();
-    toast(`${details.title} added to Movies ✓`);
-  }
-}
-
-async function openMovieDetail(tmdbId) {
-  currentDetail = { tmdbId, id: null, type: 'movie' };
-  const overlay = document.getElementById('detail-overlay');
-  const panel = document.getElementById('detail-panel');
-  const content = document.getElementById('detail-content');
-  content.innerHTML = '<div style="padding:40px;text-align:center;color:var(--muted)">Loading...</div>';
-  overlay.classList.add('open'); panel.classList.add('open');
-  document.body.style.overflow = 'hidden';
-
-  let details = {}, similarData = [];
-  try {
-    [details, similarData] = await Promise.all([
-      api(`/api/tmdb/movie/${tmdbId}`).then(r=>r||{}),
-      api(`/api/tmdb/movie/${tmdbId}/similar`).then(r=>Array.isArray(r)?r:[]),
-    ]);
-  } catch(e) {
-    content.innerHTML = '<div style="padding:40px;text-align:center;color:var(--muted)">Failed to load movie.</div>';
-    return;
-  }
-
-  currentSimilarData = similarData;
-  const isWatched = movies.some(m => m.tmdb_id === tmdbId);
-  const backdrop = details.backdrop_path ? `${IMG}/w1280${details.backdrop_path}` : null;
-  const poster = details.poster_path ? `${IMG}/w300${details.poster_path}` : null;
-  const year = (details.release_date||'').slice(0,4);
-  const runtime = details.runtime ? fmtTime(details.runtime) : '';
-  const providers = details.streaming_providers || [];
-  const cast = (details.credits?.cast||[]).slice(0,12);
-  const genres = (details.genres||[]).map(g=>`<span class="genre-tag">${esc(g.name)}</span>`).join('');
-
-  const whereToWatchHTML = providers.length ? `
-    <div><div class="panel-section-title">Where to Watch</div>
-    <div class="provider-row" style="flex-wrap:wrap">
-      ${providers.slice(0,8).map(p=>`<div class="provider-chip">
-        ${p.logo_path?`<img class="provider-logo" src="https://image.tmdb.org/t/p/w92${p.logo_path}" alt=""/>`:''} 
-        <span>${esc(p.provider_name)}</span>
-      </div>`).join('')}
-    </div></div>` : '';
-
-  content.innerHTML = `
-    <button class="panel-close" onclick="closeDetail()">← Close</button>
-    ${backdrop?`<img class="panel-backdrop" src="${backdrop}" alt=""/>`:`<div class="panel-backdrop-ph">🎬</div>`}
-    <div class="panel-body">
-      <div class="panel-top">
-        ${poster?`<img class="panel-poster" src="${poster}" alt="${esc(details.title||'')}"/>`:`<div class="panel-poster-ph">🎬</div>`}
-        <div class="panel-info">
-          <div class="panel-title">${esc(details.title||'')}</div>
-          <div class="panel-meta">
-            ${details.vote_average?`<span>⭐ ${details.vote_average.toFixed(1)}</span>`:''}
-            ${year?`<span>📅 ${year}</span>`:''}
-            ${runtime?`<span>⏱ ${runtime}</span>`:''}
-            ${details.status?`<span>${details.status}</span>`:''}
-          </div>
-          <div class="panel-genres">${genres}</div>
-          ${details.tagline?`<div style="font-size:13px;color:var(--muted);font-style:italic;margin-top:6px">${esc(details.tagline)}</div>`:''}
-        </div>
-      </div>
-      ${whereToWatchHTML}
-      <div class="panel-section-title">Watched</div>
-      <div style="display:flex;gap:8px;margin-bottom:16px">
-        <button onclick="toggleMovieWatched(${tmdbId})" id="movie-watched-btn"
-          style="padding:9px 18px;border-radius:99px;border:none;font-size:13px;font-weight:600;cursor:pointer;background:${isWatched?'var(--surface2)':'var(--green)'};color:${isWatched?'var(--muted)':'#fff'}">
-          ${isWatched?'✓ Watched — Remove':'Mark as Watched'}
-        </button>
-      </div>
-      ${details.overview?`<div class="panel-overview">${esc(details.overview)}</div>`:''}
-      ${cast.length?`
-        <div class="panel-section-title">Cast</div>
-        <div class="cast-scroll">${cast.map(c=>`
-          <div class="cast-item">
-            ${c.profile_path?`<img class="cast-img" src="${IMG}/w185${c.profile_path}" alt="" onerror="this.style.background='var(--surface3)'"/>`:`<div class="cast-img" style="display:flex;align-items:center;justify-content:center;font-size:24px">👤</div>`}
-            <div class="cast-name">${esc(c.name)}</div><div class="cast-char">${esc(c.character||'')}</div>
-          </div>`).join('')}
-        </div>`:''}
-      ${similarData.length?`
-        <div class="panel-section-title">Similar Movies</div>
-        <div style="display:flex;gap:10px;overflow-x:auto;padding-bottom:8px">
-          ${similarData.map((s,i)=>`<div style="flex-shrink:0;width:90px;cursor:pointer" onclick="openSimilar(${i})">
-            ${s.poster_path?`<img src="${IMG}/w300${s.poster_path}" style="width:90px;height:135px;border-radius:8px;object-fit:cover;border:1px solid var(--border)" alt=""/>`:`<div style="width:90px;height:135px;border-radius:8px;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:24px">🎬</div>`}
-            <div style="font-size:11px;margin-top:5px;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${esc(s.title)}</div>
-          </div>`).join('')}
-        </div>`:''}
-    </div>`;
-}
-
-async function toggleMovieWatched(tmdbId) {
-  const isWatched = movies.some(m => m.tmdb_id === tmdbId);
-  const btn = document.getElementById('movie-watched-btn');
-  if (isWatched) {
-    await api(`/api/movies/${tmdbId}`, { method:'DELETE' });
-    movies = movies.filter(m => m.tmdb_id !== tmdbId);
-    if (btn) { btn.textContent = 'Mark as Watched'; btn.style.background = 'var(--green)'; btn.style.color = '#fff'; }
-    toast('Removed from watched');
-  } else {
-    await addMovieWatched(tmdbId);
-    if (btn) { btn.textContent = '✓ Watched — Remove'; btn.style.background = 'var(--surface2)'; btn.style.color = 'var(--muted)'; }
-  }
 }
 
 function sLabel(s){return{watching:'Watching ▶',caughtup:'Caught Up 🔄',finished:'Show Finished ✅',watchlist:'Watchlist 📋',paused:'Paused ⏸',dropped:'Not Continuing 🚫'}[s]||s;}
@@ -886,14 +710,13 @@ async function deleteShow(event, id) {
 
 // ── TABS ──────────────────────────────────────────────────────────────────────
 function setTab(tab) {
-  ['watching','caughtup','finished','watchlist','paused','dropped','movies','recs','trending','stats','settings'].forEach(t=>{
+  ['watching','caughtup','finished','watchlist','paused','dropped','recs','trending','stats','settings'].forEach(t=>{
     document.getElementById('tab-'+t)?.classList.toggle('hide',t!==tab);
     document.getElementById('t-'+t)?.classList.toggle('on',t===tab);
   });
   document.getElementById('search-wrap').classList.toggle('hide',['recs','trending','stats','settings'].includes(tab));
   if(tab==='recs') loadRecs();
   if(tab==='trending') loadTrending();
-  if(tab==='movies') renderMovies();
   if(tab==='stats') loadStats();
   if(tab==='settings') loadSettings();
 }
@@ -905,51 +728,22 @@ function onSearch(q){
   searchTimer=setTimeout(()=>doSearch(q),300);
 }
 async function doSearch(q) {
-  const results = await api(`/api/search?q=${encodeURIComponent(q)}&type=${searchType}`);
-  const res = document.getElementById('search-results');
-  if (!results.length) { res.classList.add('hide'); return; }
-  res.innerHTML = results.map(r => {
-    const isMovie = searchType === 'movie';
-    const inList = isMovie
-      ? movies.some(m => m.tmdb_id === r.tmdb_id)
-      : shows.some(s => s.tmdb_id === r.tmdb_id);
-    const pe = r.poster_path
-      ? `<img class="sr-poster" src="${IMG}/w92${r.poster_path}" alt=""/>`
-      : `<div class="sr-poster" style="display:flex;align-items:center;justify-content:center">${isMovie?'🎬':'📺'}</div>`;
+  const results=await api('/api/search?q='+encodeURIComponent(q));
+  const res=document.getElementById('search-results');
+  if(!results.length){res.classList.add('hide');return;}
+  res.innerHTML=results.map(r=>{
+    const inList=shows.some(s=>s.tmdb_id===r.tmdb_id);
+    const pe=r.poster_path?`<img class="sr-poster" src="${IMG}/w92${r.poster_path}" alt=""/>`:`<div class="sr-poster" style="display:flex;align-items:center;justify-content:center">📺</div>`;
     return `<div class="sr-item">${pe}
       <div class="sr-info"><div class="sr-title">${esc(r.title)}</div><div class="sr-year">${r.year||''}</div></div>
       <div class="sr-actions">${inList
-        ? `<span style="font-size:11px;color:var(--muted);padding:4px 8px">${isMovie?'Watched ✓':'Added ✓'}</span>`
-        : isMovie
-          ? `<button class="btn-add watching" onmousedown="addMovieFromSearch(event,${r.tmdb_id})">+ Watched</button>`
-          : `<button class="btn-add watching" onmousedown="addShow(event,${JSON.stringify(r).replace(/"/g,'&quot;')},'watching')">▶ Watching</button>
-             <button class="btn-add watchlist" onmousedown="addShow(event,${JSON.stringify(r).replace(/"/g,'&quot;')},'watchlist')">📋 Watchlist</button>`
+        ?`<span style="font-size:11px;color:var(--muted);padding:4px 8px">Added ✓</span>`
+        :`<button class="btn-add watching" onmousedown="addShow(event,${JSON.stringify(r).replace(/"/g,'&quot;')},'watching')">▶ Watching</button>
+          <button class="btn-add watchlist" onmousedown="addShow(event,${JSON.stringify(r).replace(/"/g,'&quot;')},'watchlist')">📋 Watchlist</button>`
       }</div>
     </div>`;
   }).join('');
   res.classList.remove('hide');
-}
-
-async function addMovieFromSearch(event, tmdbId) {
-  event.preventDefault();
-  closeSearch();
-  document.getElementById('search-input').value = '';
-  await addMovieWatched(tmdbId);
-}
-function closeSearch(){document.getElementById('search-results').classList.add('hide');}
-async function addShow(event,show,status){
-  event.preventDefault();
-  const res=await api('/api/shows',{method:'POST',body:{...show,status}});
-  if(res.id){
-    const idx=shows.findIndex(s=>s.tmdb_id===res.tmdb_id);
-    if(idx>=0) shows[idx]=res; else shows.push(res);
-    shows.sort((a,b)=>a.title.localeCompare(b.title));
-    renderAll();
-    if(status==='watching') api(`/api/next-episode/${show.tmdb_id}`).then(next=>{nextEps.set(show.tmdb_id,next);updateCardNextEp(res);});
-    toast(`Added to ${sLabel(status)}`);
-  }
-  closeSearch();
-  document.getElementById('search-input').value='';
 }
 
 // ── MARK NEXT WATCHED ─────────────────────────────────────────────────────────
@@ -1545,8 +1339,6 @@ function recCardHTML(r){
 }
 
 async function openRecModal(show){
-  // If it's a movie, open movie detail panel instead
-  if(show.media_type === 'movie') { openMovieDetail(show.tmdb_id); return; }
   document.getElementById('rec-modal').classList.remove('hide');
   document.getElementById('rec-modal-content').innerHTML='<div style="padding:40px;text-align:center;color:var(--muted)">Loading...</div>';
   const details=await api(`/api/tmdb/show/${show.tmdb_id}`);
@@ -1619,10 +1411,7 @@ async function loadStats(){
   const counts = {watching:0,caughtup:0,finished:0,watchlist:0,paused:0,dropped:0};
   allShows.forEach(s=>{if(counts[s.status]!==undefined)counts[s.status]++;});
   const totalWatched = allEps.total || 0;
-  const tvMins = totalWatched * 45;
-  const movieMins = parseInt(statsData.movies?.total_runtime || 0);
-  const totalMins = tvMins + movieMins;
-  const movieCount = parseInt(statsData.movies?.count || 0);
+  const totalMins = totalWatched * 45;
 
   // Genre breakdown from stored genres column
   const genreCounts = {};
@@ -1658,8 +1447,8 @@ function renderStatsContent(container, counts, totalWatched, totalHours, topShow
       <div class="stat-box"><div class="stat-num">${counts.finished}</div><div class="stat-label">Shows Finished</div></div>
       <div class="stat-box"><div class="stat-num">${counts.watchlist}</div><div class="stat-label">In Watchlist</div></div>
       <div class="stat-box"><div class="stat-num">${totalWatched}</div><div class="stat-label">Episodes Watched</div></div>
-      <div class="stat-box"><div class="stat-num">${movieCount}</div><div class="stat-label">Movies Watched</div></div>
-      <div class="stat-box"><div class="stat-num" style="font-size:16px">${fmtTime(totalMins)}</div><div class="stat-label">Total Time Watched</div></div>
+      <div class="stat-box"><div class="stat-num" style="font-size:14px">${fmtTime(totalMins)}</div><div class="stat-label">Total Time Watched</div></div>
+      <div class="stat-box"><div class="stat-num">${Object.values(counts).reduce((a,b)=>a+b,0)}</div><div class="stat-label">Total Shows</div></div>
     </div>
 
     ${sorted.length?`
