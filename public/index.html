@@ -1433,10 +1433,10 @@ async function loadStats(){
     return show ? {...show, ep_count: parseInt(r.ep_count), hours: Math.round(parseInt(r.ep_count) * avgRuntime / 60)} : null;
   }).filter(Boolean).slice(0, 10);
 
-  renderStatsContent(container, counts, totalWatched, totalHours, topShows, topGenres, maxGenre, topPlatforms);
+  renderStatsContent(container, counts, totalWatched, totalMins, totalHours, topShows, topGenres, maxGenre, topPlatforms);
 }
 
-function renderStatsContent(container, counts, totalWatched, totalHours, topShows, topGenres, maxGenre, topPlatforms) {
+function renderStatsContent(container, counts, totalWatched, totalMins, totalHours, topShows, topGenres, maxGenre, topPlatforms) {
   const byHours = statsSortMode === 'hours';
   const sorted = [...topShows].sort((a,b) => byHours ? b.hours - a.hours : b.ep_count - a.ep_count);
   const maxVal = sorted[0] ? (byHours ? sorted[0].hours : sorted[0].ep_count) : 1;
