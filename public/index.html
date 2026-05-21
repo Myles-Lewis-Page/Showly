@@ -488,8 +488,7 @@ function renderAll() {
     if(s.status==='caughtup'){
       // Split caughtup into upcoming (next ep ≤90 days) vs truly caught up
       const next=nextEps.get(s.tmdb_id);
-      const daysUntil=next?.next_air_date ? Math.ceil((new Date(next.next_air_date)-new Date())/(1000*60*60*24)) : null;
-      if(daysUntil!==null && daysUntil<=90 && daysUntil>=-1) groups.upcoming.push(s);
+      if(next?.next_air_date) groups.upcoming.push(s);
       else groups.caughtup.push(s);
     } else if(groups[s.status]!==undefined){
       groups[s.status].push(s);
