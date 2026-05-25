@@ -10,7 +10,7 @@ const TMDB_TOKEN = process.env.TMDB_TOKEN;
 const TMDB = 'https://api.themoviedb.org/3';
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(session({ secret: process.env.SESSION_SECRET || 'dev-secret', resave: false, saveUninitialized: false, cookie: { secure: false, httpOnly: true, maxAge: 30*24*60*60*1000 } }));
 
