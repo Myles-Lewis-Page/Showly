@@ -37,6 +37,7 @@ async function initDB() {
   await pool.query(`ALTER TABLE shows ADD COLUMN IF NOT EXISTS tmdb_status TEXT`).catch(()=>{});
   await pool.query(`ALTER TABLE shows ADD COLUMN IF NOT EXISTS platform TEXT`).catch(()=>{});
   await pool.query(`ALTER TABLE shows ADD COLUMN IF NOT EXISTS genres TEXT`).catch(()=>{});
+  await pool.query(`ALTER TABLE watched_episodes ADD COLUMN IF NOT EXISTS date_is_explicit BOOLEAN DEFAULT FALSE`).catch(()=>{});
   await pool.query(`
 CREATE TABLE IF NOT EXISTS user_settings (key TEXT PRIMARY KEY, value TEXT);
   `);
@@ -247,7 +248,7 @@ app.get('/api/stats', requireLogin, async (req, res) => {
       pool.query('SELECT * FROM shows'),
       pool.query('SELECT tmdb_id, COUNT(*) as ep_count FROM watched_episodes GROUP BY tmdb_id ORDER BY ep_count DESC LIMIT 10'),
       pool.query(`SELECT EXTRACT(YEAR FROM watched_at)::int as yr, COUNT(*)::int as ep_count
-                  FROM watched_episodes WHERE watched_at IS NOT NULL
+                  FROM watched_episodes WHERE date_is_explicit=TRUE AND watched_at IS NOT NULL
                   GROUP BY yr ORDER BY yr DESC`),
       pool.query(`SELECT COUNT(*)::int as cnt FROM watched_episodes
                   WHERE watched_at IS NULL OR watched_at = '1970-01-01'`),
@@ -369,7 +370,7 @@ app.get('/api/episodes/all', requireLogin, async (req, res) => {
 });
 
 app.get('/api/episodes/:tmdb_id', requireLogin, async (req, res) => {
-  try { res.json((await pool.query('SELECT season_number, episode_number, watched_at FROM watched_episodes WHERE tmdb_id=$1', [req.params.tmdb_id])).rows); }
+  try { res.json((await pool.query('SELECT season_number, episode_number, watched_at, date_is_explicit FROM watched_episodes WHERE tmdb_id=$1', [req.params.tmdb_id])).rows); }
   catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -378,11 +379,19 @@ app.post('/api/episodes', requireLogin, async (req, res) => {
     const { tmdb_id, season_number, episode_number, watched_at } = req.body;
     if (watched_at) {
       await pool.query(
-        'INSERT INTO watched_episodes (tmdb_id,season_number,episode_number,watched_at) VALUES ($1,$2,$3,$4) ON CONFLICT (tmdb_id,season_number,episode_number) DO UPDATE SET watched_at=$4',
+        `INSERT INTO watched_episodes (tmdb_id,season_number,episode_number,watched_at,date_is_explicit)
+         VALUES ($1,$2,$3,$4,TRUE)
+         ON CONFLICT (tmdb_id,season_number,episode_number)
+         DO UPDATE SET watched_at=$4, date_is_explicit=TRUE`,
         [parseInt(tmdb_id), parseInt(season_number), parseInt(episode_number), watched_at]
       );
     } else {
-      await pool.query('INSERT INTO watched_episodes (tmdb_id,season_number,episode_number) VALUES ($1,$2,$3) ON CONFLICT DO NOTHING', [parseInt(tmdb_id), parseInt(season_number), parseInt(episode_number)]);
+      await pool.query(
+        `INSERT INTO watched_episodes (tmdb_id,season_number,episode_number,date_is_explicit)
+         VALUES ($1,$2,$3,FALSE)
+         ON CONFLICT (tmdb_id,season_number,episode_number) DO NOTHING`,
+        [parseInt(tmdb_id), parseInt(season_number), parseInt(episode_number)]
+      );
     }
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
@@ -404,11 +413,19 @@ app.post('/api/episodes/season', requireLogin, async (req, res) => {
       const wat = watched_ats?.[i] || null;
       if (wat) {
         await pool.query(
-          'INSERT INTO watched_episodes (tmdb_id,season_number,episode_number,watched_at) VALUES ($1,$2,$3,$4) ON CONFLICT (tmdb_id,season_number,episode_number) DO UPDATE SET watched_at=$4',
+          `INSERT INTO watched_episodes (tmdb_id,season_number,episode_number,watched_at,date_is_explicit)
+           VALUES ($1,$2,$3,$4,TRUE)
+           ON CONFLICT (tmdb_id,season_number,episode_number)
+           DO UPDATE SET watched_at=$4, date_is_explicit=TRUE`,
           [parseInt(tmdb_id), parseInt(season_number), parseInt(ep), wat]
         );
       } else {
-        await pool.query('INSERT INTO watched_episodes (tmdb_id,season_number,episode_number) VALUES ($1,$2,$3) ON CONFLICT DO NOTHING', [parseInt(tmdb_id), parseInt(season_number), parseInt(ep)]);
+        await pool.query(
+          `INSERT INTO watched_episodes (tmdb_id,season_number,episode_number,date_is_explicit)
+           VALUES ($1,$2,$3,FALSE)
+           ON CONFLICT (tmdb_id,season_number,episode_number) DO NOTHING`,
+          [parseInt(tmdb_id), parseInt(season_number), parseInt(ep)]
+        );
       }
     }
     res.json({ ok: true });
@@ -464,12 +481,17 @@ app.post('/api/history/import', requireLogin, async (req, res) => {
           const wat = ep.watched_at || null;
           if (wat) {
             await pool.query(
-              'INSERT INTO watched_episodes (tmdb_id,season_number,episode_number,watched_at) VALUES ($1,$2,$3,$4) ON CONFLICT (tmdb_id,season_number,episode_number) DO UPDATE SET watched_at=$4',
+              `INSERT INTO watched_episodes (tmdb_id,season_number,episode_number,watched_at,date_is_explicit)
+               VALUES ($1,$2,$3,$4,TRUE)
+               ON CONFLICT (tmdb_id,season_number,episode_number)
+               DO UPDATE SET watched_at=$4, date_is_explicit=TRUE`,
               [id, parseInt(ep.season), parseInt(ep.episode), wat]
             );
           } else {
             await pool.query(
-              'INSERT INTO watched_episodes (tmdb_id,season_number,episode_number) VALUES ($1,$2,$3) ON CONFLICT DO NOTHING',
+              `INSERT INTO watched_episodes (tmdb_id,season_number,episode_number,date_is_explicit)
+               VALUES ($1,$2,$3,FALSE)
+               ON CONFLICT (tmdb_id,season_number,episode_number) DO NOTHING`,
               [id, parseInt(ep.season), parseInt(ep.episode)]
             );
           }
@@ -497,17 +519,14 @@ app.post('/api/history/import', requireLogin, async (req, res) => {
 
 app.get('/api/history/undated', requireLogin, async (req, res) => {
   try {
-    // Returns all watched episodes that have no explicit watch date (NULL watched_at)
-    // grouped by show, with show title from shows table
     const r = await pool.query(`
       SELECT we.tmdb_id, we.season_number, we.episode_number,
              s.title, s.poster_path
       FROM watched_episodes we
       JOIN shows s ON s.tmdb_id = we.tmdb_id
-      WHERE we.watched_at IS NULL
+      WHERE we.date_is_explicit = FALSE OR we.date_is_explicit IS NULL
       ORDER BY s.title ASC, we.season_number ASC, we.episode_number ASC
     `);
-    // Group by show
     const byShow = {};
     for (const row of r.rows) {
       if (!byShow[row.tmdb_id]) byShow[row.tmdb_id] = { tmdb_id: row.tmdb_id, title: row.title, poster_path: row.poster_path, episodes: [] };
@@ -521,10 +540,10 @@ app.get('/api/stats/year/:year', requireLogin, async (req, res) => {
   try {
     const yr = parseInt(req.params.year);
     const [epData, topShows] = await Promise.all([
-      pool.query(`SELECT COUNT(*)::int as ep_count FROM watched_episodes WHERE EXTRACT(YEAR FROM watched_at) = $1`, [yr]),
+      pool.query(`SELECT COUNT(*)::int as ep_count FROM watched_episodes WHERE date_is_explicit=TRUE AND EXTRACT(YEAR FROM watched_at) = $1`, [yr]),
       pool.query(`SELECT we.tmdb_id, COUNT(*)::int as ep_count, s.title, s.poster_path, s.id
                   FROM watched_episodes we JOIN shows s ON s.tmdb_id = we.tmdb_id
-                  WHERE EXTRACT(YEAR FROM we.watched_at) = $1
+                  WHERE we.date_is_explicit=TRUE AND EXTRACT(YEAR FROM we.watched_at) = $1
                   GROUP BY we.tmdb_id, s.title, s.poster_path, s.id
                   ORDER BY ep_count DESC LIMIT 5`, [yr]),
     ]);
@@ -549,12 +568,17 @@ app.post('/api/history/unmatched/resolve', requireLogin, async (req, res) => {
       const wat = ep.watched_at || null;
       if (wat) {
         await pool.query(
-          'INSERT INTO watched_episodes (tmdb_id,season_number,episode_number,watched_at) VALUES ($1,$2,$3,$4) ON CONFLICT (tmdb_id,season_number,episode_number) DO UPDATE SET watched_at=$4',
+          `INSERT INTO watched_episodes (tmdb_id,season_number,episode_number,watched_at,date_is_explicit)
+           VALUES ($1,$2,$3,$4,TRUE)
+           ON CONFLICT (tmdb_id,season_number,episode_number)
+           DO UPDATE SET watched_at=$4, date_is_explicit=TRUE`,
           [id, parseInt(ep.season), parseInt(ep.episode), wat]
         );
       } else {
         await pool.query(
-          'INSERT INTO watched_episodes (tmdb_id,season_number,episode_number) VALUES ($1,$2,$3) ON CONFLICT DO NOTHING',
+          `INSERT INTO watched_episodes (tmdb_id,season_number,episode_number,date_is_explicit)
+           VALUES ($1,$2,$3,FALSE)
+           ON CONFLICT (tmdb_id,season_number,episode_number) DO NOTHING`,
           [id, parseInt(ep.season), parseInt(ep.episode)]
         );
       }

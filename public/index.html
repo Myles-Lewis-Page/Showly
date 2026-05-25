@@ -898,7 +898,7 @@ async function openDetail(tmdbId,showId){
   }
 
   const epSet=new Set(Array.isArray(epData)?epData.map(e=>`${e.season_number}_${e.episode_number}`):[]);
-  const epDates=new Map(Array.isArray(epData)?epData.filter(e=>e.watched_at).map(e=>[`${e.season_number}_${e.episode_number}`,e.watched_at]):[]);
+  const epDates=new Map(Array.isArray(epData)?epData.filter(e=>e.date_is_explicit && e.watched_at).map(e=>[`${e.season_number}_${e.episode_number}`,e.watched_at]):[]);
   watchedEps.set(id,epSet);
   watchedDates.set(id,epDates);
 
