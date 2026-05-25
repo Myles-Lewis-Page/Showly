@@ -829,6 +829,24 @@ async function doSearch(q) {
   res.classList.remove('hide');
 }
 
+function closeSearch(){document.getElementById('search-results').classList.add('hide');}
+
+async function addShow(event, show, status) {
+  event.preventDefault();
+  if(shows.some(s=>s.tmdb_id===show.tmdb_id)) return;
+  const res=await api('/api/shows',{method:'POST',body:{...show,status}});
+  if(res.id){
+    const idx=shows.findIndex(s=>s.tmdb_id===res.tmdb_id);
+    if(idx>=0) shows[idx]=res; else shows.push(res);
+    shows.sort((a,b)=>a.title.localeCompare(b.title));
+    renderAll();
+    document.getElementById('search-input').value='';
+    document.getElementById('search-results').classList.add('hide');
+    if(status==='watching') api(`/api/next-episode/${show.tmdb_id}`).then(next=>{nextEps.set(show.tmdb_id,next);const s=shows.find(x=>x.tmdb_id===show.tmdb_id);if(s)updateCardNextEp(s);});
+    toast(`Added to ${sLabel(status)}`);
+  }
+}
+
 // ── MARK NEXT WATCHED ─────────────────────────────────────────────────────────
 async function markNextWatched(event,showId,tmdbId,season,epNum){
   event.stopPropagation();
@@ -1172,7 +1190,9 @@ async function loadSeason(tmdbId,showId,seasonNum){
   if(!container) return;
   container.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted)">Loading...</div>';
   const id=parseInt(tmdbId);
+  try {
   const data=await api(`/api/tmdb/show/${id}/season/${seasonNum}`);
+  if(!data || data.error) { container.innerHTML='<div style="padding:16px;color:var(--muted)">Could not load season.</div>'; return; }
   const episodes=data.episodes||[];
   const epSet=watchedEps.get(id)||new Set();
   const watchedInSeason=episodes.filter(e=>epSet.has(`${seasonNum}_${e.episode_number}`)).length;
@@ -1198,38 +1218,50 @@ async function loadSeason(tmdbId,showId,seasonNum){
 
   // Store episodes for safe onclick access
   currentSeasonEpisodes.set(`${id}_${seasonNum}`, episodes);
+  // Store episode numbers separately for mark-all button
+  window._seasonEpNums = window._seasonEpNums || {};
+  window._seasonEpNums[`${id}_${seasonNum}`] = episodes.map(e=>e.episode_number);
+
+  const rows = episodes.map((ep, epIdx)=>{
+    const watched=epSet.has(`${seasonNum}_${ep.episode_number}`);
+    const watKey=`${seasonNum}_${ep.episode_number}`;
+    const watchedAt=(watchedDates.get(id)||new Map()).get(watKey);
+    const watchedAtStr=watchedAt?fmtWatchedDate(watchedAt):'';
+    const still=ep.still_path?`${IMG}/w300${ep.still_path}`:null;
+    const runtime=ep.runtime?`${ep.runtime}m`:'';
+    const epName = esc(ep.name||'Episode '+ep.episode_number);
+    const epAirDate = ep.air_date?fmtDate(ep.air_date):'';
+    return `<div class="ep-row ${watched?'watched':''}" id="ep-${id}-${seasonNum}-${ep.episode_number}"
+      onclick="clickEpisode(event,${id},${showId},${seasonNum},${ep.episode_number},${epIdx})">
+      <span class="ep-num">${ep.episode_number}</span>
+      ${still?`<img class="ep-still" src="${still}" alt="" loading="lazy" onerror="this.outerHTML='<div class=ep-still-ph>📺</div>'"/>`:`<div class="ep-still-ph">📺</div>`}
+      <div class="ep-info">
+        <div class="ep-name">${epName}</div>
+        <div class="ep-date">${[epAirDate, runtime].filter(Boolean).join(' · ')}</div>
+        ${watched?`<div class="ep-watched-date" id="epwd-${id}-${seasonNum}-${ep.episode_number}">
+          ${watchedAtStr?`👁 ${watchedAtStr}`:'<span style="color:var(--muted);font-style:italic">No watch date</span>'}
+          <button class="ep-date-edit-btn" onclick="openEpDatePicker(event,${id},${seasonNum},${ep.episode_number})" title="Set watch date">✏️</button>
+        </div>`:''}
+      </div>
+      <div class="ep-check" id="epchk-${id}-${seasonNum}-${ep.episode_number}">${watched?'✓':''}</div>
+    </div>`;
+  }).join('');
 
   container.innerHTML=`
     <div class="season-header">
       <span class="season-progress">${watchedInSeason} / ${episodes.length} watched</span>
       <button class="btn-mark-season ${allWatched?'all-watched':''}" id="mark-season-btn"
-        onclick="toggleSeasonWatched(${id},${showId},${seasonNum},${JSON.stringify(episodes.map(e=>e.episode_number))},${allWatched})">
+        onclick="toggleSeasonWatchedSafe(${id},${showId},${seasonNum},${allWatched})">
         ${allWatched?'✓ All Watched':'Mark All Watched'}
       </button>
     </div>
     ${seasonOverview}
-    <div class="episodes-list">${episodes.map((ep, epIdx)=>{
-      const watched=epSet.has(`${seasonNum}_${ep.episode_number}`);
-      const watKey=`${seasonNum}_${ep.episode_number}`;
-      const watchedAt=(watchedDates.get(id)||new Map()).get(watKey);
-      const watchedAtStr=watchedAt?fmtWatchedDate(watchedAt):'';
-      const still=ep.still_path?`${IMG}/w300${ep.still_path}`:null;
-      const runtime=ep.runtime?`${ep.runtime}m`:'';
-      return `<div class="ep-row ${watched?'watched':''}" id="ep-${id}-${seasonNum}-${ep.episode_number}"
-        onclick="clickEpisode(event,${id},${showId},${seasonNum},${ep.episode_number},${epIdx})">
-        <span class="ep-num">${ep.episode_number}</span>
-        ${still?`<img class="ep-still" src="${still}" alt="" loading="lazy" onerror="this.outerHTML='<div class=ep-still-ph>📺</div>'"/>`:`<div class="ep-still-ph">📺</div>`}
-        <div class="ep-info">
-          <div class="ep-name">${esc(ep.name||'Episode '+ep.episode_number)}</div>
-          <div class="ep-date">${[ep.air_date?fmtDate(ep.air_date):'', runtime].filter(Boolean).join(' · ')}</div>
-          ${watched?`<div class="ep-watched-date" id="epwd-${id}-${seasonNum}-${ep.episode_number}">
-            ${watchedAtStr?`👁 ${watchedAtStr}`:'<span style="color:var(--muted);font-style:italic">No watch date</span>'}
-            <button class="ep-date-edit-btn" onclick="openEpDatePicker(event,${id},${seasonNum},${ep.episode_number})" title="Set watch date">✏️</button>
-          </div>`:''}
-        </div>
-        <div class="ep-check" id="epchk-${id}-${seasonNum}-${ep.episode_number}">${watched?'✓':''}</div>
-      </div>`;
-    }).join('')}</div>`;
+    <div class="episodes-list">${rows}</div>`;
+
+  } catch(err) {
+    console.error('loadSeason error:', err);
+    container.innerHTML=`<div style="padding:16px;color:var(--muted)">Error loading season: ${esc(err.message)}</div>`;
+  }
 }
 
 function updateTotalProgress(tmdbId){
@@ -1280,6 +1312,11 @@ async function toggleEpisode(tmdbId,showId,season,epNum){
   if(show&&['watching','caughtup'].includes(show.status)){
     api(`/api/next-episode/${id}`).then(next=>{nextEps.set(id,next);updateCardNextEp(show);});
   }
+}
+
+function toggleSeasonWatchedSafe(tmdbId, showId, season, currentlyAllWatched) {
+  const epNums = (window._seasonEpNums || {})[`${tmdbId}_${season}`] || [];
+  toggleSeasonWatched(tmdbId, showId, season, epNums, currentlyAllWatched);
 }
 
 async function toggleSeasonWatched(tmdbId,showId,season,epNums,currentlyAllWatched){
