@@ -276,6 +276,49 @@ main{padding:16px}
 .toast{position:fixed;bottom:20px;right:20px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 16px;font-size:13px;z-index:999;animation:fadeUp .2s ease;box-shadow:0 4px 20px rgba(0,0,0,.4)}
 @keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 
+/* HISTORY IMPORT */
+.history-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:16px}
+.history-card h3{font-size:15px;font-weight:600;margin-bottom:4px}
+.history-card p{font-size:13px;color:var(--muted);margin-bottom:14px;line-height:1.6}
+.history-drop{border:2px dashed var(--border);border-radius:10px;padding:28px 20px;text-align:center;cursor:pointer;transition:all .15s;position:relative}
+.history-drop:hover,.history-drop.drag-over{border-color:var(--accent);background:rgba(229,62,62,.05)}
+.history-drop input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.history-drop-icon{font-size:32px;margin-bottom:8px}
+.history-drop-label{font-size:14px;font-weight:500;margin-bottom:4px}
+.history-drop-sub{font-size:12px;color:var(--muted)}
+.history-import-result{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-top:14px}
+.history-stat-row{display:flex;gap:20px;flex-wrap:wrap;margin-bottom:8px}
+.history-stat{text-align:center}
+.history-stat-num{font-size:22px;font-weight:700;color:var(--accent)}
+.history-stat-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.unmatched-list{display:flex;flex-direction:column;gap:8px;margin-top:12px}
+.unmatched-row{display:flex;align-items:center;gap:12px;padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:8px}
+.unmatched-poster{width:36px;height:54px;border-radius:4px;object-fit:cover;background:var(--surface2);flex-shrink:0}
+.unmatched-info{flex:1;min-width:0}
+.unmatched-title{font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.unmatched-meta{font-size:11px;color:var(--muted);margin-top:2px}
+.unmatched-actions{display:flex;gap:6px;flex-shrink:0}
+.btn-resolve{font-size:11px;padding:5px 12px;border-radius:99px;background:#1a3a5c;color:#74b9ff;border:none;cursor:pointer;white-space:nowrap}
+.btn-resolve:hover{opacity:.85}
+.btn-dismiss{font-size:11px;padding:5px 10px;border-radius:99px;background:none;border:1px solid var(--border);color:var(--muted);cursor:pointer}
+.btn-dismiss:hover{border-color:#e53e3e;color:#e53e3e}
+.history-instructions{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;font-size:13px;line-height:1.7;color:var(--muted)}
+.history-instructions ol{padding-left:18px;margin-top:6px}
+.history-instructions li{margin-bottom:4px}
+.history-instructions a{color:var(--accent);text-decoration:none}
+.history-instructions a:hover{text-decoration:underline}
+.resolve-search-results{margin-top:8px;display:flex;flex-direction:column;gap:6px;max-height:260px;overflow-y:auto}
+.resolve-sr-item{display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;cursor:pointer}
+.resolve-sr-item:hover{border-color:#555}
+.manual-date-modal{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:170;display:flex;align-items:center;justify-content:center;padding:20px}
+.manual-date-box{background:var(--surface);border:1px solid var(--border);border-radius:12px;width:100%;max-width:420px;max-height:80vh;overflow-y:auto;padding:20px}
+.manual-date-box h3{font-size:16px;font-weight:600;margin-bottom:4px}
+.manual-date-box p{font-size:13px;color:var(--muted);margin-bottom:14px}
+.manual-ep-list{display:flex;flex-direction:column;gap:6px;margin-bottom:14px;max-height:320px;overflow-y:auto}
+.manual-ep-row{display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--surface2);border-radius:6px;font-size:13px}
+.manual-ep-label{flex:1}
+.manual-ep-date{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:5px 8px;color:var(--text);font-size:12px;font-family:inherit;width:160px}
+.manual-ep-date:focus{border-color:var(--accent);outline:none}
 @media(max-width:500px){
   .show-grid,.rec-grid{grid-template-columns:repeat(auto-fill,minmax(130px,1fr))}
   #detail-panel{width:100vw}
@@ -311,6 +354,7 @@ main{padding:16px}
     <button class="nav-tab" onclick="setTab('trending')" id="t-trending">Trending</button>
     <button class="nav-tab" onclick="setTab('stats')" id="t-stats">Stats</button>
     <button class="nav-tab" onclick="setTab('settings')" id="t-settings">⚙ Settings</button>
+    <button class="nav-tab" onclick="setTab('history')" id="t-history">📥 History</button>
     <div class="nav-right"><button class="btn-logout" onclick="doLogout()">Sign out</button></div>
   </nav>
 
@@ -379,6 +423,7 @@ main{padding:16px}
     <div id="tab-trending" class="hide"><div class="section-label">Trending This Week</div><div class="rec-grid" id="grid-trending"></div></div>
     <div id="tab-stats" class="hide" style="max-width:680px"><div class="section-label">Your Stats</div><div id="stats-content"></div></div>
     <div id="tab-settings" class="hide" style="max-width:500px"><div class="section-label">Settings</div><div id="settings-content"></div></div>
+    <div id="tab-history" class="hide" style="max-width:700px"><div class="section-label">Watch History Import</div><div id="history-content"></div></div>
   </main>
 </div>
 
@@ -710,15 +755,16 @@ async function deleteShow(event, id) {
 
 // ── TABS ──────────────────────────────────────────────────────────────────────
 function setTab(tab) {
-  ['watching','caughtup','finished','watchlist','paused','dropped','recs','trending','stats','settings'].forEach(t=>{
+  ['watching','caughtup','finished','watchlist','paused','dropped','recs','trending','stats','settings','history'].forEach(t=>{
     document.getElementById('tab-'+t)?.classList.toggle('hide',t!==tab);
     document.getElementById('t-'+t)?.classList.toggle('on',t===tab);
   });
-  document.getElementById('search-wrap').classList.toggle('hide',['recs','trending','stats','settings'].includes(tab));
+  document.getElementById('search-wrap').classList.toggle('hide',['recs','trending','stats','settings','history'].includes(tab));
   if(tab==='recs') loadRecs();
   if(tab==='trending') loadTrending();
   if(tab==='stats') loadStats();
   if(tab==='settings') loadSettings();
+  if(tab==='history') loadHistory();
 }
 
 // ── SEARCH ────────────────────────────────────────────────────────────────────
@@ -1491,9 +1537,263 @@ function renderStatsContent(container, counts, totalWatched, totalMins, totalHou
   `;
 }
 
+// ── HISTORY IMPORT ────────────────────────────────────────────────────────────
+let traktUnmatched = [];
+let pendingResolveData = null; // { tmdb_id, title, episodes } for the show being resolved
+
+async function loadHistory() {
+  const container = document.getElementById('history-content');
+  container.innerHTML = '<div style="text-align:center;padding:30px;color:var(--muted)">Loading...</div>';
+  traktUnmatched = await api('/api/history/unmatched');
+  renderHistoryTab(container);
+}
+
+function renderHistoryTab(container) {
+  container.innerHTML = `
+    <div class="history-card">
+      <h3>Import from Trakt</h3>
+      <p>Export your watch history from Trakt, then upload the JSON file here. Episodes for shows already in your tracker will get their watched dates imported automatically. Anything not in your tracker appears below so you can add it manually.</p>
+      <div class="history-instructions">
+        <strong>How to export from Trakt:</strong>
+        <ol>
+          <li>Go to <a href="https://trakt.tv/settings/data" target="_blank">trakt.tv/settings/data</a></li>
+          <li>Click <strong>Export Data</strong> → <strong>History</strong></li>
+          <li>Download the JSON file and upload it below</li>
+        </ol>
+      </div>
+      <div style="margin-top:14px">
+        <div class="history-drop" id="history-drop-zone">
+          <input type="file" accept=".json,application/json" onchange="handleTraktFile(event)"/>
+          <div class="history-drop-icon">📂</div>
+          <div class="history-drop-label">Drop Trakt JSON here or click to browse</div>
+          <div class="history-drop-sub">history.json from Trakt data export</div>
+        </div>
+        <div id="history-import-result"></div>
+      </div>
+    </div>
+
+    ${traktUnmatched.length ? `
+    <div class="history-card">
+      <h3>Unmatched Shows <span style="background:var(--surface2);border:1px solid var(--border);border-radius:99px;padding:1px 10px;font-size:12px;margin-left:6px">${traktUnmatched.length}</span></h3>
+      <p>These shows were in your Trakt history but aren't in your tracker yet. Search for each one to add it — the watched episodes will be imported automatically.</p>
+      <div class="unmatched-list" id="unmatched-list">
+        ${traktUnmatched.map((u, i) => unmatchedRowHTML(u, i)).join('')}
+      </div>
+    </div>` : traktUnmatched !== null ? `
+    <div class="history-card" style="text-align:center;padding:32px;color:var(--muted)">
+      <div style="font-size:32px;margin-bottom:8px">✅</div>
+      <div style="font-size:14px">No unmatched shows — everything is accounted for!</div>
+    </div>` : ''}
+  `;
+
+  // Drag-and-drop styling
+  const dz = document.getElementById('history-drop-zone');
+  if (dz) {
+    dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag-over'); });
+    dz.addEventListener('dragleave', () => dz.classList.remove('drag-over'));
+    dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('drag-over'); const f = e.dataTransfer.files[0]; if (f) processFile(f); });
+  }
+}
+
+function unmatchedRowHTML(u, i) {
+  return `<div class="unmatched-row" id="unmatched-row-${u.tmdb_id}">
+    <div class="unmatched-poster" style="display:flex;align-items:center;justify-content:center;font-size:20px">📺</div>
+    <div class="unmatched-info">
+      <div class="unmatched-title">${esc(u.title)}</div>
+      <div class="unmatched-meta">${u.episode_count} episode${u.episode_count!==1?'s':''} in history · TMDB #${u.tmdb_id}</div>
+    </div>
+    <div class="unmatched-actions">
+      <button class="btn-resolve" onclick="openResolveSearch(${i})">+ Add Show</button>
+      <button class="btn-dismiss" onclick="dismissUnmatched(${u.tmdb_id})" title="Dismiss">✕</button>
+    </div>
+  </div>`;
+}
+
+function handleTraktFile(event) {
+  const file = event.target.files[0];
+  if (file) processFile(file);
+}
+
+function processFile(file) {
+  const resultEl = document.getElementById('history-import-result');
+  if (resultEl) resultEl.innerHTML = '<div style="text-align:center;padding:16px;color:var(--muted)">⏳ Parsing file...</div>';
+  const reader = new FileReader();
+  reader.onload = async e => {
+    try {
+      let entries = JSON.parse(e.target.result);
+      // Trakt export can be array directly or wrapped
+      if (!Array.isArray(entries) && entries.episodes) entries = entries.episodes;
+      if (!Array.isArray(entries)) { showImportError('Unexpected file format. Expected a JSON array of history entries.'); return; }
+      if (resultEl) resultEl.innerHTML = `<div style="text-align:center;padding:16px;color:var(--muted)">⏳ Importing ${entries.length} entries...</div>`;
+      const result = await api('/api/history/import', { method:'POST', body:{ entries } });
+      if (result.error) { showImportError(result.error); return; }
+      traktUnmatched = result.unmatched || [];
+      showImportResult(result);
+      // Refresh shows list so watched eps are reflected
+      const showsData = await api('/api/shows');
+      shows = showsData;
+      renderAll();
+      loadNextEpisodes();
+    } catch (err) {
+      showImportError('Could not parse file. Make sure it\'s valid JSON from Trakt.');
+    }
+  };
+  reader.readAsText(file);
+}
+
+function showImportError(msg) {
+  const el = document.getElementById('history-import-result');
+  if (el) el.innerHTML = `<div style="background:rgba(229,62,62,.1);border:1px solid rgba(229,62,62,.3);border-radius:8px;padding:12px 14px;color:#fc8181;font-size:13px;margin-top:10px">⚠️ ${esc(msg)}</div>`;
+}
+
+function showImportResult(result) {
+  const el = document.getElementById('history-import-result');
+  if (!el) return;
+  el.innerHTML = `
+    <div class="history-import-result">
+      <div class="history-stat-row">
+        <div class="history-stat"><div class="history-stat-num" style="color:var(--green)">${result.imported}</div><div class="history-stat-label">Episodes Imported</div></div>
+        <div class="history-stat"><div class="history-stat-num">${result.matched}</div><div class="history-stat-label">Shows Matched</div></div>
+        <div class="history-stat"><div class="history-stat-num" style="color:${result.unmatched_shows>0?'#d69e2e':'var(--muted)'}">${result.unmatched_shows}</div><div class="history-stat-label">Unmatched Shows</div></div>
+      </div>
+      <div style="font-size:13px;color:var(--green);margin-top:4px">✓ Import complete! Watch dates have been saved.</div>
+      ${result.unmatched_shows > 0 ? `<div style="font-size:13px;color:var(--muted);margin-top:4px">${result.unmatched_shows} show${result.unmatched_shows!==1?'s':''} not found in your tracker — see below to add them.</div>` : ''}
+    </div>`;
+  // Re-render the unmatched list section
+  const container = document.getElementById('history-content');
+  if (container) renderHistoryTab(container);
+}
+
+async function dismissUnmatched(tmdbId) {
+  await api(`/api/history/unmatched/${tmdbId}`, { method:'DELETE' });
+  traktUnmatched = traktUnmatched.filter(u => u.tmdb_id !== tmdbId);
+  const row = document.getElementById(`unmatched-row-${tmdbId}`);
+  if (row) { row.style.opacity = '0'; row.style.transition = 'opacity .2s'; setTimeout(()=>row.remove(), 200); }
+  toast('Dismissed');
+}
+
+// ── RESOLVE: search + add show, then auto-import its episodes ──────────────────
+let resolveSearchTimer = null;
+
+function openResolveSearch(idx) {
+  pendingResolveData = traktUnmatched[idx];
+  if (!pendingResolveData) return;
+  const existing = document.getElementById('resolve-panel');
+  if (existing) existing.remove();
+
+  const panel = document.createElement('div');
+  panel.id = 'resolve-panel';
+  panel.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:170;display:flex;align-items:center;justify-content:center;padding:20px';
+  panel.innerHTML = `
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;width:100%;max-width:480px;max-height:85vh;overflow-y:auto;padding:20px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+        <div style="font-size:16px;font-weight:600">Add Show to Tracker</div>
+        <button onclick="document.getElementById('resolve-panel').remove()" style="background:none;border:none;color:var(--muted);font-size:22px;cursor:pointer;line-height:1;padding:0 4px">×</button>
+      </div>
+      <div style="font-size:13px;color:var(--muted);margin-bottom:14px">
+        Searching for <strong style="color:var(--text)">${esc(pendingResolveData.title)}</strong> — ${pendingResolveData.episode_count} episode${pendingResolveData.episode_count!==1?'s':''} will be imported once you add it.
+      </div>
+      <input type="text" id="resolve-search-input" placeholder="Search for show..." autocomplete="off"
+        style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;color:var(--text);font-size:14px;margin-bottom:10px"
+        oninput="onResolveSearch(this.value)" value="${escAttr(pendingResolveData.title)}"/>
+      <div id="resolve-search-results" class="resolve-search-results"></div>
+      <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
+        <div style="font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-top:4px;width:100%">Add as:</div>
+        ${['watching','finished','caughtup','paused','dropped'].map(s=>`<button class="btn-add ${s==='watching'?'watching':'watchlist'}" style="font-size:11px;padding:4px 10px;border-radius:99px;font-weight:600;cursor:pointer;border:none;background:${statusBg(s)};color:${statusFg(s)}" onclick="resolveStatusSelect('${s}')" id="resolve-status-${s}">${sLabel(s)}</button>`).join('')}
+      </div>
+      <div id="resolve-selected-status" style="font-size:12px;color:var(--muted);margin-top:8px">Selected: <strong id="resolve-status-display">Watching ▶</strong></div>
+    </div>`;
+  document.body.appendChild(panel);
+  // Set default status
+  window._resolveStatus = 'watching';
+  highlightResolveStatus('watching');
+  // Auto-search with show title
+  setTimeout(() => onResolveSearch(pendingResolveData.title), 50);
+}
+
+function statusBg(s) {
+  return {watching:'#2d6a4f',finished:'#2d1e5c',caughtup:'#1a3a5c',paused:'#44370b',dropped:'#4a1010'}[s]||'#333';
+}
+function statusFg(s) {
+  return {watching:'#74c69d',finished:'#d6bcfa',caughtup:'#74b9ff',paused:'#ffd60a',dropped:'#ff6b6b'}[s]||'#aaa';
+}
+
+function resolveStatusSelect(status) {
+  window._resolveStatus = status;
+  highlightResolveStatus(status);
+  document.getElementById('resolve-status-display').textContent = sLabel(status);
+}
+function highlightResolveStatus(status) {
+  ['watching','finished','caughtup','paused','dropped'].forEach(s => {
+    const btn = document.getElementById('resolve-status-'+s);
+    if (btn) btn.style.outline = s===status ? '2px solid #fff' : 'none';
+  });
+}
+
+function onResolveSearch(q) {
+  clearTimeout(resolveSearchTimer);
+  const el = document.getElementById('resolve-search-results');
+  if (!q.trim()) { if(el) el.innerHTML=''; return; }
+  resolveSearchTimer = setTimeout(async () => {
+    if (el) el.innerHTML = '<div style="padding:10px;color:var(--muted);font-size:13px">Searching...</div>';
+    const results = await api('/api/search?q=' + encodeURIComponent(q));
+    if (!el || !document.getElementById('resolve-panel')) return;
+    if (!results.length) { el.innerHTML = '<div style="padding:10px;color:var(--muted);font-size:13px">No results</div>'; return; }
+    el.innerHTML = results.map((r,i) => {
+      const inList = shows.some(s => s.tmdb_id === r.tmdb_id);
+      return `<div class="resolve-sr-item" onclick="resolveAddShow(${i})">
+        ${r.poster_path ? `<img src="${IMG}/w92${r.poster_path}" style="width:36px;height:54px;border-radius:4px;object-fit:cover;flex-shrink:0" alt=""/>` : `<div style="width:36px;height:54px;border-radius:4px;background:var(--surface3);display:flex;align-items:center;justify-content:center;flex-shrink:0">📺</div>`}
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(r.title)}</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px">${r.year||''}${inList?' · ✓ In your list':''}</div>
+        </div>
+        <button style="font-size:11px;padding:4px 10px;border-radius:99px;font-weight:600;background:#2d6a4f;color:#74c69d;border:none;cursor:pointer;flex-shrink:0">Add</button>
+      </div>`;
+    }).join('');
+    // Store results for onclick access
+    window._resolveResults = results;
+  }, 300);
+}
+
+async function resolveAddShow(idx) {
+  const show = window._resolveResults?.[idx];
+  if (!show || !pendingResolveData) return;
+  const status = window._resolveStatus || 'watching';
+  const panel = document.getElementById('resolve-panel');
+  if (panel) panel.innerHTML = '<div style="padding:40px;text-align:center;color:var(--muted)">Adding show and importing history...</div>';
+
+  // Add the show to tracker
+  const res = await api('/api/shows', { method:'POST', body:{ ...show, status } });
+  if (!res.id) { toast('Failed to add show'); if(panel) panel.remove(); return; }
+
+  // Update local shows array
+  const idx2 = shows.findIndex(s => s.tmdb_id === res.tmdb_id);
+  if (idx2 >= 0) shows[idx2] = res; else shows.push(res);
+  shows.sort((a,b) => a.title.localeCompare(b.title));
+
+  // Import the pending episodes for this show
+  const resolveRes = await api('/api/history/unmatched/resolve', {
+    method:'POST',
+    body:{ tmdb_id: pendingResolveData.tmdb_id, episodes: pendingResolveData.episodes }
+  });
+
+  // Remove from local unmatched list
+  traktUnmatched = traktUnmatched.filter(u => u.tmdb_id !== pendingResolveData.tmdb_id);
+  pendingResolveData = null;
+  if (panel) panel.remove();
+
+  // Refresh everything
+  renderAll();
+  loadNextEpisodes();
+  const container = document.getElementById('history-content');
+  if (container) renderHistoryTab(container);
+  toast(`Show added · ${resolveRes.remaining ?? '?'} unmatched remaining`);
+}
+
 // ── KEYBOARD SHORTCUTS ────────────────────────────────────────────────────────
 document.addEventListener('keydown', e => {
   if(e.key === 'Escape') {
+    if(document.getElementById('resolve-panel')) { document.getElementById('resolve-panel').remove(); return; }
     if(!document.getElementById('ep-modal').classList.contains('hide')) { closeEpModal(); return; }
     if(!document.getElementById('rec-modal').classList.contains('hide')) { closeRecModal(); return; }
     if(document.getElementById('detail-panel').classList.contains('open')) { closeDetail(); return; }

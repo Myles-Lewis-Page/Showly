@@ -368,8 +368,15 @@ app.get('/api/episodes/:tmdb_id', requireLogin, async (req, res) => {
 
 app.post('/api/episodes', requireLogin, async (req, res) => {
   try {
-    const { tmdb_id, season_number, episode_number } = req.body;
-    await pool.query('INSERT INTO watched_episodes (tmdb_id,season_number,episode_number) VALUES ($1,$2,$3) ON CONFLICT DO NOTHING', [parseInt(tmdb_id), parseInt(season_number), parseInt(episode_number)]);
+    const { tmdb_id, season_number, episode_number, watched_at } = req.body;
+    if (watched_at) {
+      await pool.query(
+        'INSERT INTO watched_episodes (tmdb_id,season_number,episode_number,watched_at) VALUES ($1,$2,$3,$4) ON CONFLICT (tmdb_id,season_number,episode_number) DO UPDATE SET watched_at=$4',
+        [parseInt(tmdb_id), parseInt(season_number), parseInt(episode_number), watched_at]
+      );
+    } else {
+      await pool.query('INSERT INTO watched_episodes (tmdb_id,season_number,episode_number) VALUES ($1,$2,$3) ON CONFLICT DO NOTHING', [parseInt(tmdb_id), parseInt(season_number), parseInt(episode_number)]);
+    }
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -384,8 +391,19 @@ app.delete('/api/episodes', requireLogin, async (req, res) => {
 
 app.post('/api/episodes/season', requireLogin, async (req, res) => {
   try {
-    const { tmdb_id, season_number, episodes } = req.body;
-    for (const ep of episodes) await pool.query('INSERT INTO watched_episodes (tmdb_id,season_number,episode_number) VALUES ($1,$2,$3) ON CONFLICT DO NOTHING', [parseInt(tmdb_id), parseInt(season_number), parseInt(ep)]);
+    const { tmdb_id, season_number, episodes, watched_ats } = req.body;
+    for (let i = 0; i < episodes.length; i++) {
+      const ep = episodes[i];
+      const wat = watched_ats?.[i] || null;
+      if (wat) {
+        await pool.query(
+          'INSERT INTO watched_episodes (tmdb_id,season_number,episode_number,watched_at) VALUES ($1,$2,$3,$4) ON CONFLICT (tmdb_id,season_number,episode_number) DO UPDATE SET watched_at=$4',
+          [parseInt(tmdb_id), parseInt(season_number), parseInt(ep), wat]
+        );
+      } else {
+        await pool.query('INSERT INTO watched_episodes (tmdb_id,season_number,episode_number) VALUES ($1,$2,$3) ON CONFLICT DO NOTHING', [parseInt(tmdb_id), parseInt(season_number), parseInt(ep)]);
+      }
+    }
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -393,6 +411,124 @@ app.post('/api/episodes/season', requireLogin, async (req, res) => {
 app.delete('/api/episodes/season', requireLogin, async (req, res) => {
   try {
     await pool.query('DELETE FROM watched_episodes WHERE tmdb_id=$1 AND season_number=$2', [parseInt(req.body.tmdb_id), parseInt(req.body.season_number)]);
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── HISTORY IMPORT ────────────────────────────────────────────────────────────
+app.post('/api/history/import', requireLogin, async (req, res) => {
+  try {
+    const { entries } = req.body; // array of Trakt history entries
+    if (!Array.isArray(entries)) return res.status(400).json({ error: 'entries must be an array' });
+
+    // Build map of our shows by tmdb_id
+    const ourShows = await pool.query('SELECT tmdb_id FROM shows');
+    const ourIds = new Set(ourShows.rows.map(r => r.tmdb_id));
+
+    // Group entries by tmdb_id
+    const byShow = {};
+    for (const entry of entries) {
+      const tmdbId = entry?.show?.ids?.tmdb;
+      const season = entry?.episode?.season;
+      const epNum = entry?.episode?.number;
+      const watchedAt = entry?.watched_at;
+      const showTitle = entry?.show?.title || 'Unknown';
+      if (!tmdbId || !season || !epNum) continue;
+      if (!byShow[tmdbId]) byShow[tmdbId] = { tmdb_id: tmdbId, title: showTitle, episodes: [] };
+      byShow[tmdbId].episodes.push({ season, episode: epNum, watched_at: watchedAt });
+    }
+
+    let matched = 0, imported = 0;
+    const unmatched = [];
+
+    for (const [tmdbId, data] of Object.entries(byShow)) {
+      const id = parseInt(tmdbId);
+      if (ourIds.has(id)) {
+        matched++;
+        for (const ep of data.episodes) {
+          const wat = ep.watched_at || null;
+          if (wat) {
+            await pool.query(
+              'INSERT INTO watched_episodes (tmdb_id,season_number,episode_number,watched_at) VALUES ($1,$2,$3,$4) ON CONFLICT (tmdb_id,season_number,episode_number) DO UPDATE SET watched_at=$4',
+              [id, parseInt(ep.season), parseInt(ep.episode), wat]
+            );
+          } else {
+            await pool.query(
+              'INSERT INTO watched_episodes (tmdb_id,season_number,episode_number) VALUES ($1,$2,$3) ON CONFLICT DO NOTHING',
+              [id, parseInt(ep.season), parseInt(ep.episode)]
+            );
+          }
+          imported++;
+        }
+      } else {
+        unmatched.push({
+          tmdb_id: id,
+          title: data.title,
+          episode_count: data.episodes.length,
+          episodes: data.episodes,
+        });
+      }
+    }
+
+    // Persist unmatched to user_settings so UI can display it
+    await pool.query(
+      'INSERT INTO user_settings (key,value) VALUES ($1,$2) ON CONFLICT (key) DO UPDATE SET value=$2',
+      ['trakt_unmatched', JSON.stringify(unmatched)]
+    );
+
+    res.json({ matched, imported, unmatched_shows: unmatched.length, unmatched });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/history/unmatched', requireLogin, async (req, res) => {
+  try {
+    const r = await pool.query("SELECT value FROM user_settings WHERE key='trakt_unmatched'");
+    const unmatched = r.rows[0] ? JSON.parse(r.rows[0].value) : [];
+    res.json(unmatched);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/history/unmatched/resolve', requireLogin, async (req, res) => {
+  try {
+    // After user adds a show, import its pending episodes and remove from unmatched list
+    const { tmdb_id, episodes } = req.body;
+    const id = parseInt(tmdb_id);
+    for (const ep of episodes) {
+      const wat = ep.watched_at || null;
+      if (wat) {
+        await pool.query(
+          'INSERT INTO watched_episodes (tmdb_id,season_number,episode_number,watched_at) VALUES ($1,$2,$3,$4) ON CONFLICT (tmdb_id,season_number,episode_number) DO UPDATE SET watched_at=$4',
+          [id, parseInt(ep.season), parseInt(ep.episode), wat]
+        );
+      } else {
+        await pool.query(
+          'INSERT INTO watched_episodes (tmdb_id,season_number,episode_number) VALUES ($1,$2,$3) ON CONFLICT DO NOTHING',
+          [id, parseInt(ep.season), parseInt(ep.episode)]
+        );
+      }
+    }
+    // Remove this show from unmatched list
+    const r = await pool.query("SELECT value FROM user_settings WHERE key='trakt_unmatched'");
+    let unmatched = r.rows[0] ? JSON.parse(r.rows[0].value) : [];
+    unmatched = unmatched.filter(u => u.tmdb_id !== id);
+    await pool.query(
+      'INSERT INTO user_settings (key,value) VALUES ($1,$2) ON CONFLICT (key) DO UPDATE SET value=$2',
+      ['trakt_unmatched', JSON.stringify(unmatched)]
+    );
+    res.json({ ok: true, remaining: unmatched.length });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/history/unmatched/:tmdb_id', requireLogin, async (req, res) => {
+  try {
+    const id = parseInt(req.params.tmdb_id);
+    const r = await pool.query("SELECT value FROM user_settings WHERE key='trakt_unmatched'");
+    let unmatched = r.rows[0] ? JSON.parse(r.rows[0].value) : [];
+    unmatched = unmatched.filter(u => u.tmdb_id !== id);
+    await pool.query(
+      'INSERT INTO user_settings (key,value) VALUES ($1,$2) ON CONFLICT (key) DO UPDATE SET value=$2',
+      ['trakt_unmatched', JSON.stringify(unmatched)]
+    );
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
