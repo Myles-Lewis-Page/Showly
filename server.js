@@ -243,9 +243,16 @@ app.get('/api/recommendations', requireLogin, async (req, res) => {
 
 app.get('/api/stats', requireLogin, async (req, res) => {
   try {
-    const showsData = await pool.query('SELECT * FROM shows');
-    const epData = await pool.query('SELECT tmdb_id, COUNT(*) as ep_count FROM watched_episodes GROUP BY tmdb_id ORDER BY ep_count DESC LIMIT 10');
-    res.json({ shows: showsData.rows, topEps: epData.rows });
+    const [showsData, epData, yearData, undatedCount] = await Promise.all([
+      pool.query('SELECT * FROM shows'),
+      pool.query('SELECT tmdb_id, COUNT(*) as ep_count FROM watched_episodes GROUP BY tmdb_id ORDER BY ep_count DESC LIMIT 10'),
+      pool.query(`SELECT EXTRACT(YEAR FROM watched_at)::int as yr, COUNT(*)::int as ep_count
+                  FROM watched_episodes WHERE watched_at IS NOT NULL
+                  GROUP BY yr ORDER BY yr DESC`),
+      pool.query(`SELECT COUNT(*)::int as cnt FROM watched_episodes
+                  WHERE watched_at IS NULL OR watched_at = '1970-01-01'`),
+    ]);
+    res.json({ shows: showsData.rows, topEps: epData.rows, byYear: yearData.rows, undatedCount: undatedCount.rows[0]?.cnt || 0 });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -362,7 +369,7 @@ app.get('/api/episodes/all', requireLogin, async (req, res) => {
 });
 
 app.get('/api/episodes/:tmdb_id', requireLogin, async (req, res) => {
-  try { res.json((await pool.query('SELECT season_number, episode_number FROM watched_episodes WHERE tmdb_id=$1', [req.params.tmdb_id])).rows); }
+  try { res.json((await pool.query('SELECT season_number, episode_number, watched_at FROM watched_episodes WHERE tmdb_id=$1', [req.params.tmdb_id])).rows); }
   catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -418,24 +425,31 @@ app.delete('/api/episodes/season', requireLogin, async (req, res) => {
 // ── HISTORY IMPORT ────────────────────────────────────────────────────────────
 app.post('/api/history/import', requireLogin, async (req, res) => {
   try {
-    const { entries } = req.body; // array of Trakt history entries
+    const { entries } = req.body;
     if (!Array.isArray(entries)) return res.status(400).json({ error: 'entries must be an array' });
 
     // Build map of our shows by tmdb_id
     const ourShows = await pool.query('SELECT tmdb_id FROM shows');
     const ourIds = new Set(ourShows.rows.map(r => r.tmdb_id));
 
-    // Group entries by tmdb_id
+    // Group by show, then deduplicate per season+episode keeping most recent watched_at
+    // Format: show.ids.tmdb, episode.season, episode.number, watched_at, type
     const byShow = {};
     for (const entry of entries) {
+      if (entry?.type !== 'episode') continue; // skip movies, seasons, shows
       const tmdbId = entry?.show?.ids?.tmdb;
       const season = entry?.episode?.season;
       const epNum = entry?.episode?.number;
-      const watchedAt = entry?.watched_at;
+      const watchedAt = entry?.watched_at || null;
       const showTitle = entry?.show?.title || 'Unknown';
-      if (!tmdbId || !season || !epNum) continue;
-      if (!byShow[tmdbId]) byShow[tmdbId] = { tmdb_id: tmdbId, title: showTitle, episodes: [] };
-      byShow[tmdbId].episodes.push({ season, episode: epNum, watched_at: watchedAt });
+      if (!tmdbId || season == null || epNum == null) continue;
+      if (!byShow[tmdbId]) byShow[tmdbId] = { tmdb_id: tmdbId, title: showTitle, epMap: {} };
+      const epKey = `${season}_${epNum}`;
+      const existing = byShow[tmdbId].epMap[epKey];
+      // Keep most recent watched_at when duplicates exist
+      if (!existing || (watchedAt && (!existing.watched_at || watchedAt > existing.watched_at))) {
+        byShow[tmdbId].epMap[epKey] = { season, episode: epNum, watched_at: watchedAt };
+      }
     }
 
     let matched = 0, imported = 0;
@@ -443,9 +457,10 @@ app.post('/api/history/import', requireLogin, async (req, res) => {
 
     for (const [tmdbId, data] of Object.entries(byShow)) {
       const id = parseInt(tmdbId);
+      const episodes = Object.values(data.epMap);
       if (ourIds.has(id)) {
         matched++;
-        for (const ep of data.episodes) {
+        for (const ep of episodes) {
           const wat = ep.watched_at || null;
           if (wat) {
             await pool.query(
@@ -464,8 +479,8 @@ app.post('/api/history/import', requireLogin, async (req, res) => {
         unmatched.push({
           tmdb_id: id,
           title: data.title,
-          episode_count: data.episodes.length,
-          episodes: data.episodes,
+          episode_count: episodes.length,
+          episodes,
         });
       }
     }
@@ -477,6 +492,43 @@ app.post('/api/history/import', requireLogin, async (req, res) => {
     );
 
     res.json({ matched, imported, unmatched_shows: unmatched.length, unmatched });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/history/undated', requireLogin, async (req, res) => {
+  try {
+    // Returns all watched episodes that have no explicit watch date (NULL watched_at)
+    // grouped by show, with show title from shows table
+    const r = await pool.query(`
+      SELECT we.tmdb_id, we.season_number, we.episode_number,
+             s.title, s.poster_path
+      FROM watched_episodes we
+      JOIN shows s ON s.tmdb_id = we.tmdb_id
+      WHERE we.watched_at IS NULL
+      ORDER BY s.title ASC, we.season_number ASC, we.episode_number ASC
+    `);
+    // Group by show
+    const byShow = {};
+    for (const row of r.rows) {
+      if (!byShow[row.tmdb_id]) byShow[row.tmdb_id] = { tmdb_id: row.tmdb_id, title: row.title, poster_path: row.poster_path, episodes: [] };
+      byShow[row.tmdb_id].episodes.push({ season_number: row.season_number, episode_number: row.episode_number });
+    }
+    res.json(Object.values(byShow));
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/stats/year/:year', requireLogin, async (req, res) => {
+  try {
+    const yr = parseInt(req.params.year);
+    const [epData, topShows] = await Promise.all([
+      pool.query(`SELECT COUNT(*)::int as ep_count FROM watched_episodes WHERE EXTRACT(YEAR FROM watched_at) = $1`, [yr]),
+      pool.query(`SELECT we.tmdb_id, COUNT(*)::int as ep_count, s.title, s.poster_path, s.id
+                  FROM watched_episodes we JOIN shows s ON s.tmdb_id = we.tmdb_id
+                  WHERE EXTRACT(YEAR FROM we.watched_at) = $1
+                  GROUP BY we.tmdb_id, s.title, s.poster_path, s.id
+                  ORDER BY ep_count DESC LIMIT 5`, [yr]),
+    ]);
+    res.json({ year: yr, ep_count: epData.rows[0]?.ep_count || 0, top_shows: topShows.rows });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 

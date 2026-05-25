@@ -276,7 +276,38 @@ main{padding:16px}
 .toast{position:fixed;bottom:20px;right:20px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 16px;font-size:13px;z-index:999;animation:fadeUp .2s ease;box-shadow:0 4px 20px rgba(0,0,0,.4)}
 @keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 
-/* HISTORY IMPORT */
+/* WATCHED DATE ON EPISODE */
+.ep-watched-date{font-size:10px;color:var(--green);margin-top:2px;display:flex;align-items:center;gap:4px}
+.ep-date-edit-btn{background:none;border:none;padding:0 2px;cursor:pointer;font-size:11px;opacity:.5;line-height:1}
+.ep-date-edit-btn:hover{opacity:1}
+/* DATE PICKER POPOVER */
+.ep-date-popover{position:fixed;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 14px;z-index:200;box-shadow:0 8px 32px rgba(0,0,0,.5);min-width:220px}
+.ep-date-popover h4{font-size:13px;font-weight:600;margin-bottom:8px}
+.ep-date-popover input[type=date]{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--text);font-size:13px;font-family:inherit;margin-bottom:8px}
+.ep-date-popover input[type=date]:focus{border-color:var(--accent);outline:none}
+.ep-date-popover-btns{display:flex;gap:6px}
+.ep-date-popover-btns button{flex:1;padding:6px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;border:none}
+/* YEAR STATS */
+.year-tabs{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;margin-bottom:16px;flex-wrap:wrap}
+.year-tab{background:var(--surface2);border:1px solid var(--border);color:var(--muted);padding:5px 14px;border-radius:99px;font-size:12px;cursor:pointer;font-family:inherit;white-space:nowrap}
+.year-tab.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.year-stat-card{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:10px}
+/* DISCOVER FILTER */
+.discover-source-btn{background:var(--surface2);border:1px solid var(--border);color:var(--muted);padding:5px 14px;border-radius:99px;font-size:12px;cursor:pointer;font-family:inherit;transition:all .15s;white-space:nowrap}
+.discover-source-btn:hover{border-color:#555;color:var(--text)}
+.discover-source-btn.on{background:var(--accent);border-color:var(--accent);color:#fff}
+/* UNDATED EPISODES IN HISTORY */
+.undated-show-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;margin-bottom:10px;overflow:hidden}
+.undated-show-header{display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer;user-select:none}
+.undated-show-header:hover{background:var(--surface2)}
+.undated-show-poster{width:32px;height:48px;border-radius:4px;object-fit:cover;background:var(--surface3);flex-shrink:0}
+.undated-ep-list{padding:0 14px 12px;display:flex;flex-direction:column;gap:6px}
+.undated-ep-row{display:flex;align-items:center;gap:10px;padding:7px 10px;background:var(--surface2);border-radius:7px;font-size:13px}
+.undated-ep-label{flex:1;font-size:12px}
+.undated-ep-date-input{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:4px 8px;color:var(--text);font-size:12px;font-family:inherit;width:140px}
+.undated-ep-date-input:focus{border-color:var(--accent);outline:none}
+.undated-ep-save{background:var(--green);color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap}
+.undated-ep-save:hover{opacity:.85}
 .history-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:16px}
 .history-card h3{font-size:15px;font-weight:600;margin-bottom:4px}
 .history-card p{font-size:13px;color:var(--muted);margin-bottom:14px;line-height:1.6}
@@ -350,8 +381,7 @@ main{padding:16px}
     <button class="nav-tab" onclick="setTab('watchlist')" id="t-watchlist">Watchlist</button>
     <button class="nav-tab" onclick="setTab('paused')" id="t-paused">Paused</button>
     <button class="nav-tab" onclick="setTab('dropped')" id="t-dropped">Not Continuing</button>
-    <button class="nav-tab" onclick="setTab('recs')" id="t-recs">Recommendations</button>
-    <button class="nav-tab" onclick="setTab('trending')" id="t-trending">Trending</button>
+    <button class="nav-tab" onclick="setTab('recs')" id="t-recs">Discover</button>
     <button class="nav-tab" onclick="setTab('stats')" id="t-stats">Stats</button>
     <button class="nav-tab" onclick="setTab('settings')" id="t-settings">⚙ Settings</button>
     <button class="nav-tab" onclick="setTab('history')" id="t-history">📥 History</button>
@@ -416,11 +446,10 @@ main{padding:16px}
       <div class="show-grid" id="grid-dropped"></div>
     </div>
     <div id="tab-recs" class="hide">
-      <div class="section-label">Recommended for You</div>
-      <div id="genre-filter-row" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px"></div>
+      <div class="section-label">Discover Shows</div>
+      <div id="discover-filter-row" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px"></div>
       <div class="rec-grid" id="grid-recs"></div>
     </div>
-    <div id="tab-trending" class="hide"><div class="section-label">Trending This Week</div><div class="rec-grid" id="grid-trending"></div></div>
     <div id="tab-stats" class="hide" style="max-width:680px"><div class="section-label">Your Stats</div><div id="stats-content"></div></div>
     <div id="tab-settings" class="hide" style="max-width:500px"><div class="section-label">Settings</div><div id="settings-content"></div></div>
     <div id="tab-history" class="hide" style="max-width:700px"><div class="section-label">Watch History Import</div><div id="history-content"></div></div>
@@ -450,7 +479,7 @@ let showDetails = new Map();
 let showProviders = new Map();
 let ownedServices = new Set();
 let currentSimilarData = [];
-let currentSeasonEpisodes = new Map(); // key: `${tmdbId}_${season}` -> episodes array
+let watchedDates = new Map(); // tmdb_id -> Map of "season_ep" -> watched_at ISO string
 let sortMode = 'alpha';
 let genreList = [];
 let activeGenre = null; // {id, name} or null for all // services the user has subscriptions to
@@ -525,6 +554,15 @@ function setSort(mode) {
 function sLabel(s){return{watching:'Watching ▶',caughtup:'Caught Up 🔄',finished:'Show Finished ✅',watchlist:'Watchlist 📋',paused:'Paused ⏸',dropped:'Not Continuing 🚫'}[s]||s;}
 function sIcon(s){return{watching:'▶️',caughtup:'🔄',finished:'✅',watchlist:'📋',paused:'⏸️',dropped:'🚫'}[s]||'📺';}
 function fmtDate(d){if(!d)return'';const p=d.split('-');return p.length===3?`${parseInt(p[1])}/${parseInt(p[2])}/${p[0]}`:d;}
+function fmtWatchedDate(iso){
+  if(!iso) return '';
+  const d=new Date(iso);
+  return `${d.getMonth()+1}/${d.getDate()}/${d.getFullYear()}`;
+}
+function isoToDateInput(iso){
+  if(!iso) return '';
+  return iso.slice(0,10); // YYYY-MM-DD
+}
 function toast(msg){const t=document.createElement('div');t.className='toast';t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),2200);}
 
 // ── RENDER ALL ────────────────────────────────────────────────────────────────
@@ -755,13 +793,12 @@ async function deleteShow(event, id) {
 
 // ── TABS ──────────────────────────────────────────────────────────────────────
 function setTab(tab) {
-  ['watching','caughtup','finished','watchlist','paused','dropped','recs','trending','stats','settings','history'].forEach(t=>{
+  ['watching','caughtup','finished','watchlist','paused','dropped','recs','stats','settings','history'].forEach(t=>{
     document.getElementById('tab-'+t)?.classList.toggle('hide',t!==tab);
     document.getElementById('t-'+t)?.classList.toggle('on',t===tab);
   });
-  document.getElementById('search-wrap').classList.toggle('hide',['recs','trending','stats','settings','history'].includes(tab));
-  if(tab==='recs') loadRecs();
-  if(tab==='trending') loadTrending();
+  document.getElementById('search-wrap').classList.toggle('hide',['recs','stats','settings','history'].includes(tab));
+  if(tab==='recs') loadDiscover();
   if(tab==='stats') loadStats();
   if(tab==='settings') loadSettings();
   if(tab==='history') loadHistory();
@@ -842,7 +879,9 @@ async function openDetail(tmdbId,showId){
   }
 
   const epSet=new Set(Array.isArray(epData)?epData.map(e=>`${e.season_number}_${e.episode_number}`):[]);
+  const epDates=new Map(Array.isArray(epData)?epData.filter(e=>e.watched_at).map(e=>[`${e.season_number}_${e.episode_number}`,e.watched_at]):[]);
   watchedEps.set(id,epSet);
+  watchedDates.set(id,epDates);
 
   // Cache providers and details
   if (Array.isArray(details.streaming_providers)) showProviders.set(id, details.streaming_providers);
@@ -1171,6 +1210,9 @@ async function loadSeason(tmdbId,showId,seasonNum){
     ${seasonOverview}
     <div class="episodes-list">${episodes.map((ep, epIdx)=>{
       const watched=epSet.has(`${seasonNum}_${ep.episode_number}`);
+      const watKey=`${seasonNum}_${ep.episode_number}`;
+      const watchedAt=(watchedDates.get(id)||new Map()).get(watKey);
+      const watchedAtStr=watchedAt?fmtWatchedDate(watchedAt):'';
       const still=ep.still_path?`${IMG}/w300${ep.still_path}`:null;
       const runtime=ep.runtime?`${ep.runtime}m`:'';
       return `<div class="ep-row ${watched?'watched':''}" id="ep-${id}-${seasonNum}-${ep.episode_number}"
@@ -1180,6 +1222,10 @@ async function loadSeason(tmdbId,showId,seasonNum){
         <div class="ep-info">
           <div class="ep-name">${esc(ep.name||'Episode '+ep.episode_number)}</div>
           <div class="ep-date">${[ep.air_date?fmtDate(ep.air_date):'', runtime].filter(Boolean).join(' · ')}</div>
+          ${watched?`<div class="ep-watched-date" id="epwd-${id}-${seasonNum}-${ep.episode_number}">
+            ${watchedAtStr?`👁 ${watchedAtStr}`:'<span style="color:var(--muted);font-style:italic">No watch date</span>'}
+            <button class="ep-date-edit-btn" onclick="openEpDatePicker(event,${id},${seasonNum},${ep.episode_number})" title="Set watch date">✏️</button>
+          </div>`:''}
         </div>
         <div class="ep-check" id="epchk-${id}-${seasonNum}-${ep.episode_number}">${watched?'✓':''}</div>
       </div>`;
@@ -1342,43 +1388,7 @@ async function toggleService(name, el) {
   renderAll();
   loadNextEpisodes();
 }
-async function loadRecs(){
-  const grid=document.getElementById('grid-recs');
-  const filterRow=document.getElementById('genre-filter-row');
-
-  // Load genres if not yet loaded
-  if(!genreList.length){
-    const genres=await api('/api/tmdb/genres');
-    genreList=genres||[];
-  }
-
-  // Render genre chips
-  if(filterRow){
-    filterRow.innerHTML=`
-      <button class="genre-filter-chip ${!activeGenre?'on':''}" onclick="setGenreFilter(null)">All</button>
-      ${genreList.map(g=>`<button class="genre-filter-chip ${activeGenre?.id===g.id?'on':''}" onclick="setGenreFilter(${JSON.stringify(g).replace(/"/g,'&quot;')})">${esc(g.name)}</button>`).join('')}`;
-  }
-
-  grid.innerHTML='<div class="empty"><div class="empty-icon">⏳</div>Loading...</div>';
-  const url=activeGenre?`/api/recommendations/genre/${activeGenre.id}`:'/api/recommendations';
-  const recs=await api(url);
-  if(!recs.length){grid.innerHTML='<div class="empty"><div class="empty-icon">🤷</div>Nothing found — try a different genre</div>';return;}
-  grid.innerHTML=recs.map(r=>recCardHTML(r)).join('');
-}
-
-function setGenreFilter(genre){
-  activeGenre=genre;
-  loadRecs();
-}
-
-async function loadTrending(){
-  const grid=document.getElementById('grid-trending');
-  if(!grid) return;
-  grid.innerHTML='<div class="empty"><div class="empty-icon">⏳</div>Loading...</div>';
-  const data=await api('/api/tmdb/trending');
-  if(!data.length){grid.innerHTML='<div class="empty"><div class="empty-icon">📺</div>Nothing to show</div>';return;}
-  grid.innerHTML=data.map(r=>recCardHTML(r)).join('');
-}
+async function loadRecs_OLD_UNUSED(){} // replaced by loadDiscover
 
 function recCardHTML(r){
   const inList=r.in_list||shows.some(s=>s.tmdb_id===r.tmdb_id);
@@ -1453,21 +1463,21 @@ function closeRecModal(){document.getElementById('rec-modal').classList.add('hid
 
 // ── STATS ─────────────────────────────────────────────────────────────────────
 let statsSortMode = 'episodes';
+let statsYearFilter = null; // null = all time, or a year number
 
 async function loadStats(){
   const container=document.getElementById('stats-content');
   container.innerHTML='<div style="text-align:center;padding:40px;color:var(--muted)">Loading...</div>';
-  const [statsData, allEps] = await Promise.all([api('/api/stats'), api('/api/episodes/all')]);
+  const statsData = await api('/api/stats');
   const allShows = statsData.shows || [];
   const topEpsRaw = statsData.topEps || [];
+  const byYear = statsData.byYear || [];
+  const totalWatched = byYear.reduce((s,r)=>s+r.ep_count,0);
+  const totalMins = totalWatched * 45;
 
   const counts = {watching:0,caughtup:0,finished:0,watchlist:0,paused:0,dropped:0};
   allShows.forEach(s=>{if(counts[s.status]!==undefined)counts[s.status]++;});
-  const totalWatched = allEps.total || 0;
-  const totalMins = totalWatched * 45;
-  const totalHours = Math.round(totalMins / 60);
 
-  // Genre breakdown from stored genres column
   const genreCounts = {};
   allShows.forEach(s => {
     if (s.genres) s.genres.split(',').filter(Boolean).forEach(g => { genreCounts[g.trim()] = (genreCounts[g.trim()]||0) + 1; });
@@ -1475,25 +1485,44 @@ async function loadStats(){
   const topGenres = Object.entries(genreCounts).sort((a,b) => b[1]-a[1]).slice(0,10);
   const maxGenre = topGenres[0]?.[1] || 1;
 
-  // Platform breakdown
-  const platformCounts = {};
-  allShows.filter(s=>s.platform).forEach(s => { platformCounts[s.platform] = (platformCounts[s.platform]||0)+1; });
-  const topPlatforms = Object.entries(platformCounts).sort((a,b)=>b[1]-a[1]);
-
-  // Top shows with episode counts
   const avgRuntime = 45;
   const topShows = topEpsRaw.map(r => {
     const show = allShows.find(s => s.tmdb_id === parseInt(r.tmdb_id));
     return show ? {...show, ep_count: parseInt(r.ep_count), hours: Math.round(parseInt(r.ep_count) * avgRuntime / 60)} : null;
   }).filter(Boolean).slice(0, 10);
 
-  renderStatsContent(container, counts, totalWatched, totalMins, totalHours, topShows, topGenres, maxGenre, topPlatforms);
+  renderStatsContent(container, counts, totalWatched, totalMins, topShows, topGenres, maxGenre, byYear, allShows);
 }
 
-function renderStatsContent(container, counts, totalWatched, totalMins, totalHours, topShows, topGenres, maxGenre, topPlatforms) {
+async function loadYearStats(year, allShows) {
+  const container = document.getElementById('year-detail-content');
+  if (!container) return;
+  container.innerHTML = '<div style="padding:12px;color:var(--muted);font-size:13px">Loading...</div>';
+  const data = await api(`/api/stats/year/${year}`);
+  const eps = data.ep_count || 0;
+  const mins = eps * 45;
+  container.innerHTML = `
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;margin-bottom:14px">
+      <div class="stat-box"><div class="stat-num">${eps}</div><div class="stat-label">Episodes</div></div>
+      <div class="stat-box"><div class="stat-num" style="font-size:16px">${fmtTime(mins)}</div><div class="stat-label">Time Watched</div></div>
+    </div>
+    ${data.top_shows?.length ? `
+      <div class="stats-title" style="margin-bottom:8px">Top Shows in ${year}</div>
+      ${data.top_shows.map((s,i) => `
+        <div class="stats-row" onclick="openDetail(${s.tmdb_id},${s.id})" style="cursor:pointer;margin-bottom:6px">
+          <div class="stats-rank">#${i+1}</div>
+          ${s.poster_path?`<img src="${IMG}/w92${s.poster_path}" style="width:28px;height:42px;border-radius:4px;object-fit:cover;flex-shrink:0" alt=""/>`:`<div style="width:28px;height:42px;border-radius:4px;background:var(--surface3);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:14px">📺</div>`}
+          <div class="stats-name">${esc(s.title)}</div>
+          <div class="stats-val">${s.ep_count} eps</div>
+        </div>`).join('')}` : '<div style="color:var(--muted);font-size:13px">No dated episodes for this year yet.</div>'}`;
+}
+
+function renderStatsContent(container, counts, totalWatched, totalMins, topShows, topGenres, maxGenre, byYear, allShows) {
   const byHours = statsSortMode === 'hours';
   const sorted = [...topShows].sort((a,b) => byHours ? b.hours - a.hours : b.ep_count - a.ep_count);
   const maxVal = sorted[0] ? (byHours ? sorted[0].hours : sorted[0].ep_count) : 1;
+  const years = byYear.map(r=>r.yr);
+  const maxYearEps = Math.max(...byYear.map(r=>r.ep_count), 1);
 
   container.innerHTML = `
     <div class="stats-grid">
@@ -1504,6 +1533,25 @@ function renderStatsContent(container, counts, totalWatched, totalMins, totalHou
       <div class="stat-box"><div class="stat-num" style="font-size:14px">${fmtTime(totalMins)}</div><div class="stat-label">Total Time Watched</div></div>
       <div class="stat-box"><div class="stat-num">${Object.values(counts).reduce((a,b)=>a+b,0)}</div><div class="stat-label">Total Shows</div></div>
     </div>
+
+    ${byYear.length ? `
+    <div class="stats-section">
+      <div class="stats-title">By Year</div>
+      <div class="year-tabs" id="year-tabs">
+        <button class="year-tab ${!statsYearFilter?'on':''}" onclick="selectYear(null,${JSON.stringify(allShows).replace(/"/g,'&quot;')})">All Time</button>
+        ${byYear.map(r=>`<button class="year-tab ${statsYearFilter===r.yr?'on':''}" onclick="selectYear(${r.yr},${JSON.stringify(allShows).replace(/"/g,'&quot;')})">${r.yr}</button>`).join('')}
+      </div>
+      ${byYear.map(r=>{
+        const pct=Math.round((r.ep_count/maxYearEps)*100);
+        const isSelected=statsYearFilter===r.yr;
+        return `<div class="stats-row" style="${isSelected?'border-color:var(--accent);':''}cursor:pointer" onclick="selectYear(${r.yr},${JSON.stringify(allShows).replace(/"/g,'&quot;')})">
+          <div class="stats-rank" style="font-size:12px;width:36px">${r.yr}</div>
+          <div class="stats-bar-wrap"><div class="stats-bar" style="width:${pct}%"></div></div>
+          <div class="stats-val">${r.ep_count} eps · ${fmtTime(r.ep_count*45)}</div>
+        </div>`;
+      }).join('')}
+      <div id="year-detail-content" style="margin-top:12px"></div>
+    </div>` : `<div style="color:var(--muted);font-size:14px;margin-bottom:20px">Year-by-year stats appear once you have watch dates on your episodes. Import from Trakt or set dates in the History tab.</div>`}
 
     ${sorted.length?`
     <div class="stats-section">
@@ -1535,6 +1583,27 @@ function renderStatsContent(container, counts, totalWatched, totalMins, totalHou
     </div>`:
     `<div style="color:var(--muted);font-size:14px;margin-top:16px">Genre data loads as you browse shows — come back after opening a few show pages.</div>`}
   `;
+
+  // Auto-load selected year detail if one is active
+  if (statsYearFilter) loadYearStats(statsYearFilter, allShows);
+}
+
+async function selectYear(year, allShows) {
+  statsYearFilter = year;
+  // Update year tab highlight
+  document.querySelectorAll('.year-tab').forEach(b => {
+    const yr = b.textContent.trim();
+    b.classList.toggle('on', year === null ? yr === 'All Time' : parseInt(yr) === year);
+  });
+  document.querySelectorAll('.stats-row[onclick*="selectYear"]').forEach(r => {
+    r.style.borderColor = '';
+  });
+  if (year === null) {
+    const el = document.getElementById('year-detail-content');
+    if (el) el.innerHTML = '';
+  } else {
+    loadYearStats(year, allShows);
+  }
 }
 
 // ── HISTORY IMPORT ────────────────────────────────────────────────────────────
@@ -1546,10 +1615,14 @@ async function loadHistory() {
   container.innerHTML = '<div style="text-align:center;padding:30px;color:var(--muted)">Loading...</div>';
   traktUnmatched = await api('/api/history/unmatched');
   renderHistoryTab(container);
+  // Load undated section after main render
+  loadUndatedSection(container);
 }
 
 function renderHistoryTab(container) {
   container.innerHTML = `
+    <div id="undated-section"><div style="text-align:center;padding:20px;color:var(--muted)">Loading undated episodes...</div></div>
+
     <div class="history-card">
       <h3>Import from Trakt</h3>
       <p>Export your watch history from Trakt, then upload the JSON file here. Episodes for shows already in your tracker will get their watched dates imported automatically. Anything not in your tracker appears below so you can add it manually.</p>
@@ -1788,6 +1861,179 @@ async function resolveAddShow(idx) {
   const container = document.getElementById('history-content');
   if (container) renderHistoryTab(container);
   toast(`Show added · ${resolveRes.remaining ?? '?'} unmatched remaining`);
+}
+
+// ── EPISODE DATE PICKER ───────────────────────────────────────────────────────
+function openEpDatePicker(event, tmdbId, season, epNum) {
+  event.stopPropagation();
+  document.querySelector('.ep-date-popover')?.remove();
+  const id = parseInt(tmdbId);
+  const existingIso = (watchedDates.get(id)||new Map()).get(`${season}_${epNum}`) || '';
+  const pop = document.createElement('div');
+  pop.className = 'ep-date-popover';
+  pop.innerHTML = `
+    <h4>Watch Date — S${season}E${epNum}</h4>
+    <input type="date" id="ep-date-input" value="${isoToDateInput(existingIso)}" max="${new Date().toISOString().slice(0,10)}"/>
+    <div class="ep-date-popover-btns">
+      <button style="background:var(--green);color:#fff" onclick="saveEpDate(${id},${season},${epNum})">Save</button>
+      <button style="background:var(--surface3);color:var(--muted)" onclick="this.closest('.ep-date-popover').remove()">Cancel</button>
+    </div>`;
+  // Position near click
+  const rect = event.target.getBoundingClientRect();
+  pop.style.top = Math.min(rect.bottom + 6, window.innerHeight - 180) + 'px';
+  pop.style.left = Math.max(8, Math.min(rect.left, window.innerWidth - 240)) + 'px';
+  document.body.appendChild(pop);
+  document.getElementById('ep-date-input')?.focus();
+  // Close on outside click
+  setTimeout(() => document.addEventListener('click', function h(e){ if(!pop.contains(e.target)){pop.remove();document.removeEventListener('click',h);} }), 10);
+}
+
+async function saveEpDate(tmdbId, season, epNum) {
+  const val = document.getElementById('ep-date-input')?.value;
+  document.querySelector('.ep-date-popover')?.remove();
+  if (!val) return;
+  const iso = new Date(val + 'T12:00:00').toISOString();
+  await api('/api/episodes', { method:'POST', body:{ tmdb_id: tmdbId, season_number: season, episode_number: epNum, watched_at: iso }});
+  // Update local cache
+  const dm = watchedDates.get(tmdbId) || new Map();
+  dm.set(`${season}_${epNum}`, iso);
+  watchedDates.set(tmdbId, dm);
+  // Update UI
+  const wdEl = document.getElementById(`epwd-${tmdbId}-${season}-${epNum}`);
+  if (wdEl) wdEl.innerHTML = `👁 ${fmtWatchedDate(iso)} <button class="ep-date-edit-btn" onclick="openEpDatePicker(event,${tmdbId},${season},${epNum})" title="Set watch date">✏️</button>`;
+  toast('Watch date saved ✓');
+}
+
+// ── DISCOVER (merged Recs + Trending) ─────────────────────────────────────────
+let discoverMode = 'recs'; // 'recs' | 'trending'
+
+async function loadDiscover() {
+  const filterRow = document.getElementById('discover-filter-row');
+  const grid = document.getElementById('grid-recs');
+
+  // Load genres if not yet loaded
+  if (!genreList.length) {
+    const genres = await api('/api/tmdb/genres');
+    genreList = genres || [];
+  }
+
+  // Render source toggles + genre chips
+  if (filterRow) {
+    filterRow.innerHTML = `
+      <button class="discover-source-btn ${discoverMode==='recs'?'on':''}" onclick="setDiscoverMode('recs')">⭐ For You</button>
+      <button class="discover-source-btn ${discoverMode==='trending'?'on':''}" onclick="setDiscoverMode('trending')">🔥 Trending</button>
+      <div style="width:1px;background:var(--border);margin:0 4px;align-self:stretch"></div>
+      ${discoverMode==='recs' ? `
+        <button class="genre-filter-chip ${!activeGenre?'on':''}" onclick="setGenreFilter(null)">All</button>
+        ${genreList.map(g=>`<button class="genre-filter-chip ${activeGenre?.id===g.id?'on':''}" onclick="setGenreFilter(${JSON.stringify(g).replace(/"/g,'&quot;')})">${esc(g.name)}</button>`).join('')}
+      ` : ''}`;
+  }
+
+  grid.innerHTML = '<div class="empty"><div class="empty-icon">⏳</div>Loading...</div>';
+
+  if (discoverMode === 'trending') {
+    const data = await api('/api/tmdb/trending');
+    if (!data.length) { grid.innerHTML = '<div class="empty"><div class="empty-icon">📺</div>Nothing to show</div>'; return; }
+    grid.innerHTML = data.map(r => recCardHTML(r)).join('');
+  } else {
+    const url = activeGenre ? `/api/recommendations/genre/${activeGenre.id}` : '/api/recommendations';
+    const recs = await api(url);
+    if (!recs.length) { grid.innerHTML = '<div class="empty"><div class="empty-icon">🤷</div>Nothing found — try a different genre</div>'; return; }
+    grid.innerHTML = recs.map(r => recCardHTML(r)).join('');
+  }
+}
+
+function setDiscoverMode(mode) {
+  discoverMode = mode;
+  if (mode === 'recs') activeGenre = null;
+  loadDiscover();
+}
+
+function setGenreFilter(genre) {
+  activeGenre = genre;
+  loadDiscover();
+}
+
+// Keep old loadRecs for addFromRecModal refresh
+async function loadRecs() { loadDiscover(); }
+
+// ── UNDATED EPISODES IN HISTORY TAB ──────────────────────────────────────────
+async function loadUndatedSection(container) {
+  const undated = await api('/api/history/undated');
+  const el = document.getElementById('undated-section');
+  if (!el) return;
+  if (!undated.length) {
+    el.innerHTML = `<div class="history-card" style="text-align:center;padding:24px;color:var(--muted)">
+      <div style="font-size:28px;margin-bottom:6px">✅</div>
+      <div style="font-size:14px">All your watched episodes have dates!</div>
+    </div>`;
+    return;
+  }
+  el.innerHTML = `
+    <div class="history-card">
+      <h3>Episodes Without Watch Dates <span style="background:var(--surface2);border:1px solid var(--border);border-radius:99px;padding:1px 10px;font-size:12px;margin-left:6px">${undated.reduce((s,g)=>s+g.episodes.length,0)}</span></h3>
+      <p>These episodes were marked watched but have no date. You can set dates here episode by episode, or open the show panel to set them there.</p>
+      ${undated.map(group => `
+        <div class="undated-show-card">
+          <div class="undated-show-header" onclick="toggleUndatedGroup(this)">
+            ${group.poster_path ? `<img class="undated-show-poster" src="${IMG}/w92${group.poster_path}" alt=""/>` : `<div class="undated-show-poster" style="display:flex;align-items:center;justify-content:center">📺</div>`}
+            <div style="flex:1;min-width:0">
+              <div style="font-size:14px;font-weight:500">${esc(group.title)}</div>
+              <div style="font-size:11px;color:var(--muted);margin-top:2px">${group.episodes.length} episode${group.episodes.length!==1?'s':''} without dates</div>
+            </div>
+            <div style="color:var(--muted);font-size:16px;flex-shrink:0">▾</div>
+          </div>
+          <div class="undated-ep-list" style="display:none">
+            ${group.episodes.map(ep => `
+              <div class="undated-ep-row" id="undated-${group.tmdb_id}-${ep.season_number}-${ep.episode_number}">
+                <div class="undated-ep-label">S${ep.season_number} E${ep.episode_number}</div>
+                <input type="date" class="undated-ep-date-input" max="${new Date().toISOString().slice(0,10)}"
+                  id="undated-input-${group.tmdb_id}-${ep.season_number}-${ep.episode_number}"/>
+                <button class="undated-ep-save" onclick="saveUndatedDate(${group.tmdb_id},${ep.season_number},${ep.episode_number})">Save</button>
+              </div>`).join('')}
+            <div style="padding:6px 0 2px;display:flex;gap:8px">
+              <button style="font-size:11px;padding:5px 12px;border-radius:99px;background:none;border:1px solid var(--border);color:var(--muted);cursor:pointer" onclick="setAllUndatedDates(${group.tmdb_id},${JSON.stringify(group.episodes).replace(/"/g,'&quot;')})">Set all to same date</button>
+            </div>
+          </div>
+        </div>`).join('')}
+    </div>`;
+}
+
+function toggleUndatedGroup(header) {
+  const list = header.nextElementSibling;
+  const arrow = header.querySelector('div:last-child');
+  const open = list.style.display !== 'none';
+  list.style.display = open ? 'none' : 'flex';
+  if(arrow) arrow.textContent = open ? '▾' : '▴';
+}
+
+async function saveUndatedDate(tmdbId, season, epNum) {
+  const input = document.getElementById(`undated-input-${tmdbId}-${season}-${epNum}`);
+  if (!input?.value) { toast('Pick a date first'); return; }
+  const iso = new Date(input.value + 'T12:00:00').toISOString();
+  await api('/api/episodes', { method:'POST', body:{ tmdb_id: tmdbId, season_number: season, episode_number: epNum, watched_at: iso }});
+  const row = document.getElementById(`undated-${tmdbId}-${season}-${epNum}`);
+  if (row) { row.style.opacity='0'; row.style.transition='opacity .2s'; setTimeout(()=>row.remove(),200); }
+  // Update local cache if detail panel has this show
+  const dm = watchedDates.get(tmdbId) || new Map();
+  dm.set(`${season}_${epNum}`, iso);
+  watchedDates.set(tmdbId, dm);
+  toast('Date saved ✓');
+}
+
+async function setAllUndatedDates(tmdbId, episodes) {
+  const dateStr = prompt('Enter a date for all episodes in this group (YYYY-MM-DD):');
+  if (!dateStr || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) { toast('Invalid date format'); return; }
+  const iso = new Date(dateStr + 'T12:00:00').toISOString();
+  for (const ep of episodes) {
+    await api('/api/episodes', { method:'POST', body:{ tmdb_id: tmdbId, season_number: ep.season_number, episode_number: ep.episode_number, watched_at: iso }});
+    const row = document.getElementById(`undated-${tmdbId}-${ep.season_number}-${ep.episode_number}`);
+    if (row) { row.style.opacity='0'; row.style.transition='opacity .2s'; setTimeout(()=>row.remove(),200); }
+    const dm = watchedDates.get(tmdbId) || new Map();
+    dm.set(`${ep.season_number}_${ep.episode_number}`, iso);
+    watchedDates.set(tmdbId, dm);
+  }
+  toast(`All dates set to ${fmtDate(dateStr)} ✓`);
 }
 
 // ── KEYBOARD SHORTCUTS ────────────────────────────────────────────────────────
