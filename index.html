@@ -1,0 +1,1515 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Show Tracker</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#111;--surface:#1c1c1c;--surface2:#262626;--surface3:#303030;
+  --border:#333;--accent:#e53e3e;--text:#f0f0f0;--muted:#888;
+  --green:#38a169;--blue:#3182ce;--yellow:#d69e2e;--red:#e53e3e;--purple:#805ad5;
+}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+button{cursor:pointer;font-family:inherit;border:none;outline:none}
+input{font-family:inherit;outline:none}
+img{display:block}
+.hide{display:none!important}
+
+/* LOGIN */
+#login{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:200}
+.login-box{width:320px}
+.login-box h1{font-size:28px;font-weight:700;margin-bottom:4px;color:var(--accent)}
+.login-box p{color:var(--muted);font-size:14px;margin-bottom:28px}
+.login-box label{display:block;font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:6px}
+.login-box input{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:11px 14px;color:var(--text);font-size:14px;margin-bottom:12px}
+.login-box input:focus{border-color:var(--accent)}
+.btn-submit{width:100%;background:var(--accent);color:#fff;border-radius:8px;padding:12px;font-size:15px;font-weight:600;margin-top:4px}
+.btn-submit:hover{opacity:.9}
+.login-err{color:var(--accent);font-size:13px;margin-top:8px;min-height:18px}
+
+/* NAV */
+nav{background:var(--surface);border-bottom:1px solid var(--border);padding:0 16px;display:flex;align-items:center;gap:4px;height:54px;position:sticky;top:0;z-index:50;overflow-x:auto}
+nav::-webkit-scrollbar{height:0}
+.nav-logo{font-size:18px;font-weight:700;color:var(--accent);margin-right:8px;white-space:nowrap;flex-shrink:0}
+.nav-tab{background:none;color:var(--muted);padding:6px 10px;border-radius:6px;font-size:13px;font-weight:500;transition:all .15s;white-space:nowrap;flex-shrink:0}
+.nav-tab:hover,.nav-tab.on{color:var(--text);background:var(--surface2)}
+.nav-right{margin-left:auto;flex-shrink:0;padding-left:8px}
+.btn-logout{background:none;color:var(--muted);font-size:13px;border:1px solid var(--border);border-radius:6px;padding:5px 12px;white-space:nowrap}
+.btn-logout:hover{color:var(--text)}
+
+/* SEARCH */
+.search-wrap{padding:12px 16px;border-bottom:1px solid var(--border);position:relative;z-index:40}
+.search-wrap input{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 14px;color:var(--text);font-size:14px}
+.search-wrap input:focus{border-color:var(--accent)}
+.search-wrap input::placeholder{color:var(--muted)}
+.search-results{position:absolute;top:100%;left:16px;right:16px;background:var(--surface);border:1px solid var(--border);border-radius:0 0 8px 8px;z-index:40;overflow:hidden;max-height:400px;overflow-y:auto}
+.sr-item{display:flex;align-items:center;gap:10px;padding:10px 12px;cursor:pointer;transition:background .1s;border-bottom:1px solid var(--border)}
+.sr-item:last-child{border-bottom:none}
+.sr-item:hover{background:var(--surface2)}
+.sr-poster{width:32px;height:48px;border-radius:4px;object-fit:cover;background:var(--surface3);flex-shrink:0}
+.sr-info{flex:1;min-width:0}
+.sr-title{font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sr-year{font-size:12px;color:var(--muted);margin-top:2px}
+.sr-actions{display:flex;gap:6px;flex-shrink:0}
+.btn-add{font-size:11px;padding:4px 10px;border-radius:99px;font-weight:600;cursor:pointer;border:none}
+.btn-add.watching{background:#2d6a4f;color:#74c69d}
+.btn-add.watchlist{background:#1a3a5c;color:#74b9ff}
+.btn-add:hover{opacity:.85}
+
+/* MAIN */
+main{padding:16px}
+.section-label{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.section-label span{background:var(--surface2);border:1px solid var(--border);border-radius:99px;padding:1px 8px;font-size:11px}
+
+/* SHOW GRID */
+.show-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:12px;margin-bottom:28px}
+.show-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden;position:relative;cursor:pointer;transition:border-color .15s}
+.show-card:hover{border-color:#555}
+.show-card .poster{width:100%;aspect-ratio:2/3;object-fit:cover;background:var(--surface2);display:block}
+.show-card .poster-ph{width:100%;aspect-ratio:2/3;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:36px}
+
+/* STATUS BANNER */
+.status-banner{position:absolute;top:0;left:0;right:0;padding:4px 8px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;text-align:center}
+.banner-green{background:rgba(56,161,105,.85);color:#fff}
+.banner-yellow{background:rgba(214,158,46,.85);color:#fff}
+.banner-red{background:rgba(229,62,62,.85);color:#fff}
+.banner-blue{background:rgba(49,130,206,.9);color:#fff}
+
+.show-card .card-body{padding:8px}
+.show-card .card-title{font-size:13px;font-weight:500;line-height:1.3;margin-bottom:2px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:2.6em}
+.show-card .card-dates{font-size:10px;color:var(--muted);margin-bottom:4px}
+.card-actions{display:flex;gap:4px;flex-wrap:wrap}
+.ca-btn{font-size:10px;padding:3px 7px;border-radius:99px;border:1px solid var(--border);background:none;color:var(--muted);cursor:pointer;transition:all .1s}
+.ca-btn:hover{border-color:var(--muted);color:var(--text)}
+.ca-btn.aw{border-color:#38a169;color:#38a169;background:rgba(56,161,105,.12)}
+.ca-btn.ac{border-color:#3182ce;color:#3182ce;background:rgba(49,130,206,.12)}
+.ca-btn.af{border-color:#805ad5;color:#805ad5;background:rgba(128,90,213,.12)}
+.ca-btn.awl{border-color:#667eea;color:#667eea;background:rgba(102,126,234,.12)}
+.ca-btn.au{border-color:#d69e2e;color:#d69e2e;background:rgba(214,158,46,.12)}
+.ca-btn.ad{border-color:#e53e3e;color:#e53e3e;background:rgba(229,62,62,.12)}
+.ca-btn.del{color:#555;padding:3px 6px}
+.ca-btn.del:hover{color:#e53e3e;border-color:#e53e3e}
+
+/* NEXT EP ON CARD */
+.next-ep{background:var(--surface2);border-top:1px solid var(--border);padding:8px}
+.next-ep-label{font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:3px}
+.next-ep-title{font-size:12px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:5px}
+.next-ep-bottom{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.next-ep-num{font-size:11px;color:var(--muted)}
+.btn-watched-ep{background:var(--green);color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:600;cursor:pointer;flex-shrink:0;white-space:nowrap}
+.btn-watched-ep:hover{opacity:.85}
+.btn-watched-ep:disabled{opacity:.5;cursor:not-allowed}
+
+/* PROGRESS BAR */
+.ep-prog-wrap{padding:0 8px 6px}
+.ep-prog-row{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:4px}
+.ep-prog-bar{height:3px;background:var(--surface3);border-radius:99px;overflow:hidden}
+.ep-prog-fill{height:100%;background:var(--accent);border-radius:99px;transition:width .4s}
+
+.empty{text-align:center;padding:40px 20px;color:var(--muted);font-size:14px;grid-column:1/-1}
+.empty-icon{font-size:36px;margin-bottom:10px}
+
+/* REC GRID */
+.rec-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+.rec-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden;cursor:pointer}
+.rec-card:hover{border-color:#555}
+.rec-card .poster{width:100%;aspect-ratio:2/3;object-fit:cover;background:var(--surface2)}
+.rec-card .poster-ph{width:100%;aspect-ratio:2/3;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:36px}
+.rec-body{padding:8px}
+.rec-title{font-size:13px;font-weight:500;line-height:1.3;margin-bottom:2px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.rec-meta{font-size:11px;color:var(--muted)}
+
+/* STATS */
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px;margin-bottom:24px}
+.stat-box{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;text-align:center}
+.stat-num{font-size:28px;font-weight:700;color:var(--accent)}
+.stat-label{font-size:11px;color:var(--muted);margin-top:4px;text-transform:uppercase;letter-spacing:.05em}
+.stats-section{margin-bottom:28px}
+.stats-title{font-size:13px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:12px}
+.stats-row{display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--surface);border:1px solid var(--border);border-radius:8px;margin-bottom:6px}
+.stats-rank{font-size:13px;font-weight:700;color:var(--muted);width:20px;flex-shrink:0}
+.stats-name{flex:1;font-size:14px;font-weight:500}
+.stats-val{font-size:13px;color:var(--muted);flex-shrink:0}
+.stats-bar-wrap{flex:1;height:4px;background:var(--surface3);border-radius:99px;overflow:hidden}
+.stats-bar{height:100%;background:var(--accent);border-radius:99px}
+.genre-chip{display:inline-block;background:var(--surface2);border:1px solid var(--border);border-radius:99px;padding:4px 12px;font-size:12px;margin:0 4px 6px 0}
+
+/* ── DETAIL PANEL ── */
+#detail-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:99;opacity:0;transition:opacity .2s;pointer-events:none}
+#detail-overlay.open{opacity:1;pointer-events:all}
+#detail-panel{position:fixed;top:0;right:0;bottom:0;width:min(580px,100vw);background:var(--surface);border-left:1px solid var(--border);z-index:100;overflow-y:auto;transform:translateX(100%);transition:transform .25s ease}
+#detail-panel.open{transform:translateX(0)}
+.panel-backdrop{width:100%;height:200px;object-fit:cover;object-position:top;opacity:.5;display:block}
+.panel-backdrop-ph{width:100%;height:200px;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:64px}
+.panel-close{position:absolute;top:12px;left:12px;background:rgba(0,0,0,.6);color:#fff;border:none;border-radius:99px;padding:6px 14px;font-size:13px;font-weight:500;cursor:pointer;z-index:10}
+.panel-close:hover{background:rgba(0,0,0,.85)}
+.panel-body{padding:0 16px 32px}
+.panel-top{display:flex;gap:14px;margin-top:-60px;margin-bottom:16px;position:relative}
+.panel-poster{width:90px;height:135px;border-radius:8px;object-fit:cover;border:2px solid var(--border);flex-shrink:0;background:var(--surface2)}
+.panel-poster-ph{width:90px;height:135px;border-radius:8px;border:2px solid var(--border);flex-shrink:0;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:32px}
+.panel-info{padding-top:68px;flex:1;min-width:0}
+.panel-title{font-size:20px;font-weight:700;line-height:1.2;margin-bottom:6px}
+.panel-meta{font-size:12px;color:var(--muted);display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px}
+.panel-dates{font-size:12px;color:var(--muted);margin-bottom:8px}
+.panel-genres{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:12px}
+.genre-tag{font-size:11px;background:var(--surface2);border:1px solid var(--border);border-radius:99px;padding:2px 9px}
+.panel-section-title{font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:8px;margin-top:20px}
+.panel-status-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+.ps-btn{font-size:11px;padding:5px 11px;border-radius:99px;border:1px solid var(--border);background:none;color:var(--muted);cursor:pointer;transition:all .15s}
+.ps-btn:hover{color:var(--text);border-color:#555}
+.ps-btn.aw{border-color:#38a169;color:#38a169;background:rgba(56,161,105,.12)}
+.ps-btn.ac{border-color:#3182ce;color:#3182ce;background:rgba(49,130,206,.12)}
+.ps-btn.af{border-color:#805ad5;color:#805ad5;background:rgba(128,90,213,.12)}
+.ps-btn.awl{border-color:#667eea;color:#667eea;background:rgba(102,126,234,.12)}
+.ps-btn.au{border-color:#d69e2e;color:#d69e2e;background:rgba(214,158,46,.12)}
+.panel-overview{font-size:14px;line-height:1.7;color:var(--muted);margin-bottom:4px}
+
+/* PANEL STATS */
+.panel-stats{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
+.p-stat{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center}
+.p-stat-num{font-size:22px;font-weight:700}
+.p-stat-label{font-size:10px;color:var(--muted);margin-top:3px;text-transform:uppercase;letter-spacing:.04em}
+.p-stat-sub{font-size:10px;color:var(--muted);margin-top:2px}
+
+/* CAST */
+.cast-scroll{display:flex;gap:10px;overflow-x:auto;padding-bottom:4px}
+.cast-scroll::-webkit-scrollbar{height:0}
+.cast-item{flex-shrink:0;width:64px;text-align:center}
+.cast-img{width:64px;height:64px;border-radius:50%;object-fit:cover;background:var(--surface2);margin-bottom:4px}
+.cast-name{font-size:11px;line-height:1.3}
+.cast-char{font-size:10px;color:var(--muted);margin-top:1px}
+
+/* SEASONS */
+.season-tabs{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;margin-bottom:12px}
+.season-tabs::-webkit-scrollbar{height:0}
+.s-tab{flex-shrink:0;background:var(--surface2);border:1px solid var(--border);color:var(--muted);padding:5px 12px;border-radius:99px;font-size:12px;cursor:pointer}
+.s-tab.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.season-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:6px}
+.season-progress{font-size:12px;color:var(--muted)}
+.btn-mark-season{font-size:11px;padding:4px 12px;border-radius:99px;border:1px solid var(--border);background:none;color:var(--muted);cursor:pointer}
+.btn-mark-season:hover,.btn-mark-season.all-watched{border-color:var(--green);color:var(--green)}
+.btn-mark-season.all-watched{background:rgba(56,161,105,.1)}
+.episodes-list{display:flex;flex-direction:column;gap:6px}
+.ep-row{display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--surface2);border-radius:8px;border:1px solid var(--border);cursor:pointer;transition:border-color .15s;user-select:none}
+.ep-row:hover{border-color:#444}
+.ep-row.watched{border-color:rgba(56,161,105,.4);background:rgba(56,161,105,.06)}
+.ep-num{font-size:11px;color:var(--muted);width:24px;flex-shrink:0;text-align:center}
+.ep-still{width:72px;height:40px;border-radius:4px;object-fit:cover;background:var(--surface3);flex-shrink:0}
+.ep-still-ph{width:72px;height:40px;border-radius:4px;background:var(--surface3);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:16px}
+.ep-info{flex:1;min-width:0}
+.ep-name{font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ep-date{font-size:11px;color:var(--muted);margin-top:1px}
+.ep-check{width:20px;height:20px;border-radius:50%;border:2px solid var(--border);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:11px;transition:all .15s}
+.ep-row.watched .ep-check{background:var(--green);border-color:var(--green);color:#fff}
+
+/* TOTAL PROGRESS */
+.total-progress{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:12px}
+.total-prog-row{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:5px}
+.total-prog-bar{height:4px;background:var(--surface3);border-radius:99px;overflow:hidden}
+.total-prog-fill{height:100%;background:var(--accent);border-radius:99px;transition:width .3s}
+
+/* EP MODAL */
+#ep-modal{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:150;display:flex;align-items:center;justify-content:center;padding:20px}
+.ep-modal-box{background:var(--surface);border:1px solid var(--border);border-radius:12px;width:100%;max-width:480px;max-height:80vh;overflow-y:auto}
+.ep-modal-still{width:100%;aspect-ratio:16/9;object-fit:cover;background:var(--surface2)}
+.ep-modal-still-ph{width:100%;aspect-ratio:16/9;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:48px}
+.ep-modal-body{padding:16px}
+.ep-modal-title{font-size:18px;font-weight:700;margin-bottom:4px}
+.ep-modal-meta{font-size:12px;color:var(--muted);margin-bottom:10px;display:flex;gap:10px}
+.ep-modal-overview{font-size:14px;line-height:1.7;color:var(--muted);margin-bottom:14px}
+.ep-modal-actions{display:flex;gap:8px}
+.ep-modal-watch{flex:1;background:var(--green);color:#fff;border:none;border-radius:8px;padding:10px;font-size:14px;font-weight:600;cursor:pointer}
+.ep-modal-watch.ws{background:var(--surface2);border:1px solid var(--green);color:var(--green)}
+.ep-modal-close{background:var(--surface2);border:1px solid var(--border);color:var(--muted);border-radius:8px;padding:10px 16px;font-size:14px;cursor:pointer}
+
+/* REC MODAL */
+#rec-modal{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:160;display:flex;align-items:center;justify-content:center;padding:20px}
+.rec-modal-box{background:var(--surface);border:1px solid var(--border);border-radius:12px;width:100%;max-width:500px;max-height:85vh;overflow-y:auto}
+.rec-modal-backdrop{width:100%;height:160px;object-fit:cover;object-position:top;opacity:.5}
+.rec-modal-backdrop-ph{width:100%;height:160px;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:48px}
+.rec-modal-inner{padding:16px}
+.rec-modal-top{display:flex;gap:12px;margin-top:-48px;margin-bottom:14px}
+.rec-modal-poster{width:72px;height:108px;border-radius:8px;object-fit:cover;border:2px solid var(--border);flex-shrink:0;background:var(--surface2)}
+.rec-modal-poster-ph{width:72px;height:108px;border-radius:8px;border:2px solid var(--border);flex-shrink:0;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:28px}
+.rec-modal-info{padding-top:52px;flex:1;min-width:0}
+.rec-modal-title{font-size:18px;font-weight:700;line-height:1.2;margin-bottom:4px}
+.rec-modal-meta{font-size:12px;color:var(--muted);display:flex;gap:10px;flex-wrap:wrap;margin-bottom:8px}
+.rec-modal-overview{font-size:14px;line-height:1.7;color:var(--muted);margin-bottom:16px}
+.rec-add-label{font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
+.rec-add-btns{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+.btn-rec-list{padding:9px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;border:none}
+.btn-rec-list:hover{opacity:.85}
+.btn-rec-list:disabled{opacity:.5;cursor:not-allowed}
+.btn-rec-list.watching{background:#2d6a4f;color:#74c69d}
+.btn-rec-list.watchlist{background:#1a3a5c;color:#74b9ff}
+.btn-rec-list.paused{background:#44370b;color:#ffd60a}
+.btn-rec-list.dropped{background:#4a1010;color:#ff6b6b}
+.btn-rec-close{width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--muted);border-radius:8px;padding:9px;font-size:13px;cursor:pointer}
+.cast-scroll-rec{display:flex;gap:10px;overflow-x:auto;padding-bottom:4px;margin-bottom:14px}
+.cast-scroll-rec::-webkit-scrollbar{height:0}
+
+.platform-select{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:5px 8px;color:var(--text);font-size:11px;cursor:pointer;margin-top:6px;font-family:inherit}
+.platform-select:focus{border-color:var(--accent);outline:none}
+.platform-badge{display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--muted);margin-top:3px}
+.provider-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+.provider-chip{display:flex;align-items:center;gap:6px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:5px 10px;font-size:12px}
+.provider-logo{width:20px;height:20px;border-radius:4px;object-fit:cover}
+.stats-sort{display:flex;gap:8px;margin-bottom:16px}
+.sort-btn{background:var(--surface2);border:1px solid var(--border);color:var(--muted);padding:6px 14px;border-radius:99px;font-size:12px;cursor:pointer;font-family:inherit}
+.sort-btn.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.settings-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:16px}
+.settings-card h3{font-size:15px;font-weight:600;margin-bottom:4px}
+.settings-card p{font-size:13px;color:var(--muted);margin-bottom:16px}
+.services-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px}
+.service-toggle{display:flex;align-items:center;gap:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;cursor:pointer;transition:all .15s;font-size:13px;user-select:none}
+.service-toggle:hover{border-color:#555}
+.service-toggle.on{border-color:var(--green);background:rgba(56,161,105,.1);color:var(--green)}
+.service-toggle input{display:none}
+.service-check{width:16px;height:16px;border-radius:4px;border:2px solid var(--border);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:10px;transition:all .15s}
+.service-toggle.on .service-check{background:var(--green);border-color:var(--green);color:#fff}
+.genre-filter-chip{background:var(--surface2);border:1px solid var(--border);color:var(--muted);padding:5px 12px;border-radius:99px;font-size:12px;cursor:pointer;font-family:inherit;white-space:nowrap;transition:all .15s}
+.genre-filter-chip:hover{border-color:#555;color:var(--text)}
+.genre-filter-chip.on{background:var(--accent);border-color:var(--accent);color:#fff}
+/* TOAST */
+.toast{position:fixed;bottom:20px;right:20px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 16px;font-size:13px;z-index:999;animation:fadeUp .2s ease;box-shadow:0 4px 20px rgba(0,0,0,.4)}
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+@media(max-width:500px){
+  .show-grid,.rec-grid{grid-template-columns:repeat(auto-fill,minmax(130px,1fr))}
+  #detail-panel{width:100vw}
+  .stats-grid{grid-template-columns:repeat(2,1fr)}
+}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login">
+  <div class="login-box">
+    <h1>Show Tracker</h1>
+    <p>Track what you're watching</p>
+    <label>Username</label><input type="text" id="lu" autocomplete="username"/>
+    <label>Password</label><input type="password" id="lp" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()"/>
+    <button class="btn-submit" onclick="doLogin()">Sign in</button>
+    <div class="login-err" id="lerr"></div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app" class="hide">
+  <nav>
+    <span class="nav-logo">📺</span>
+    <button class="nav-tab on" onclick="setTab('watching')" id="t-watching">Watching</button>
+    <button class="nav-tab" onclick="setTab('caughtup')" id="t-caughtup">Caught Up</button>
+    <button class="nav-tab" onclick="setTab('finished')" id="t-finished">Show Finished</button>
+    <button class="nav-tab" onclick="setTab('watchlist')" id="t-watchlist">Watchlist</button>
+    <button class="nav-tab" onclick="setTab('paused')" id="t-paused">Paused</button>
+    <button class="nav-tab" onclick="setTab('dropped')" id="t-dropped">Not Continuing</button>
+    <button class="nav-tab" onclick="setTab('recs')" id="t-recs">Recommendations</button>
+    <button class="nav-tab" onclick="setTab('trending')" id="t-trending">Trending</button>
+    <button class="nav-tab" onclick="setTab('stats')" id="t-stats">Stats</button>
+    <button class="nav-tab" onclick="setTab('settings')" id="t-settings">⚙ Settings</button>
+    <div class="nav-right"><button class="btn-logout" onclick="doLogout()">Sign out</button></div>
+  </nav>
+
+  <div class="search-wrap" id="search-wrap">
+    <input type="text" id="search-input" placeholder="Search for a TV show to add..." autocomplete="off"
+      oninput="onSearch(this.value)" onblur="setTimeout(closeSearch,200)"/>
+    <div class="search-results hide" id="search-results"></div>
+  </div>
+
+  <main>
+    <div id="tab-watching">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+        <div class="section-label" style="margin-bottom:0">Currently Watching <span id="cnt-watching">0</span></div>
+        <div style="display:flex;gap:6px">
+          <button class="sort-btn on" id="sort-alpha" onclick="setSort('alpha')">A–Z</button>
+          <button class="sort-btn" id="sort-updated" onclick="setSort('updated')">Recent</button>
+          <button class="sort-btn" id="sort-remaining" onclick="setSort('remaining')">Most Left</button>
+        </div>
+      </div>
+      <div class="show-grid" id="grid-watching"></div>
+      <div id="upcoming-section" style="margin-top:24px">
+        <div class="section-label">Upcoming <span id="cnt-upcoming">0</span></div>
+        <div class="show-grid" id="grid-upcoming"></div>
+      </div>
+    </div>
+    <div id="tab-caughtup" class="hide">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+        <div class="section-label" style="margin-bottom:0">Caught Up <span id="cnt-caughtup">0</span></div>
+        <div class="sort-btns-shared"></div>
+      </div>
+      <div class="show-grid" id="grid-caughtup"></div>
+    </div>
+    <div id="tab-finished" class="hide">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+        <div class="section-label" style="margin-bottom:0">Show Finished <span id="cnt-finished">0</span></div>
+        <div class="sort-btns-shared"></div>
+      </div>
+      <div class="show-grid" id="grid-finished"></div>
+    </div>
+    <div id="tab-watchlist" class="hide">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+        <div class="section-label" style="margin-bottom:0">Watchlist <span id="cnt-watchlist">0</span></div>
+        <div class="sort-btns-shared"></div>
+      </div>
+      <div class="show-grid" id="grid-watchlist"></div>
+    </div>
+    <div id="tab-paused" class="hide">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+        <div class="section-label" style="margin-bottom:0">Paused <span id="cnt-paused">0</span></div>
+        <div class="sort-btns-shared"></div>
+      </div>
+      <div class="show-grid" id="grid-paused"></div>
+    </div>
+    <div id="tab-dropped" class="hide">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+        <div class="section-label" style="margin-bottom:0">Not Continuing <span id="cnt-dropped">0</span></div>
+        <div class="sort-btns-shared"></div>
+      </div>
+      <div class="show-grid" id="grid-dropped"></div>
+    </div>
+    <div id="tab-recs" class="hide">
+      <div class="section-label">Recommended for You</div>
+      <div id="genre-filter-row" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px"></div>
+      <div class="rec-grid" id="grid-recs"></div>
+    </div>
+    <div id="tab-trending" class="hide"><div class="section-label">Trending This Week</div><div class="rec-grid" id="grid-trending"></div></div>
+    <div id="tab-stats" class="hide" style="max-width:680px"><div class="section-label">Your Stats</div><div id="stats-content"></div></div>
+    <div id="tab-settings" class="hide" style="max-width:500px"><div class="section-label">Settings</div><div id="settings-content"></div></div>
+  </main>
+</div>
+
+<!-- DETAIL PANEL -->
+<div id="detail-overlay" onclick="closeDetail()"></div>
+<div id="detail-panel"><div id="detail-content"></div></div>
+
+<!-- EP MODAL -->
+<div id="ep-modal" class="hide" onclick="if(event.target===this)closeEpModal()">
+  <div class="ep-modal-box" id="ep-modal-content"></div>
+</div>
+
+<!-- REC MODAL -->
+<div id="rec-modal" class="hide" onclick="if(event.target===this)closeRecModal()">
+  <div class="rec-modal-box" id="rec-modal-content"></div>
+</div>
+
+<script>
+const IMG = 'https://image.tmdb.org/t/p';
+let shows = [];
+let watchedEps = new Map();
+let nextEps = new Map();
+let showDetails = new Map();
+let showProviders = new Map();
+let ownedServices = new Set();
+let currentSimilarData = [];
+let currentSeasonEpisodes = new Map(); // key: `${tmdbId}_${season}` -> episodes array
+let sortMode = 'alpha';
+let genreList = [];
+let activeGenre = null; // {id, name} or null for all // services the user has subscriptions to
+let currentDetail = null;
+let currentSeason = null;
+let searchTimer = null;
+
+// ── API ───────────────────────────────────────────────────────────────────────
+async function api(url, opts={}) {
+  const r = await fetch(url, { headers:{'Content-Type':'application/json'}, ...opts, body:opts.body!==undefined?JSON.stringify(opts.body):undefined });
+  return r.json().catch(()=>({}));
+}
+
+// ── AUTH ──────────────────────────────────────────────────────────────────────
+async function doLogin() {
+  const res = await api('/api/login',{method:'POST',body:{username:document.getElementById('lu').value.trim(),password:document.getElementById('lp').value}});
+  if (res.ok) startApp(); else document.getElementById('lerr').textContent='Wrong username or password';
+}
+async function doLogout() { await api('/api/logout',{method:'POST'}); location.reload(); }
+async function init() { const r = await api('/api/me'); if (r.ok) startApp(); }
+
+// ── START ─────────────────────────────────────────────────────────────────────
+async function startApp() {
+  document.getElementById('login').style.display='none';
+  document.getElementById('app').classList.remove('hide');
+  const [showsData, settings] = await Promise.all([api('/api/shows'), api('/api/settings')]);
+  shows = showsData;
+  if (settings?.owned_services) {
+    ownedServices = new Set(settings.owned_services.split(',').filter(Boolean));
+  }
+  renderAll();
+  loadNextEpisodes();
+}
+
+// ── UTILS ─────────────────────────────────────────────────────────────────────
+function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');}
+function escAttr(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
+function fmtTime(mins){
+  if(!mins) return '0m';
+  const d=Math.floor(mins/(60*24)), h=Math.floor((mins%(60*24))/60), m=mins%(60);
+  return [d?`${d}d`:null, h?`${h}h`:null, m?`${m}m`:null].filter(Boolean).join(' ');
+}
+function sortList(list) {
+  if (sortMode === 'updated') return [...list].sort((a,b) => new Date(b.updated_at) - new Date(a.updated_at));
+  if (sortMode === 'remaining') return [...list].sort((a,b) => {
+    const ra = (nextEps.get(a.tmdb_id)?.total_aired||0) - (watchedEps.get(a.tmdb_id)||new Set()).size;
+    const rb = (nextEps.get(b.tmdb_id)?.total_aired||0) - (watchedEps.get(b.tmdb_id)||new Set()).size;
+    return rb - ra;
+  });
+  return list; // alpha — already sorted from server
+}
+
+function sortBtnsHTML() {
+  return `<div style="display:flex;gap:6px">
+    <button class="sort-btn ${sortMode==='alpha'?'on':''}" onclick="setSort('alpha')">A–Z</button>
+    <button class="sort-btn ${sortMode==='updated'?'on':''}" onclick="setSort('updated')">Recent</button>
+    <button class="sort-btn ${sortMode==='remaining'?'on':''}" onclick="setSort('remaining')">Most Left</button>
+  </div>`;
+}
+
+function setSort(mode) {
+  sortMode = mode;
+  // Update watching tab buttons
+  ['alpha','updated','remaining'].forEach(m => {
+    document.getElementById('sort-'+m)?.classList.toggle('on', m===mode);
+  });
+  // Update shared sort buttons on other tabs
+  document.querySelectorAll('.sort-btns-shared').forEach(el => el.innerHTML = sortBtnsHTML());
+  renderAll();
+}
+
+function sLabel(s){return{watching:'Watching ▶',caughtup:'Caught Up 🔄',finished:'Show Finished ✅',watchlist:'Watchlist 📋',paused:'Paused ⏸',dropped:'Not Continuing 🚫'}[s]||s;}
+function sIcon(s){return{watching:'▶️',caughtup:'🔄',finished:'✅',watchlist:'📋',paused:'⏸️',dropped:'🚫'}[s]||'📺';}
+function fmtDate(d){if(!d)return'';const p=d.split('-');return p.length===3?`${parseInt(p[1])}/${parseInt(p[2])}/${p[0]}`:d;}
+function toast(msg){const t=document.createElement('div');t.className='toast';t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),2200);}
+
+// ── RENDER ALL ────────────────────────────────────────────────────────────────
+function renderAll() {
+  const groups={watching:[],upcoming:[],caughtup:[],finished:[],watchlist:[],paused:[],dropped:[]};
+  shows.forEach(s=>{
+    if(s.status==='caughtup'){
+      // Split caughtup into upcoming (next ep ≤90 days) vs truly caught up
+      const next=nextEps.get(s.tmdb_id);
+      if(next?.next_air_date) groups.upcoming.push(s);
+      else groups.caughtup.push(s);
+    } else if(groups[s.status]!==undefined){
+      groups[s.status].push(s);
+    }
+  });
+
+  // Watching grid (sorted)
+  const watchingList = sortList(groups.watching);
+  const wcnt=document.getElementById('cnt-watching');
+  if(wcnt) wcnt.textContent=watchingList.length;
+  const wgrid=document.getElementById('grid-watching');
+  if(wgrid) wgrid.innerHTML=watchingList.length?watchingList.map(s=>showCard(s)).join(''):`<div class="empty"><div class="empty-icon">▶️</div>Nothing here yet</div>`;
+
+  // Upcoming section (inside watching tab)
+  const ucnt=document.getElementById('cnt-upcoming');
+  if(ucnt) ucnt.textContent=groups.upcoming.length;
+  const ugrid=document.getElementById('grid-upcoming');
+  if(ugrid) ugrid.innerHTML=groups.upcoming.length?groups.upcoming.map(s=>showCard(s)).join(''):`<div class="empty" style="padding:20px"><div style="font-size:13px;color:var(--muted)">No upcoming shows within 90 days</div></div>`;
+
+  // Other tabs (all sorted)
+  ['caughtup','finished','watchlist','paused','dropped'].forEach(status=>{
+    const list=sortList(groups[status]);
+    const cnt=document.getElementById('cnt-'+status);
+    if(cnt) cnt.textContent=list.length;
+    const grid=document.getElementById('grid-'+status);
+    if(!grid) return;
+    if(!list.length){grid.innerHTML=`<div class="empty"><div class="empty-icon">${sIcon(status)}</div>Nothing here yet</div>`;return;}
+    grid.innerHTML=list.map(s=>showCard(s)).join('');
+  });
+
+  // Sync all sort button instances
+  document.querySelectorAll('.sort-btns-shared').forEach(el => el.innerHTML = sortBtnsHTML());
+}
+
+function showCard(s) {
+  const next = nextEps.get(s.tmdb_id);
+  const poster = s.poster_path
+    ?`<img class="poster" src="${IMG}/w300${s.poster_path}" alt="${esc(s.title)}" loading="lazy" onerror="this.outerHTML='<div class=poster-ph>📺</div>'"/>`
+    :`<div class="poster-ph">📺</div>`;
+
+  // Banner — use tmdb_status stored on show, fallback to nextEps data
+  const tmdbStatus = s.tmdb_status || showDetails.get(s.tmdb_id)?.status;
+  const activelyReleasing = next?.actively_releasing ?? showDetails.get(s.tmdb_id)?.actively_releasing;
+  // Check if next episode airs today
+  const nextAirDate = next?.next_air_date;
+  const airsToday = nextAirDate && (() => {
+    const today = new Date(); const air = new Date(nextAirDate);
+    return air.getUTCFullYear()===today.getUTCFullYear() && air.getUTCMonth()===today.getUTCMonth() && air.getUTCDate()===today.getUTCDate();
+  })();
+  let banner='';
+  if(tmdbStatus==='Ended'||tmdbStatus==='Canceled'||tmdbStatus==='Cancelled'){
+    banner=`<div class="status-banner banner-red">Series Ended</div>`;
+  } else if(airsToday){
+    banner=`<div class="status-banner banner-blue">⚡ Airs Today</div>`;
+  } else if(activelyReleasing){
+    banner=`<div class="status-banner banner-green">Now Airing</div>`;
+  } else if(tmdbStatus==='Returning Series'||tmdbStatus==='In Production'){
+    banner=`<div class="status-banner banner-yellow">Coming Back</div>`;
+  }
+
+  const nextEpHTML = ['watching','caughtup'].includes(s.status) ? buildNextEpHTML(s,next) : '';
+  const progressHTML = ['watching','caughtup'].includes(s.status) ? buildProgressHTML(next) : '';
+
+  // Dates — use stored last_air_date directly from show object
+  const startYear = s.year||'';
+  const endDate = s.last_air_date ? s.last_air_date.slice(0, 4) : '';
+  const showEnded = ['Ended','Canceled','Cancelled'].includes(tmdbStatus||'');
+  let dateStr = startYear;
+  if(showEnded && endDate) dateStr = `${startYear} – ${endDate}`;
+  else if(startYear) dateStr = `${startYear} –`;
+
+  return `<div class="show-card" id="card-${s.id}">
+    ${banner}
+    <div onclick="openDetail(${s.tmdb_id},${s.id})">
+      ${poster}
+      <div class="card-body" style="${banner?'padding-top:12px':''}">
+        <div class="card-title">${esc(s.title)}</div>
+        <div class="card-dates">${dateStr}</div>
+      </div>
+    </div>
+    <div id="next-ep-${s.id}">${nextEpHTML}</div>
+    <div id="prog-${s.id}">${progressHTML}</div>
+    <div style="padding:0 6px 6px;display:flex;justify-content:flex-end">
+      ${s.status==='watchlist'&&s.platform?`<div class="platform-badge" style="margin-right:auto">📺 ${esc(s.platform)}</div>`:''}
+      <button class="ca-btn del" onclick="deleteShow(event,${s.id})" title="Remove">✕</button>
+    </div>
+  </div>`;
+}
+
+function buildNextEpHTML(show, next) {
+  if(!next) return `<div class="next-ep"><div class="next-ep-info"><div class="next-ep-label">Next Episode</div><div class="next-ep-num" style="color:var(--muted)">Loading...</div></div></div>`;
+  if(next.error) return '';
+  if(!next.all_watched) {
+    return `<div class="next-ep">
+      <div class="next-ep-label">Next Up</div>
+      <div class="next-ep-title">${esc(next.name||'Episode '+next.episode_number)}</div>
+      <div class="next-ep-bottom">
+        <span class="next-ep-num">S${next.season_number} E${next.episode_number}</span>
+        <button class="btn-watched-ep" id="watched-btn-${show.id}" onclick="markNextWatched(event,${show.id},${show.tmdb_id},${next.season_number},${next.episode_number})">✓ Watched</button>
+      </div>
+    </div>`;
+  }
+  if(next.show_ended) return `<div class="next-ep"><div class="next-ep-label">Status</div><div class="next-ep-title" style="color:var(--green)">🎉 All caught up</div></div>`;
+  if(next.next_air_date) {
+    const days=Math.ceil((new Date(next.next_air_date)-new Date())/(1000*60*60*24));
+    const dStr=days<=0?'Airs today!':days===1?'Tomorrow':`${days} days`;
+    return `<div class="next-ep">
+      <div class="next-ep-label">Next Episode</div>
+      <div class="next-ep-title">S${next.next_air_season} E${next.next_air_ep}</div>
+      <div class="next-ep-num" style="color:${days<=3?'#ffd60a':'var(--muted)'}">📅 ${fmtDate(next.next_air_date)} · ${dStr}</div>
+    </div>`;
+  }
+  return `<div class="next-ep"><div class="next-ep-label">Next Episode</div><div class="next-ep-title" style="color:var(--muted)">TBD</div><div class="next-ep-num">No air date yet</div></div>`;
+}
+
+function buildProgressHTML(next) {
+  if(!next||next.error) return '';
+  const w=next.total_watched||0, t=next.total_aired||0;
+  if(!t) return '';
+  const pct=Math.min(100,Math.round((w/t)*100));
+  return `<div class="ep-prog-wrap">
+    <div class="ep-prog-row"><span>${w} / ${t} episodes</span><span>${pct}%</span></div>
+    <div class="ep-prog-bar"><div class="ep-prog-fill" style="width:${pct}%"></div></div>
+  </div>`;
+}
+
+function updateCardNextEp(show) {
+  const next=nextEps.get(show.tmdb_id);
+  const nc=document.getElementById('next-ep-'+show.id);
+  if(nc) nc.innerHTML=buildNextEpHTML(show,next);
+  const pc=document.getElementById('prog-'+show.id);
+  if(pc) pc.innerHTML=buildProgressHTML(next);
+}
+
+// ── LOAD NEXT EPISODES ────────────────────────────────────────────────────────
+async function loadNextEpisodes() {
+  const active = shows.filter(s => ['watching','caughtup'].includes(s.status));
+  const others = shows.filter(s => !['watching','caughtup'].includes(s.status));
+
+  // Load watching/caughtup first (they need next-ep info urgently)
+  await Promise.all(active.map(async s => {
+    const [data, providers] = await Promise.all([
+      api(`/api/next-episode/${s.tmdb_id}`),
+      api(`/api/tmdb/show/${s.tmdb_id}/providers`),
+    ]);
+    nextEps.set(s.tmdb_id, data);
+    if (Array.isArray(providers)) showProviders.set(s.tmdb_id, providers);
+    if (data.tmdb_status) {
+      s.tmdb_status = data.tmdb_status;
+      s.last_air_date = data.last_air_date || s.last_air_date;
+      showDetails.set(s.tmdb_id, { status: data.tmdb_status, actively_releasing: data.actively_releasing, last_air_date: data.last_air_date });
+    }
+    if (data.suggested_status && data.suggested_status !== s.status && ['watching','caughtup','finished'].includes(s.status)) {
+      autoMoveStatus(s, data.suggested_status);
+    }
+  }));
+
+  // Re-render now that all watching/caughtup data is in — splits upcoming correctly
+  renderAll();
+
+  // Then load all other shows in background (for banners + dates)
+  for (const s of others) {
+    const data = await api(`/api/next-episode/${s.tmdb_id}`);
+    nextEps.set(s.tmdb_id, data);
+    if (data.tmdb_status) {
+      s.tmdb_status = data.tmdb_status;
+      s.last_air_date = data.last_air_date || s.last_air_date;
+      showDetails.set(s.tmdb_id, { status: data.tmdb_status, actively_releasing: data.actively_releasing, last_air_date: data.last_air_date });
+    }
+    // Re-render just this card for banner/date updates
+    const card = document.getElementById('card-' + s.id);
+    if (card) card.outerHTML = showCard(s);
+  }
+  // Final full re-render after everything loaded
+  renderAll();
+}
+
+async function autoMoveStatus(show, suggestedStatus) {
+  // For caughtup, also check if it should be upcoming (next ep ≤90 days)
+  // Both upcoming and truly-caughtup use 'caughtup' in DB — renderAll splits them visually
+  const res = await api(`/api/shows/${show.id}`, {method:'PATCH', body:{status: suggestedStatus}});
+  if (res.id) { show.status = suggestedStatus; renderAll(); }
+}
+
+// ── STATUS / DELETE ───────────────────────────────────────────────────────────
+async function setPlatform(event, id, platform) {
+  event.stopPropagation();
+  const res = await api(`/api/shows/${id}`, { method:'PATCH', body:{ platform } });
+  if (res.id) {
+    const show = shows.find(s => s.id === id);
+    if (show) show.platform = platform;
+    if (platform) toast(`Platform set to ${platform}`);
+  }
+}
+
+async function setStatus(event, id, newStatus) {
+  event.stopPropagation();
+  const res=await api(`/api/shows/${id}`,{method:'PATCH',body:{status:newStatus}});
+  if(!res.id) return;
+  const show=shows.find(s=>s.id===id);
+  if(!show) return;
+  show.status=newStatus;
+  renderAll();
+  toast(sLabel(newStatus));
+  if(currentDetail?.id===id) renderPanelStatusBtns(newStatus,id);
+  if(newStatus==='watching'||newStatus==='caughtup') {
+    api(`/api/next-episode/${show.tmdb_id}`).then(next=>{nextEps.set(show.tmdb_id,next);updateCardNextEp(show);});
+  }
+}
+
+async function deleteShow(event, id) {
+  event.stopPropagation();
+  await api(`/api/shows/${id}`,{method:'DELETE'});
+  shows=shows.filter(s=>s.id!==id);
+  renderAll();
+  toast('Removed');
+}
+
+// ── TABS ──────────────────────────────────────────────────────────────────────
+function setTab(tab) {
+  ['watching','caughtup','finished','watchlist','paused','dropped','recs','trending','stats','settings'].forEach(t=>{
+    document.getElementById('tab-'+t)?.classList.toggle('hide',t!==tab);
+    document.getElementById('t-'+t)?.classList.toggle('on',t===tab);
+  });
+  document.getElementById('search-wrap').classList.toggle('hide',['recs','trending','stats','settings'].includes(tab));
+  if(tab==='recs') loadRecs();
+  if(tab==='trending') loadTrending();
+  if(tab==='stats') loadStats();
+  if(tab==='settings') loadSettings();
+}
+
+// ── SEARCH ────────────────────────────────────────────────────────────────────
+function onSearch(q){
+  clearTimeout(searchTimer);
+  if(!q.trim()){document.getElementById('search-results').classList.add('hide');return;}
+  searchTimer=setTimeout(()=>doSearch(q),300);
+}
+async function doSearch(q) {
+  const results=await api('/api/search?q='+encodeURIComponent(q));
+  const res=document.getElementById('search-results');
+  if(!results.length){res.classList.add('hide');return;}
+  res.innerHTML=results.map(r=>{
+    const inList=shows.some(s=>s.tmdb_id===r.tmdb_id);
+    const pe=r.poster_path?`<img class="sr-poster" src="${IMG}/w92${r.poster_path}" alt=""/>`:`<div class="sr-poster" style="display:flex;align-items:center;justify-content:center">📺</div>`;
+    return `<div class="sr-item">${pe}
+      <div class="sr-info"><div class="sr-title">${esc(r.title)}</div><div class="sr-year">${r.year||''}</div></div>
+      <div class="sr-actions">${inList
+        ?`<span style="font-size:11px;color:var(--muted);padding:4px 8px">Added ✓</span>`
+        :`<button class="btn-add watching" onmousedown="addShow(event,${JSON.stringify(r).replace(/"/g,'&quot;')},'watching')">▶ Watching</button>
+          <button class="btn-add watchlist" onmousedown="addShow(event,${JSON.stringify(r).replace(/"/g,'&quot;')},'watchlist')">📋 Watchlist</button>`
+      }</div>
+    </div>`;
+  }).join('');
+  res.classList.remove('hide');
+}
+
+// ── MARK NEXT WATCHED ─────────────────────────────────────────────────────────
+async function markNextWatched(event,showId,tmdbId,season,epNum){
+  event.stopPropagation();
+  const btn=document.getElementById('watched-btn-'+showId);
+  if(btn){btn.disabled=true;btn.textContent='...';}
+  const id=parseInt(tmdbId);
+  await api('/api/episodes',{method:'POST',body:{tmdb_id:id,season_number:parseInt(season),episode_number:parseInt(epNum)}});
+  const epSet=watchedEps.get(id)||new Set();
+  epSet.add(`${season}_${epNum}`);
+  watchedEps.set(id,epSet);
+  const next=await api(`/api/next-episode/${id}`);
+  nextEps.set(id,next);
+  const show=shows.find(s=>s.tmdb_id===id);
+  if(show){
+    if(next.suggested_status&&next.suggested_status!==show.status&&['watching','caughtup','finished'].includes(show.status)){
+      await autoMoveStatus(show,next.suggested_status);
+    }
+    updateCardNextEp(show);
+  }
+  toast(`S${season}E${epNum} watched ✓`);
+}
+
+// ── DETAIL PANEL ──────────────────────────────────────────────────────────────
+async function openDetail(tmdbId,showId){
+  currentDetail={tmdbId,id:showId};
+  const overlay=document.getElementById('detail-overlay');
+  const panel=document.getElementById('detail-panel');
+  const content=document.getElementById('detail-content');
+  content.innerHTML='<div style="padding:40px;text-align:center;color:var(--muted)">Loading...</div>';
+  overlay.classList.add('open'); panel.classList.add('open');
+  document.body.style.overflow='hidden';
+
+  const id=parseInt(tmdbId);
+  let details={}, epData=[], similarData=[];
+  try {
+    [details, epData, similarData] = await Promise.all([
+      api(`/api/tmdb/show/${id}`).then(r => r||{}),
+      api(`/api/episodes/${id}`).then(r => Array.isArray(r)?r:[]),
+      api(`/api/tmdb/show/${id}/similar`).then(r => Array.isArray(r)?r:[]),
+    ]);
+  } catch(e) {
+    content.innerHTML='<div style="padding:40px;text-align:center;color:var(--muted)">Failed to load show. Try again.</div>';
+    return;
+  }
+  if(!details.name && !details.id) {
+    content.innerHTML='<div style="padding:40px;text-align:center;color:var(--muted)">Could not load show details.</div>';
+    return;
+  }
+
+  const epSet=new Set(Array.isArray(epData)?epData.map(e=>`${e.season_number}_${e.episode_number}`):[]);
+  watchedEps.set(id,epSet);
+
+  // Cache providers and details
+  if (Array.isArray(details.streaming_providers)) showProviders.set(id, details.streaming_providers);
+
+  // Cache details
+  showDetails.set(id,{status:details.status,actively_releasing:nextEps.get(id)?.actively_releasing,last_air_date:details.last_air_date,first_air_date:details.first_air_date});
+
+  const show=shows.find(s=>s.id===showId);
+  const status=show?.status||'watching';
+  const seasons=(details.seasons||[]).filter(s=>s.season_number>0);
+  const cast=(details.credits?.cast||[]).slice(0,12);
+  const backdrop=details.backdrop_path?`${IMG}/w1280${details.backdrop_path}`:null;
+  const poster=details.poster_path?`${IMG}/w300${details.poster_path}`:null;
+
+  // Determine current season (first unwatched)
+  const nextEpInfo = nextEps.get(id) || null;
+  const defaultSeason = nextEpInfo && !nextEpInfo.all_watched ? nextEpInfo.season_number : (seasons[0]?.season_number||1);
+
+  // Stats — use aired episodes from next-ep data (matches what's actually trackable)
+  const totalAired = nextEpInfo?.total_aired || seasons.reduce((sum,s)=>sum+(s.episode_count||0),0) || details.number_of_episodes || 0;
+  const totalEps = totalAired;
+  const watchedCount = epSet.size;
+  const remaining = Math.max(0, totalEps - watchedCount);
+  const avgRuntime = details.episode_run_time?.[0] || 45;
+  const minsLeft = remaining * avgRuntime;
+  const timeStr = remaining===0 ? '🎉' : fmtTime(minsLeft);
+  const pct = totalEps > 0 ? Math.min(100, Math.round((watchedCount/totalEps)*100)) : 0;
+
+  // Dates
+  const startDate=fmtDate(details.first_air_date)||show?.year||'';
+  const endDate=details.last_air_date?fmtDate(details.last_air_date):'';
+  const showEnded=['Ended','Canceled','Cancelled'].includes(details.status);
+  const dateRange=showEnded&&endDate?`${startDate} – ${endDate}`:startDate?`Started ${startDate}`:'';
+
+  // Last aired episode checker
+  const statsHTML=totalEps>0?`
+    <div class="panel-section-title">Progress</div>
+    <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:5px">
+      <span>${watchedCount} of ${totalEps} episodes</span><span>${pct}%</span>
+    </div>
+    <div class="ep-prog-bar" style="margin-bottom:14px"><div class="ep-prog-fill" style="width:${pct}%"></div></div>
+    <div class="panel-stats">
+      <div class="p-stat"><div class="p-stat-num">${remaining}</div><div class="p-stat-label">Episodes Left</div><div class="p-stat-sub">of ${totalEps} total</div></div>
+      <div class="p-stat"><div class="p-stat-num">${timeStr}</div><div class="p-stat-label">${remaining===0?'All done!':'Time Remaining'}</div>${remaining>0?`<div class="p-stat-sub">~${avgRuntime}m per ep</div>`:''}</div>
+    </div>`:'';
+
+  // Where to watch — if platform selected collapse to just "Watching on X", else show chips
+  const providers = details.streaming_providers || [];
+  const hasPlatform = !!(show?.platform);
+  const selectedProviderLogo = hasPlatform ? providers.find(p=>p.provider_name===show.platform)?.logo_path : null;
+  const whereToWatchHTML = providers.length || hasPlatform ? `
+    <div id="where-to-watch-section">
+      <div class="panel-section-title">Where to Watch</div>
+      ${hasPlatform ? `
+        <div style="display:flex;align-items:center;gap:10px;background:rgba(56,161,105,.1);border:1px solid rgba(56,161,105,.3);border-radius:10px;padding:10px 14px">
+          ${selectedProviderLogo?`<img src="https://image.tmdb.org/t/p/w92${selectedProviderLogo}" style="width:28px;height:28px;border-radius:6px;object-fit:cover"/>`:'' }
+          <span style="font-size:14px;font-weight:600;color:var(--green)">▶ Watching on ${esc(show.platform)}</span>
+          <button onclick="clearProviderPlatform(${showId})" style="margin-left:auto;background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;line-height:1;padding:0 2px">×</button>
+        </div>` : `
+        <div class="provider-row" style="flex-wrap:wrap">
+          ${providers.slice(0,8).map(p=>`
+            <div class="provider-chip" style="cursor:pointer;transition:all .15s"
+              onclick="selectProviderPlatform(${showId},'${esc(p.provider_name)}')">
+              ${p.logo_path?`<img class="provider-logo" src="https://image.tmdb.org/t/p/w92${p.logo_path}" alt=""/>`:''} 
+              <span>${esc(p.provider_name)}</span>
+            </div>`).join('')}
+        </div>`}
+    </div>` : '';
+
+  try {
+  content.innerHTML=`
+    <button class="panel-close" onclick="closeDetail()">← Close</button>
+    ${backdrop?`<img class="panel-backdrop" src="${backdrop}" alt=""/>`:`<div class="panel-backdrop-ph">📺</div>`}
+    <div class="panel-body">
+      <div class="panel-top">
+        ${poster?`<img class="panel-poster" src="${poster}" alt="${esc(details.name||'')}"/>`:`<div class="panel-poster-ph">📺</div>`}
+        <div class="panel-info">
+          <div class="panel-title">${esc(details.name||'')}</div>
+          <div class="panel-meta">
+            ${details.vote_average?`<span>⭐ ${details.vote_average.toFixed(1)}</span>`:''}
+            ${details.number_of_seasons?`<span>📺 ${details.number_of_seasons} season${details.number_of_seasons>1?'s':''}</span>`:''}
+            ${details.number_of_episodes?`<span>${details.number_of_episodes} eps</span>`:''}
+            ${details.status?`<span>${details.status}</span>`:''}
+            ${show?.platform?`<span style="color:var(--green)">▶ ${esc(show.platform)}</span>`:''}
+          </div>
+          ${dateRange?`<div class="panel-dates">📅 ${dateRange}</div>`:''}
+          <div class="panel-genres">${(details.genres||[]).map(g=>`<span class="genre-tag">${esc(g.name)}</span>`).join('')}</div>
+        </div>
+      </div>
+
+      ${whereToWatchHTML}
+
+      <div class="panel-section-title">Status</div>
+      <div class="panel-status-row" id="panel-status-row">${panelStatusHTML(status,showId)}</div>
+
+      ${statsHTML}
+      ${details.overview?`<div class="panel-overview">${esc(details.overview)}</div>`:''}
+      ${cast.length?`
+        <div class="panel-section-title">Cast</div>
+        <div class="cast-scroll">${cast.map(c=>`
+          <div class="cast-item">
+            ${c.profile_path?`<img class="cast-img" src="${IMG}/w185${c.profile_path}" alt="" onerror="this.style.background='var(--surface3)'"/>`:`<div class="cast-img" style="display:flex;align-items:center;justify-content:center;font-size:24px">👤</div>`}
+            <div class="cast-name">${esc(c.name)}</div><div class="cast-char">${esc(c.character||'')}</div>
+          </div>`).join('')}
+        </div>`:''}
+      ${seasons.length?`
+        <div class="panel-section-title">Episodes</div>
+        <div id="total-progress-wrap"></div>
+        <div class="season-tabs" id="season-tabs">${seasons.map(s=>`<button class="s-tab ${s.season_number===defaultSeason?'on':''}" onclick="loadSeason(${id},${showId},${s.season_number})" id="stab-${s.season_number}">S${s.season_number}</button>`).join('')}</div>
+        <div id="season-content"><div style="text-align:center;padding:20px;color:var(--muted)">Loading...</div></div>`:''}
+      ${similarData?.length?`
+        <div class="panel-section-title">Similar Shows</div>
+        <div style="display:flex;gap:10px;overflow-x:auto;padding-bottom:8px" id="similar-row">
+          ${similarData.map((s,i)=>{
+            const inList=shows.some(x=>x.tmdb_id===s.tmdb_id);
+            return `<div style="flex-shrink:0;width:90px;cursor:pointer" onclick="openSimilar(${i})" data-similar-idx="${i}">
+              ${s.poster_path?`<img src="${IMG}/w300${s.poster_path}" style="width:90px;height:135px;border-radius:8px;object-fit:cover;border:1px solid var(--border)" alt=""/>`:
+              `<div style="width:90px;height:135px;border-radius:8px;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:24px">📺</div>`}
+              <div style="font-size:11px;margin-top:5px;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${esc(s.title)}</div>
+              ${inList?`<div style="font-size:10px;color:var(--green)">✓ In list</div>`:''}
+            </div>`;
+          }).join('')}
+        </div>`:''}
+    </div>`;
+
+  // Store similar data for safe access
+  currentSimilarData = similarData || [];
+
+  if(seasons.length) loadSeason(id,showId,defaultSeason);
+  } catch(err) {
+    console.error('Panel render error:', err);
+    content.innerHTML = `<div style="padding:40px;text-align:center;color:var(--muted)">Error loading show details. Check console.</div>`;
+  }
+}
+
+const ALL_SERVICES = ['Netflix','Hulu','Disney+','Max','Apple TV+','Peacock','Paramount+','Amazon Prime','MGM+','Crunchyroll','AMC+','Showtime','Fubo','ESPN+','YouTube TV','Other'];
+
+function buildPlatformOptions(tmdbId, selectedPlatform) {
+  const providers = showProviders.get(tmdbId);
+  let options = [];
+
+  if (providers && providers.length) {
+    // Show's actual streaming platforms
+    let filtered = providers.map(p => p.provider_name);
+    // If user has set owned services, only show intersection
+    if (ownedServices.size > 0) {
+      const intersection = filtered.filter(p => ownedServices.has(p));
+      // If none match owned, show all of the show's providers
+      filtered = intersection.length ? intersection : filtered;
+    }
+    options = filtered;
+  } else if (ownedServices.size > 0) {
+    // No provider data yet but user has owned services set
+    options = [...ownedServices];
+  } else {
+    // Full fallback list
+    options = ALL_SERVICES;
+  }
+
+  return options.map(p => `<option value="${esc(p)}" ${selectedPlatform===p?'selected':''}>${esc(p)}</option>`).join('');
+}
+
+async function selectProviderPlatform(showId, platform) {
+  const res = await api(`/api/shows/${showId}`, { method:'PATCH', body:{ platform } });
+  if (res.id) {
+    const show = shows.find(s => s.id === showId);
+    if (show) show.platform = platform;
+    renderAll();
+    // Re-render the where-to-watch section
+    const section = document.getElementById('where-to-watch-section');
+    if (section) {
+      const providers = showProviders.get(currentDetail?.tmdbId) || [];
+      const selectedLogo = providers.find(p=>p.provider_name===platform)?.logo_path;
+      section.innerHTML = `
+        <div class="panel-section-title">Where to Watch</div>
+        <div style="display:flex;align-items:center;gap:10px;background:rgba(56,161,105,.1);border:1px solid rgba(56,161,105,.3);border-radius:10px;padding:10px 14px">
+          ${selectedLogo?`<img src="https://image.tmdb.org/t/p/w92${selectedLogo}" style="width:28px;height:28px;border-radius:6px;object-fit:cover"/>`:'' }
+          <span style="font-size:14px;font-weight:600;color:var(--green)">▶ Watching on ${esc(platform)}</span>
+          <button onclick="clearProviderPlatform(${showId})" style="margin-left:auto;background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;line-height:1;padding:0 2px">×</button>
+        </div>`;
+    }
+    // Update meta row
+    const metaSpan = document.querySelector('.panel-meta span[data-platform]');
+    toast(`Watching on ${platform}`);
+  }
+}
+
+async function clearProviderPlatform(showId) {
+  const res = await api(`/api/shows/${showId}`, { method:'PATCH', body:{ platform: '' } });
+  if (res.id) {
+    const show = shows.find(s => s.id === showId);
+    if (show) show.platform = '';
+    renderAll();
+    // Re-render where-to-watch with chips
+    const section = document.getElementById('where-to-watch-section');
+    if (section) {
+      const providers = showProviders.get(currentDetail?.tmdbId) || [];
+      section.innerHTML = `
+        <div class="panel-section-title">Where to Watch</div>
+        <div class="provider-row" style="flex-wrap:wrap">
+          ${providers.slice(0,8).map(p=>`
+            <div class="provider-chip" style="cursor:pointer;transition:all .15s"
+              onclick="selectProviderPlatform(${showId},'${esc(p.provider_name)}')">
+              ${p.logo_path?`<img class="provider-logo" src="https://image.tmdb.org/t/p/w92${p.logo_path}" alt=""/>`:''} 
+              <span>${esc(p.provider_name)}</span>
+            </div>`).join('')}
+        </div>`;
+    }
+    toast('Platform cleared');
+  }
+}
+
+async function toggleLastEp(tmdbId, showId, season, epNum) {
+  const id = parseInt(tmdbId);
+  const key = `${season}_${epNum}`;
+  const epSet = watchedEps.get(id) || new Set();
+  const wasWatched = epSet.has(key);
+  if (wasWatched) {
+    await api('/api/episodes', { method:'DELETE', body:{ tmdb_id:id, season_number:parseInt(season), episode_number:parseInt(epNum) } });
+    epSet.delete(key);
+  } else {
+    await api('/api/episodes', { method:'POST', body:{ tmdb_id:id, season_number:parseInt(season), episode_number:parseInt(epNum) } });
+    epSet.add(key);
+  }
+  watchedEps.set(id, epSet);
+  const nowWatched = !wasWatched;
+  // Update banner UI
+  const banner = document.getElementById('last-ep-banner');
+  const btn = document.getElementById('last-ep-btn');
+  if (banner) {
+    banner.style.background = nowWatched ? 'rgba(56,161,105,.1)' : 'rgba(229,62,62,.08)';
+    banner.style.border = `1px solid ${nowWatched ? 'rgba(56,161,105,.3)' : 'rgba(229,62,62,.3)'}`;
+  }
+  if (btn) {
+    btn.textContent = nowWatched ? '✓ Watched' : 'Mark Watched';
+    btn.style.background = nowWatched ? 'var(--surface3)' : 'var(--green)';
+    btn.style.color = nowWatched ? 'var(--muted)' : '#fff';
+  }
+  // Also update season episode row if visible
+  const row = document.getElementById(`ep-${id}-${season}-${epNum}`);
+  const chk = document.getElementById(`epchk-${id}-${season}-${epNum}`);
+  if (row) row.classList.toggle('watched', nowWatched);
+  if (chk) chk.textContent = nowWatched ? '✓' : '';
+  // Refresh next ep and auto-move
+  const next = await api(`/api/next-episode/${id}`);
+  nextEps.set(id, next);
+  const show = shows.find(s => s.tmdb_id === id);
+  if (show && ['watching','caughtup','finished'].includes(show.status) && next.suggested_status !== show.status) {
+    await autoMoveStatus(show, next.suggested_status);
+  }
+  if (show) updateCardNextEp(show);
+  toast(nowWatched ? 'Marked as watched ✓' : 'Marked as unwatched');
+}
+
+async function setPlatformFromPanel(showId, platform) {
+  const res = await api(`/api/shows/${showId}`, { method:'PATCH', body:{ platform } });
+  if (res.id) {
+    const show = shows.find(s => s.id === showId);
+    if (show) { show.platform = platform; renderAll(); }
+    if (platform) toast(`Platform set to ${platform}`);
+  }
+}
+
+function openSimilar(idx) {
+  const show = currentSimilarData[idx];
+  if (show) openRecModal(show);
+}
+
+function panelStatusHTML(status,showId){
+  return[['watching','▶ Watching','aw'],['caughtup','🔄 Caught Up','ac'],['finished','✅ Finished','af'],['watchlist','📋 Watchlist','awl'],['paused','⏸ Paused','au'],['dropped','🚫 Drop','ad']]
+    .map(([s,l,c])=>`<button class="ps-btn ${status===s?c:''}" onclick="setPanelStatus('${s}',${showId})">${l}</button>`).join('');
+}
+function renderPanelStatusBtns(status,showId){const r=document.getElementById('panel-status-row');if(r)r.innerHTML=panelStatusHTML(status,showId);}
+async function setPanelStatus(newStatus,showId){
+  const res=await api(`/api/shows/${showId}`,{method:'PATCH',body:{status:newStatus}});
+  if(!res.id) return;
+  const show=shows.find(s=>s.id===showId);
+  if(show){show.status=newStatus;renderAll();}
+  renderPanelStatusBtns(newStatus,showId);
+  toast(sLabel(newStatus));
+}
+
+// ── SEASON / EPISODES ─────────────────────────────────────────────────────────
+async function loadSeason(tmdbId,showId,seasonNum){
+  currentSeason=seasonNum;
+  document.querySelectorAll('.s-tab').forEach(t=>t.classList.toggle('on',parseInt(t.id.replace('stab-',''))===seasonNum));
+  const container=document.getElementById('season-content');
+  if(!container) return;
+  container.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted)">Loading...</div>';
+  const id=parseInt(tmdbId);
+  const data=await api(`/api/tmdb/show/${id}/season/${seasonNum}`);
+  const episodes=data.episodes||[];
+  const epSet=watchedEps.get(id)||new Set();
+  const watchedInSeason=episodes.filter(e=>epSet.has(`${seasonNum}_${e.episode_number}`)).length;
+  const allWatched=episodes.length>0&&watchedInSeason===episodes.length;
+
+  // Season air date range
+  const airedEps = episodes.filter(e=>e.air_date);
+  const firstAir = airedEps[0]?.air_date;
+  const lastAir = airedEps[airedEps.length-1]?.air_date;
+  const seasonDateRange = firstAir ? (lastAir && lastAir !== firstAir
+    ? `${fmtDate(firstAir)} – ${fmtDate(lastAir)}`
+    : fmtDate(firstAir)) : '';
+
+  // Update total progress
+  updateTotalProgress(id);
+
+  // Season overview from TMDB
+  const seasonOverview = (data.overview || seasonDateRange) ? `
+    <div style="font-size:13px;line-height:1.6;color:var(--muted);padding:10px 0 12px;border-bottom:1px solid var(--border);margin-bottom:12px">
+      ${seasonDateRange ? `<div style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:4px">📅 ${seasonDateRange}</div>` : ''}
+      ${data.overview ? esc(data.overview) : ''}
+    </div>` : '';
+
+  // Store episodes for safe onclick access
+  currentSeasonEpisodes.set(`${id}_${seasonNum}`, episodes);
+
+  container.innerHTML=`
+    <div class="season-header">
+      <span class="season-progress">${watchedInSeason} / ${episodes.length} watched</span>
+      <button class="btn-mark-season ${allWatched?'all-watched':''}" id="mark-season-btn"
+        onclick="toggleSeasonWatched(${id},${showId},${seasonNum},${JSON.stringify(episodes.map(e=>e.episode_number))},${allWatched})">
+        ${allWatched?'✓ All Watched':'Mark All Watched'}
+      </button>
+    </div>
+    ${seasonOverview}
+    <div class="episodes-list">${episodes.map((ep, epIdx)=>{
+      const watched=epSet.has(`${seasonNum}_${ep.episode_number}`);
+      const still=ep.still_path?`${IMG}/w300${ep.still_path}`:null;
+      const runtime=ep.runtime?`${ep.runtime}m`:'';
+      return `<div class="ep-row ${watched?'watched':''}" id="ep-${id}-${seasonNum}-${ep.episode_number}"
+        onclick="clickEpisode(event,${id},${showId},${seasonNum},${ep.episode_number},${epIdx})">
+        <span class="ep-num">${ep.episode_number}</span>
+        ${still?`<img class="ep-still" src="${still}" alt="" loading="lazy" onerror="this.outerHTML='<div class=ep-still-ph>📺</div>'"/>`:`<div class="ep-still-ph">📺</div>`}
+        <div class="ep-info">
+          <div class="ep-name">${esc(ep.name||'Episode '+ep.episode_number)}</div>
+          <div class="ep-date">${[ep.air_date?fmtDate(ep.air_date):'', runtime].filter(Boolean).join(' · ')}</div>
+        </div>
+        <div class="ep-check" id="epchk-${id}-${seasonNum}-${ep.episode_number}">${watched?'✓':''}</div>
+      </div>`;
+    }).join('')}</div>`;
+}
+
+function updateTotalProgress(tmdbId){
+  const wrap=document.getElementById('total-progress-wrap');
+  if(!wrap) return;
+  const epSet=watchedEps.get(parseInt(tmdbId))||new Set();
+  const next=nextEps.get(parseInt(tmdbId));
+  const totalAired=next?.total_aired||0;
+  if(!totalAired){wrap.innerHTML='';return;}
+  const w=epSet.size,pct=Math.min(100,Math.round((w/totalAired)*100));
+  wrap.innerHTML=`<div class="total-progress">
+    <div class="total-prog-row"><span>Total: ${w} / ${totalAired} episodes watched</span><span>${pct}%</span></div>
+    <div class="total-prog-bar"><div class="total-prog-fill" style="width:${pct}%"></div></div>
+  </div>`;
+}
+
+function clickEpisode(event, tmdbId, showId, season, epNum, epIdx) {
+  const ep = (currentSeasonEpisodes.get(`${tmdbId}_${season}`) || [])[epIdx] || {};
+  const target = event.target;
+  if (target.classList.contains('ep-check') || target.closest('.ep-check')) {
+    toggleEpisode(tmdbId, showId, season, epNum);
+  } else {
+    openEpModal(tmdbId, showId, season, epNum, ep.name||'Episode '+epNum, ep.still_path||'', ep.overview||'', ep.air_date||'');
+  }
+}
+
+async function toggleEpisode(tmdbId,showId,season,epNum){
+  const id=parseInt(tmdbId);
+  const key=`${season}_${epNum}`;
+  const epSet=watchedEps.get(id)||new Set();
+  const row=document.getElementById(`ep-${id}-${season}-${epNum}`);
+  const chk=document.getElementById(`epchk-${id}-${season}-${epNum}`);
+  if(epSet.has(key)){
+    await api('/api/episodes',{method:'DELETE',body:{tmdb_id:id,season_number:parseInt(season),episode_number:parseInt(epNum)}});
+    epSet.delete(key);
+    if(row) row.classList.remove('watched');
+    if(chk) chk.textContent='';
+  } else {
+    await api('/api/episodes',{method:'POST',body:{tmdb_id:id,season_number:parseInt(season),episode_number:parseInt(epNum)}});
+    epSet.add(key);
+    if(row) row.classList.add('watched');
+    if(chk) chk.textContent='✓';
+  }
+  watchedEps.set(id,epSet);
+  updateSeasonProgress(id,season);
+  updateTotalProgress(id);
+  const show=shows.find(s=>s.tmdb_id===id);
+  if(show&&['watching','caughtup'].includes(show.status)){
+    api(`/api/next-episode/${id}`).then(next=>{nextEps.set(id,next);updateCardNextEp(show);});
+  }
+}
+
+async function toggleSeasonWatched(tmdbId,showId,season,epNums,currentlyAllWatched){
+  const id=parseInt(tmdbId);
+  const epSet=watchedEps.get(id)||new Set();
+
+  if(currentlyAllWatched){
+    await api('/api/episodes/season',{method:'DELETE',body:{tmdb_id:id,season_number:parseInt(season)}});
+    epNums.forEach(n=>epSet.delete(`${season}_${n}`));
+    watchedEps.set(id,epSet);
+    loadSeason(id,showId,season);
+    toast('Season unmarked');
+  } else {
+    await api('/api/episodes/season',{method:'POST',body:{tmdb_id:id,season_number:parseInt(season),episodes:epNums.map(Number)}});
+    epNums.forEach(n=>epSet.add(`${season}_${n}`));
+    watchedEps.set(id,epSet);
+    loadSeason(id,showId,season);
+    toast('Season marked watched ✓');
+    // Always check if status should move after marking a season watched
+    const show=shows.find(s=>s.tmdb_id===id);
+    if(show){
+      const next=await api(`/api/next-episode/${id}`);
+      nextEps.set(id,next);
+      updateTotalProgress(id);
+      updateCardNextEp(show);
+      if(next.suggested_status && next.suggested_status!==show.status && ['watching','caughtup','finished'].includes(show.status)){
+        await autoMoveStatus(show,next.suggested_status);
+        toast(`Moved to ${sLabel(next.suggested_status)}`);
+      }
+    }
+  }
+}
+
+function updateSeasonProgress(tmdbId,season){
+  const rows=document.querySelectorAll(`[id^="ep-${tmdbId}-${season}-"]`);
+  const total=rows.length;
+  const watched=[...rows].filter(r=>r.classList.contains('watched')).length;
+  const prog=document.querySelector('.season-progress');
+  if(prog) prog.textContent=`${watched} / ${total} watched`;
+  const btn=document.getElementById('mark-season-btn');
+  if(btn){const all=watched===total&&total>0;btn.textContent=all?'✓ All Watched':'Mark All Watched';btn.classList.toggle('all-watched',all);}
+}
+
+// ── EP MODAL ──────────────────────────────────────────────────────────────────
+function openEpModal(tmdbId,showId,season,epNum,name,stillPath,overview,airDate){
+  const id=parseInt(tmdbId);
+  const epSet=watchedEps.get(id)||new Set();
+  const watched=epSet.has(`${season}_${epNum}`);
+  const still=stillPath?`${IMG}/w780${stillPath}`:null;
+  document.getElementById('ep-modal-content').innerHTML=`
+    ${still?`<img class="ep-modal-still" src="${still}" alt=""/>`:`<div class="ep-modal-still-ph">📺</div>`}
+    <div class="ep-modal-body">
+      <div class="ep-modal-title">${esc(name)}</div>
+      <div class="ep-modal-meta"><span>S${season} E${epNum}</span>${airDate?`<span>📅 ${fmtDate(airDate)}</span>`:''}</div>
+      ${overview?`<div class="ep-modal-overview">${esc(overview)}</div>`:''}
+      <div class="ep-modal-actions">
+        <button class="ep-modal-watch ${watched?'ws':''}" id="ep-modal-watch-btn" onclick="toggleEpisodeFromModal(${id},${showId},${season},${epNum})">
+          ${watched?'✓ Watched — Mark Unwatched':'▶ Mark as Watched'}
+        </button>
+        <button class="ep-modal-close" onclick="closeEpModal()">Close</button>
+      </div>
+    </div>`;
+  document.getElementById('ep-modal').classList.remove('hide');
+}
+async function toggleEpisodeFromModal(tmdbId,showId,season,epNum){
+  await toggleEpisode(tmdbId,showId,season,epNum);
+  const id=parseInt(tmdbId);
+  const epSet=watchedEps.get(id)||new Set();
+  const watched=epSet.has(`${season}_${epNum}`);
+  const btn=document.getElementById('ep-modal-watch-btn');
+  if(btn){btn.textContent=watched?'✓ Watched — Mark Unwatched':'▶ Mark as Watched';btn.className=`ep-modal-watch ${watched?'ws':''}`;}
+}
+function closeEpModal(){document.getElementById('ep-modal').classList.add('hide');}
+function closeDetail(){document.getElementById('detail-overlay').classList.remove('open');document.getElementById('detail-panel').classList.remove('open');document.body.style.overflow='';currentDetail=null;currentSeason=null;}
+
+// ── SETTINGS ──────────────────────────────────────────────────────────────────
+function loadSettings() {
+  const container = document.getElementById('settings-content');
+  container.innerHTML = `
+    <div class="settings-card">
+      <h3>My Streaming Services</h3>
+      <p>Select the services you subscribe to. Platform dropdowns will only show these options.</p>
+      <div class="services-grid">
+        ${ALL_SERVICES.filter(s => s !== 'Other').map(s => `
+          <label class="service-toggle ${ownedServices.has(s)?'on':''}" onclick="toggleService('${s}',this)">
+            <div class="service-check">${ownedServices.has(s)?'✓':''}</div>
+            ${esc(s)}
+          </label>`).join('')}
+      </div>
+    </div>`;
+}
+
+async function toggleService(name, el) {
+  if (ownedServices.has(name)) {
+    ownedServices.delete(name);
+    el.classList.remove('on');
+    el.querySelector('.service-check').textContent = '';
+  } else {
+    ownedServices.add(name);
+    el.classList.add('on');
+    el.querySelector('.service-check').textContent = '✓';
+  }
+  // Save to DB
+  await api('/api/settings', { method:'POST', body:{ key:'owned_services', value:[...ownedServices].join(',') }});
+  // Re-render all cards so dropdowns update
+  renderAll();
+  loadNextEpisodes();
+}
+async function loadRecs(){
+  const grid=document.getElementById('grid-recs');
+  const filterRow=document.getElementById('genre-filter-row');
+
+  // Load genres if not yet loaded
+  if(!genreList.length){
+    const genres=await api('/api/tmdb/genres');
+    genreList=genres||[];
+  }
+
+  // Render genre chips
+  if(filterRow){
+    filterRow.innerHTML=`
+      <button class="genre-filter-chip ${!activeGenre?'on':''}" onclick="setGenreFilter(null)">All</button>
+      ${genreList.map(g=>`<button class="genre-filter-chip ${activeGenre?.id===g.id?'on':''}" onclick="setGenreFilter(${JSON.stringify(g).replace(/"/g,'&quot;')})">${esc(g.name)}</button>`).join('')}`;
+  }
+
+  grid.innerHTML='<div class="empty"><div class="empty-icon">⏳</div>Loading...</div>';
+  const url=activeGenre?`/api/recommendations/genre/${activeGenre.id}`:'/api/recommendations';
+  const recs=await api(url);
+  if(!recs.length){grid.innerHTML='<div class="empty"><div class="empty-icon">🤷</div>Nothing found — try a different genre</div>';return;}
+  grid.innerHTML=recs.map(r=>recCardHTML(r)).join('');
+}
+
+function setGenreFilter(genre){
+  activeGenre=genre;
+  loadRecs();
+}
+
+async function loadTrending(){
+  const grid=document.getElementById('grid-trending');
+  if(!grid) return;
+  grid.innerHTML='<div class="empty"><div class="empty-icon">⏳</div>Loading...</div>';
+  const data=await api('/api/tmdb/trending');
+  if(!data.length){grid.innerHTML='<div class="empty"><div class="empty-icon">📺</div>Nothing to show</div>';return;}
+  grid.innerHTML=data.map(r=>recCardHTML(r)).join('');
+}
+
+function recCardHTML(r){
+  const inList=r.in_list||shows.some(s=>s.tmdb_id===r.tmdb_id);
+  const poster=r.poster_path?`<img class="poster" src="${IMG}/w300${r.poster_path}" alt="${esc(r.title)}" loading="lazy"/>`:`<div class="poster-ph">📺</div>`;
+  return `<div class="rec-card" onclick="openRecModal(${JSON.stringify(r).replace(/"/g,'&quot;')})">
+    ${poster}<div class="rec-body">
+      <div class="rec-title">${esc(r.title)}</div>
+      <div class="rec-meta">${r.year||''}${r.rating?` · ⭐ ${r.rating.toFixed(1)}`:''}</div>
+      ${inList?`<div style="font-size:11px;color:var(--green);padding:3px 0">✓ In your list</div>`:`<div style="font-size:11px;color:var(--muted);padding:3px 0">Tap to see more</div>`}
+    </div></div>`;
+}
+
+async function openRecModal(show){
+  document.getElementById('rec-modal').classList.remove('hide');
+  document.getElementById('rec-modal-content').innerHTML='<div style="padding:40px;text-align:center;color:var(--muted)">Loading...</div>';
+  const details=await api(`/api/tmdb/show/${show.tmdb_id}`);
+  const inList=shows.some(s=>s.tmdb_id===show.tmdb_id);
+  const existing=shows.find(s=>s.tmdb_id===show.tmdb_id);
+  const backdrop=details.backdrop_path?`${IMG}/w780${details.backdrop_path}`:null;
+  const poster=details.poster_path?`${IMG}/w300${details.poster_path}`:null;
+  const cast=(details.credits?.cast||[]).slice(0,10);
+  document.getElementById('rec-modal-content').innerHTML=`
+    ${backdrop?`<img class="rec-modal-backdrop" src="${backdrop}" alt=""/>`:`<div class="rec-modal-backdrop-ph">📺</div>`}
+    <div class="rec-modal-inner">
+      <div class="rec-modal-top">
+        ${poster?`<img class="rec-modal-poster" src="${poster}" alt="${esc(details.name||'')}"/>`:`<div class="rec-modal-poster-ph">📺</div>`}
+        <div class="rec-modal-info">
+          <div class="rec-modal-title">${esc(details.name||show.title)}</div>
+          <div class="rec-modal-meta">
+            ${details.first_air_date?`<span>📅 ${fmtDate(details.first_air_date)}</span>`:''}
+            ${details.vote_average?`<span>⭐ ${details.vote_average.toFixed(1)}</span>`:''}
+            ${details.number_of_seasons?`<span>📺 ${details.number_of_seasons} season${details.number_of_seasons>1?'s':''}</span>`:''}
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:4px">${(details.genres||[]).map(g=>`<span class="genre-tag">${esc(g.name)}</span>`).join('')}</div>
+        </div>
+      </div>
+      ${details.overview?`<div class="rec-modal-overview">${esc(details.overview)}</div>`:''}
+      ${cast.length?`<div class="rec-add-label" style="margin-bottom:8px">Cast</div>
+        <div class="cast-scroll-rec">${cast.map(c=>`
+          <div class="cast-item">
+            ${c.profile_path?`<img class="cast-img" src="${IMG}/w185${c.profile_path}" alt="" onerror="this.style.background='var(--surface3)'"/>`:`<div class="cast-img" style="display:flex;align-items:center;justify-content:center;font-size:20px">👤</div>`}
+            <div class="cast-name">${esc(c.name)}</div><div class="cast-char">${esc(c.character||'')}</div>
+          </div>`).join('')}</div>`:''}
+      <div class="rec-add-label">Add to list</div>
+      <div id="rec-modal-add-area">${inList
+        ?`<div style="text-align:center;padding:12px;font-size:14px;color:var(--green)">✓ Already in your list as <strong>${sLabel(existing.status)}</strong></div>`
+        :`<div class="rec-add-btns">
+            <button class="btn-rec-list watching" onclick="addFromRecModal(${JSON.stringify(show).replace(/"/g,'&quot;')},'watching')">▶ Watching</button>
+            <button class="btn-rec-list watchlist" onclick="addFromRecModal(${JSON.stringify(show).replace(/"/g,'&quot;')},'watchlist')">📋 Watchlist</button>
+            <button class="btn-rec-list paused" onclick="addFromRecModal(${JSON.stringify(show).replace(/"/g,'&quot;')},'paused')">⏸ Paused</button>
+            <button class="btn-rec-list dropped" onclick="addFromRecModal(${JSON.stringify(show).replace(/"/g,'&quot;')},'dropped')">🚫 Not Continuing</button>
+          </div>`}
+      </div>
+      <button class="btn-rec-close" onclick="closeRecModal()">Close</button>
+    </div>`;
+}
+
+async function addFromRecModal(show,status){
+  document.querySelectorAll('.btn-rec-list').forEach(b=>{b.disabled=true;});
+  const res=await api('/api/shows',{method:'POST',body:{...show,status}});
+  if(res.id){
+    const idx=shows.findIndex(s=>s.tmdb_id===res.tmdb_id);
+    if(idx>=0) shows[idx]=res; else shows.push(res);
+    shows.sort((a,b)=>a.title.localeCompare(b.title));
+    renderAll();
+    if(status==='watching') api(`/api/next-episode/${show.tmdb_id}`).then(next=>{nextEps.set(show.tmdb_id,next);const s=shows.find(x=>x.tmdb_id===show.tmdb_id);if(s)updateCardNextEp(s);});
+    document.getElementById('rec-modal-add-area').innerHTML=`<div style="text-align:center;padding:12px;font-size:14px;color:var(--green)">✓ Added to <strong>${sLabel(status)}</strong></div>`;
+    loadRecs(); toast(`Added to ${sLabel(status)}`);
+  } else { document.querySelectorAll('.btn-rec-list').forEach(b=>{b.disabled=false;}); }
+}
+function closeRecModal(){document.getElementById('rec-modal').classList.add('hide');}
+
+// ── STATS ─────────────────────────────────────────────────────────────────────
+let statsSortMode = 'episodes';
+
+async function loadStats(){
+  const container=document.getElementById('stats-content');
+  container.innerHTML='<div style="text-align:center;padding:40px;color:var(--muted)">Loading...</div>';
+  const [statsData, allEps] = await Promise.all([api('/api/stats'), api('/api/episodes/all')]);
+  const allShows = statsData.shows || [];
+  const topEpsRaw = statsData.topEps || [];
+
+  const counts = {watching:0,caughtup:0,finished:0,watchlist:0,paused:0,dropped:0};
+  allShows.forEach(s=>{if(counts[s.status]!==undefined)counts[s.status]++;});
+  const totalWatched = allEps.total || 0;
+  const totalMins = totalWatched * 45;
+  const totalHours = Math.round(totalMins / 60);
+
+  // Genre breakdown from stored genres column
+  const genreCounts = {};
+  allShows.forEach(s => {
+    if (s.genres) s.genres.split(',').filter(Boolean).forEach(g => { genreCounts[g.trim()] = (genreCounts[g.trim()]||0) + 1; });
+  });
+  const topGenres = Object.entries(genreCounts).sort((a,b) => b[1]-a[1]).slice(0,10);
+  const maxGenre = topGenres[0]?.[1] || 1;
+
+  // Platform breakdown
+  const platformCounts = {};
+  allShows.filter(s=>s.platform).forEach(s => { platformCounts[s.platform] = (platformCounts[s.platform]||0)+1; });
+  const topPlatforms = Object.entries(platformCounts).sort((a,b)=>b[1]-a[1]);
+
+  // Top shows with episode counts
+  const avgRuntime = 45;
+  const topShows = topEpsRaw.map(r => {
+    const show = allShows.find(s => s.tmdb_id === parseInt(r.tmdb_id));
+    return show ? {...show, ep_count: parseInt(r.ep_count), hours: Math.round(parseInt(r.ep_count) * avgRuntime / 60)} : null;
+  }).filter(Boolean).slice(0, 10);
+
+  renderStatsContent(container, counts, totalWatched, totalMins, totalHours, topShows, topGenres, maxGenre, topPlatforms);
+}
+
+function renderStatsContent(container, counts, totalWatched, totalMins, totalHours, topShows, topGenres, maxGenre, topPlatforms) {
+  const byHours = statsSortMode === 'hours';
+  const sorted = [...topShows].sort((a,b) => byHours ? b.hours - a.hours : b.ep_count - a.ep_count);
+  const maxVal = sorted[0] ? (byHours ? sorted[0].hours : sorted[0].ep_count) : 1;
+
+  container.innerHTML = `
+    <div class="stats-grid">
+      <div class="stat-box"><div class="stat-num">${counts.watching + counts.caughtup}</div><div class="stat-label">Currently Active</div></div>
+      <div class="stat-box"><div class="stat-num">${counts.finished}</div><div class="stat-label">Shows Finished</div></div>
+      <div class="stat-box"><div class="stat-num">${counts.watchlist}</div><div class="stat-label">In Watchlist</div></div>
+      <div class="stat-box"><div class="stat-num">${totalWatched}</div><div class="stat-label">Episodes Watched</div></div>
+      <div class="stat-box"><div class="stat-num" style="font-size:14px">${fmtTime(totalMins)}</div><div class="stat-label">Total Time Watched</div></div>
+      <div class="stat-box"><div class="stat-num">${Object.values(counts).reduce((a,b)=>a+b,0)}</div><div class="stat-label">Total Shows</div></div>
+    </div>
+
+    ${sorted.length?`
+    <div class="stats-section">
+      <div class="stats-title">Top 10 Shows</div>
+      <div class="stats-sort">
+        <button class="sort-btn ${!byHours?'on':''}" onclick="statsSortMode='episodes';loadStats()">By Episodes</button>
+        <button class="sort-btn ${byHours?'on':''}" onclick="statsSortMode='hours';loadStats()">By Hours</button>
+      </div>
+      ${sorted.map((s,i)=>`
+        <div class="stats-row" onclick="openDetail(${s.tmdb_id},${s.id})" style="cursor:pointer">
+          <div class="stats-rank">#${i+1}</div>
+          ${s.poster_path?`<img src="${IMG}/w92${s.poster_path}" style="width:32px;height:48px;border-radius:4px;object-fit:cover;flex-shrink:0" alt=""/>`:`<div style="width:32px;height:48px;border-radius:4px;background:var(--surface3);flex-shrink:0;display:flex;align-items:center;justify-content:center">📺</div>`}
+          <div class="stats-name">${esc(s.title)}</div>
+          <div class="stats-bar-wrap"><div class="stats-bar" style="width:${Math.round(((byHours?s.hours:s.ep_count)/maxVal)*100)}%"></div></div>
+          <div class="stats-val">${byHours ? s.hours+'h' : s.ep_count+' eps'}</div>
+        </div>`).join('')}
+    </div>`:''}
+
+    ${topGenres.length?`
+    <div class="stats-section">
+      <div class="stats-title">Top Genres</div>
+      ${topGenres.map(([g,c],i)=>`
+        <div class="stats-row">
+          <div class="stats-rank">#${i+1}</div>
+          <div class="stats-name">${esc(g)}</div>
+          <div class="stats-bar-wrap"><div class="stats-bar" style="width:${Math.round((c/maxGenre)*100)}%"></div></div>
+          <div class="stats-val">${c} show${c!==1?'s':''}</div>
+        </div>`).join('')}
+    </div>`:
+    `<div style="color:var(--muted);font-size:14px;margin-top:16px">Genre data loads as you browse shows — come back after opening a few show pages.</div>`}
+  `;
+}
+
+// ── KEYBOARD SHORTCUTS ────────────────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if(e.key === 'Escape') {
+    if(!document.getElementById('ep-modal').classList.contains('hide')) { closeEpModal(); return; }
+    if(!document.getElementById('rec-modal').classList.contains('hide')) { closeRecModal(); return; }
+    if(document.getElementById('detail-panel').classList.contains('open')) { closeDetail(); return; }
+  }
+  if(document.getElementById('detail-panel').classList.contains('open') && currentSeason) {
+    const tabs = [...document.querySelectorAll('.s-tab')];
+    const idx = tabs.findIndex(t => parseInt(t.id.replace('stab-','')) === currentSeason);
+    if(e.key === 'ArrowRight' && idx < tabs.length-1) {
+      tabs[idx+1].click();
+    } else if(e.key === 'ArrowLeft' && idx > 0) {
+      tabs[idx-1].click();
+    }
+  }
+});
+
+init();
+</script>
+</body>
+</html>
