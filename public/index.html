@@ -479,6 +479,7 @@ let showDetails = new Map();
 let showProviders = new Map();
 let ownedServices = new Set();
 let currentSimilarData = [];
+let currentSeasonEpisodes = new Map(); // key: `${tmdbId}_${season}` -> episodes array
 let watchedDates = new Map(); // tmdb_id -> Map of "season_ep" -> watched_at ISO string
 let sortMode = 'alpha';
 let genreList = [];
