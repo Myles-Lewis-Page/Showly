@@ -1587,16 +1587,9 @@ function renderStatsContent(container, counts, totalWatched, totalMins, topShows
       <div class="stats-title">By Year</div>
       <div class="year-tabs" id="year-tabs">
         <button class="year-tab ${!statsYearFilter?'on':''}" onclick="selectYear(null,${JSON.stringify(allShows).replace(/"/g,'&quot;')})">All Time</button>
-        ${beforeTracker > 0 ? `<button class="year-tab ${statsYearFilter==='before'?'on':''}" style="${statsYearFilter==='before'?'':'border-color:var(--muted)'}" onclick="selectYear('before',${JSON.stringify(allShows).replace(/"/g,'&quot;')})">📼 Before Tracker</button>` : ''}
         ${byYear.map(r=>`<button class="year-tab ${statsYearFilter===r.yr?'on':''}" onclick="selectYear(${r.yr},${JSON.stringify(allShows).replace(/"/g,'&quot;')})">${r.yr}</button>`).join('')}
+        ${beforeTracker > 0 ? `<button class="year-tab ${statsYearFilter==='before'?'on':''}" style="${statsYearFilter==='before'?'':'border-color:var(--muted);color:var(--muted)'}" onclick="selectYear('before',${JSON.stringify(allShows).replace(/"/g,'&quot;')})">📼 Before Tracker</button>` : ''}
       </div>
-      ${beforeTracker > 0 ? `
-        <div class="stats-row" style="${statsYearFilter==='before'?'border-color:var(--accent);':''} cursor:pointer; opacity:0.7" onclick="selectYear('before',${JSON.stringify(allShows).replace(/"/g,'&quot;')})">
-          <div class="stats-rank" style="font-size:11px;width:36px;color:var(--muted)">📼</div>
-          <div class="stats-name" style="color:var(--muted)">Before Tracker</div>
-          <div class="stats-bar-wrap"><div class="stats-bar" style="width:${Math.round((beforeTracker/maxYearEps)*100)}%;background:var(--muted)"></div></div>
-          <div class="stats-val">${beforeTracker} eps · ${fmtTime(beforeTracker*45)}</div>
-        </div>` : ''}
       ${byYear.map(r=>{
         const pct=Math.round((r.ep_count/maxYearEps)*100);
         return `<div class="stats-row" style="${statsYearFilter===r.yr?'border-color:var(--accent);':''}cursor:pointer" onclick="selectYear(${r.yr},${JSON.stringify(allShows).replace(/"/g,'&quot;')})">
@@ -1605,6 +1598,13 @@ function renderStatsContent(container, counts, totalWatched, totalMins, topShows
           <div class="stats-val">${r.ep_count} eps · ${fmtTime(r.ep_count*45)}</div>
         </div>`;
       }).join('')}
+      ${beforeTracker > 0 ? `
+        <div class="stats-row" style="${statsYearFilter==='before'?'border-color:var(--accent);':''} cursor:pointer; opacity:0.6" onclick="selectYear('before',${JSON.stringify(allShows).replace(/"/g,'&quot;')})">
+          <div class="stats-rank" style="font-size:11px;width:36px;color:var(--muted)">📼</div>
+          <div class="stats-name" style="color:var(--muted)">Before Tracker</div>
+          <div class="stats-bar-wrap"><div class="stats-bar" style="width:${Math.round((beforeTracker/maxYearEps)*100)}%;background:var(--muted)"></div></div>
+          <div class="stats-val">${beforeTracker} eps · ${fmtTime(beforeTracker*45)}</div>
+        </div>` : ''}
       <div id="year-detail-content" style="margin-top:12px"></div>
     </div>` : `<div style="color:var(--muted);font-size:14px;margin-bottom:20px">Year-by-year stats appear once you have watch dates on your episodes. Import from Trakt or set dates in Settings.</div>`}
 
