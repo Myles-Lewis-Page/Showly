@@ -244,16 +244,24 @@ app.get('/api/recommendations', requireLogin, async (req, res) => {
 
 app.get('/api/stats', requireLogin, async (req, res) => {
   try {
-    const [showsData, epData, yearData, undatedCount] = await Promise.all([
+    const TRACKER_START = '2025-04-15T00:00:00Z'; // Episodes before this = "Before Tracker"
+    const [showsData, epData, yearData, beforeTracker, undatedCount] = await Promise.all([
       pool.query('SELECT * FROM shows'),
       pool.query('SELECT tmdb_id, COUNT(*) as ep_count FROM watched_episodes GROUP BY tmdb_id ORDER BY ep_count DESC LIMIT 10'),
       pool.query(`SELECT EXTRACT(YEAR FROM watched_at)::int as yr, COUNT(*)::int as ep_count
-                  FROM watched_episodes WHERE date_is_explicit=TRUE AND watched_at IS NOT NULL
-                  GROUP BY yr ORDER BY yr DESC`),
+                  FROM watched_episodes
+                  WHERE date_is_explicit=TRUE AND watched_at IS NOT NULL AND watched_at >= $1
+                  GROUP BY yr ORDER BY yr DESC`, [TRACKER_START]),
       pool.query(`SELECT COUNT(*)::int as cnt FROM watched_episodes
-                  WHERE watched_at IS NULL OR watched_at = '1970-01-01'`),
+                  WHERE date_is_explicit=TRUE AND watched_at IS NOT NULL AND watched_at < $1`, [TRACKER_START]),
+      pool.query(`SELECT COUNT(*)::int as cnt FROM watched_episodes
+                  WHERE date_is_explicit=FALSE OR date_is_explicit IS NULL`),
     ]);
-    res.json({ shows: showsData.rows, topEps: epData.rows, byYear: yearData.rows, undatedCount: undatedCount.rows[0]?.cnt || 0 });
+    res.json({
+      shows: showsData.rows, topEps: epData.rows, byYear: yearData.rows,
+      beforeTracker: beforeTracker.rows[0]?.cnt || 0,
+      undatedCount: undatedCount.rows[0]?.cnt || 0
+    });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -538,14 +546,21 @@ app.get('/api/history/undated', requireLogin, async (req, res) => {
 
 app.get('/api/stats/year/:year', requireLogin, async (req, res) => {
   try {
-    const yr = parseInt(req.params.year);
+    const TRACKER_START = '2025-04-15T00:00:00Z';
+    const yr = req.params.year;
+    const isBefore = yr === 'before';
+
+    const whereClause = isBefore
+      ? `date_is_explicit=TRUE AND watched_at IS NOT NULL AND watched_at < '${TRACKER_START}'`
+      : `date_is_explicit=TRUE AND EXTRACT(YEAR FROM watched_at) = ${parseInt(yr)} AND watched_at >= '${TRACKER_START}'`;
+
     const [epData, topShows] = await Promise.all([
-      pool.query(`SELECT COUNT(*)::int as ep_count FROM watched_episodes WHERE date_is_explicit=TRUE AND EXTRACT(YEAR FROM watched_at) = $1`, [yr]),
+      pool.query(`SELECT COUNT(*)::int as ep_count FROM watched_episodes WHERE ${whereClause}`),
       pool.query(`SELECT we.tmdb_id, COUNT(*)::int as ep_count, s.title, s.poster_path, s.id
                   FROM watched_episodes we JOIN shows s ON s.tmdb_id = we.tmdb_id
-                  WHERE we.date_is_explicit=TRUE AND EXTRACT(YEAR FROM we.watched_at) = $1
+                  WHERE ${whereClause}
                   GROUP BY we.tmdb_id, s.title, s.poster_path, s.id
-                  ORDER BY ep_count DESC LIMIT 5`, [yr]),
+                  ORDER BY ep_count DESC LIMIT 5`),
     ]);
     res.json({ year: yr, ep_count: epData.rows[0]?.ep_count || 0, top_shows: topShows.rows });
   } catch (e) { res.status(500).json({ error: e.message }); }

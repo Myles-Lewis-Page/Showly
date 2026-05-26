@@ -384,7 +384,6 @@ main{padding:16px}
     <button class="nav-tab" onclick="setTab('recs')" id="t-recs">Discover</button>
     <button class="nav-tab" onclick="setTab('stats')" id="t-stats">Stats</button>
     <button class="nav-tab" onclick="setTab('settings')" id="t-settings">⚙ Settings</button>
-    <button class="nav-tab" onclick="setTab('history')" id="t-history">📥 History</button>
     <div class="nav-right"><button class="btn-logout" onclick="doLogout()">Sign out</button></div>
   </nav>
 
@@ -452,7 +451,6 @@ main{padding:16px}
     </div>
     <div id="tab-stats" class="hide" style="max-width:680px"><div class="section-label">Your Stats</div><div id="stats-content"></div></div>
     <div id="tab-settings" class="hide" style="max-width:500px"><div class="section-label">Settings</div><div id="settings-content"></div></div>
-    <div id="tab-history" class="hide" style="max-width:700px"><div class="section-label">Watch History Import</div><div id="history-content"></div></div>
   </main>
 </div>
 
@@ -794,15 +792,14 @@ async function deleteShow(event, id) {
 
 // ── TABS ──────────────────────────────────────────────────────────────────────
 function setTab(tab) {
-  ['watching','caughtup','finished','watchlist','paused','dropped','recs','stats','settings','history'].forEach(t=>{
+  ['watching','caughtup','finished','watchlist','paused','dropped','recs','stats','settings'].forEach(t=>{
     document.getElementById('tab-'+t)?.classList.toggle('hide',t!==tab);
     document.getElementById('t-'+t)?.classList.toggle('on',t===tab);
   });
-  document.getElementById('search-wrap').classList.toggle('hide',['recs','stats','settings','history'].includes(tab));
+  document.getElementById('search-wrap').classList.toggle('hide',['recs','stats','settings'].includes(tab));
   if(tab==='recs') loadDiscover();
   if(tab==='stats') loadStats();
   if(tab==='settings') loadSettings();
-  if(tab==='history') loadHistory();
 }
 
 // ── SEARCH ────────────────────────────────────────────────────────────────────
@@ -854,7 +851,7 @@ async function markNextWatched(event,showId,tmdbId,season,epNum){
   const btn=document.getElementById('watched-btn-'+showId);
   if(btn){btn.disabled=true;btn.textContent='...';}
   const id=parseInt(tmdbId);
-  await api('/api/episodes',{method:'POST',body:{tmdb_id:id,season_number:parseInt(season),episode_number:parseInt(epNum)}});
+  await api('/api/episodes',{method:'POST',body:{tmdb_id:id,season_number:parseInt(season),episode_number:parseInt(epNum),watched_at:new Date().toISOString()}});
   const epSet=watchedEps.get(id)||new Set();
   epSet.add(`${season}_${epNum}`);
   watchedEps.set(id,epSet);
@@ -1300,11 +1297,19 @@ async function toggleEpisode(tmdbId,showId,season,epNum){
     epSet.delete(key);
     if(row) row.classList.remove('watched');
     if(chk) chk.textContent='';
+    // Clear from local date cache
+    const dm=watchedDates.get(id)||new Map(); dm.delete(key); watchedDates.set(id,dm);
   } else {
-    await api('/api/episodes',{method:'POST',body:{tmdb_id:id,season_number:parseInt(season),episode_number:parseInt(epNum)}});
+    const now=new Date().toISOString();
+    await api('/api/episodes',{method:'POST',body:{tmdb_id:id,season_number:parseInt(season),episode_number:parseInt(epNum),watched_at:now}});
     epSet.add(key);
     if(row) row.classList.add('watched');
     if(chk) chk.textContent='✓';
+    // Store date locally so it shows immediately
+    const dm=watchedDates.get(id)||new Map(); dm.set(key,now); watchedDates.set(id,dm);
+    // Update watched date display if visible
+    const wdEl=document.getElementById(`epwd-${id}-${season}-${epNum}`);
+    if(wdEl) wdEl.innerHTML=`👁 ${fmtWatchedDate(now)} <button class="ep-date-edit-btn" onclick="openEpDatePicker(event,${id},${season},${epNum})" title="Set watch date">✏️</button>`;
   }
   watchedEps.set(id,epSet);
   updateSeasonProgress(id,season);
@@ -1331,7 +1336,8 @@ async function toggleSeasonWatched(tmdbId,showId,season,epNums,currentlyAllWatch
     loadSeason(id,showId,season);
     toast('Season unmarked');
   } else {
-    await api('/api/episodes/season',{method:'POST',body:{tmdb_id:id,season_number:parseInt(season),episodes:epNums.map(Number)}});
+    const now=new Date().toISOString();
+    await api('/api/episodes/season',{method:'POST',body:{tmdb_id:id,season_number:parseInt(season),episodes:epNums.map(Number),watched_ats:epNums.map(()=>now)}});
     epNums.forEach(n=>epSet.add(`${season}_${n}`));
     watchedEps.set(id,epSet);
     loadSeason(id,showId,season);
@@ -1407,7 +1413,10 @@ function loadSettings() {
             ${esc(s)}
           </label>`).join('')}
       </div>
-    </div>`;
+    </div>
+    <div id="history-content"></div>`;
+  // Load history section inline
+  loadHistory();
 }
 
 async function toggleService(name, el) {
@@ -1510,7 +1519,8 @@ async function loadStats(){
   const allShows = statsData.shows || [];
   const topEpsRaw = statsData.topEps || [];
   const byYear = statsData.byYear || [];
-  const totalWatched = byYear.reduce((s,r)=>s+r.ep_count,0);
+  const beforeTracker = statsData.beforeTracker || 0;
+  const totalWatched = byYear.reduce((s,r)=>s+r.ep_count,0) + beforeTracker;
   const totalMins = totalWatched * 45;
 
   const counts = {watching:0,caughtup:0,finished:0,watchlist:0,paused:0,dropped:0};
@@ -1529,7 +1539,7 @@ async function loadStats(){
     return show ? {...show, ep_count: parseInt(r.ep_count), hours: Math.round(parseInt(r.ep_count) * avgRuntime / 60)} : null;
   }).filter(Boolean).slice(0, 10);
 
-  renderStatsContent(container, counts, totalWatched, totalMins, topShows, topGenres, maxGenre, byYear, allShows);
+  renderStatsContent(container, counts, totalWatched, totalMins, topShows, topGenres, maxGenre, byYear, allShows, beforeTracker);
 }
 
 async function loadYearStats(year, allShows) {
@@ -1539,28 +1549,28 @@ async function loadYearStats(year, allShows) {
   const data = await api(`/api/stats/year/${year}`);
   const eps = data.ep_count || 0;
   const mins = eps * 45;
+  const label = year === 'before' ? 'Before Tracker (pre Apr 2025)' : year;
   container.innerHTML = `
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;margin-bottom:14px">
       <div class="stat-box"><div class="stat-num">${eps}</div><div class="stat-label">Episodes</div></div>
       <div class="stat-box"><div class="stat-num" style="font-size:16px">${fmtTime(mins)}</div><div class="stat-label">Time Watched</div></div>
     </div>
     ${data.top_shows?.length ? `
-      <div class="stats-title" style="margin-bottom:8px">Top Shows in ${year}</div>
+      <div class="stats-title" style="margin-bottom:8px">Top Shows — ${label}</div>
       ${data.top_shows.map((s,i) => `
         <div class="stats-row" onclick="openDetail(${s.tmdb_id},${s.id})" style="cursor:pointer;margin-bottom:6px">
           <div class="stats-rank">#${i+1}</div>
           ${s.poster_path?`<img src="${IMG}/w92${s.poster_path}" style="width:28px;height:42px;border-radius:4px;object-fit:cover;flex-shrink:0" alt=""/>`:`<div style="width:28px;height:42px;border-radius:4px;background:var(--surface3);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:14px">📺</div>`}
           <div class="stats-name">${esc(s.title)}</div>
           <div class="stats-val">${s.ep_count} eps</div>
-        </div>`).join('')}` : '<div style="color:var(--muted);font-size:13px">No dated episodes for this year yet.</div>'}`;
+        </div>`).join('')}` : '<div style="color:var(--muted);font-size:13px">No dated episodes for this period yet.</div>'}`;
 }
 
-function renderStatsContent(container, counts, totalWatched, totalMins, topShows, topGenres, maxGenre, byYear, allShows) {
+function renderStatsContent(container, counts, totalWatched, totalMins, topShows, topGenres, maxGenre, byYear, allShows, beforeTracker) {
   const byHours = statsSortMode === 'hours';
   const sorted = [...topShows].sort((a,b) => byHours ? b.hours - a.hours : b.ep_count - a.ep_count);
   const maxVal = sorted[0] ? (byHours ? sorted[0].hours : sorted[0].ep_count) : 1;
-  const years = byYear.map(r=>r.yr);
-  const maxYearEps = Math.max(...byYear.map(r=>r.ep_count), 1);
+  const maxYearEps = Math.max(...byYear.map(r=>r.ep_count), beforeTracker, 1);
 
   container.innerHTML = `
     <div class="stats-grid">
@@ -1572,24 +1582,31 @@ function renderStatsContent(container, counts, totalWatched, totalMins, topShows
       <div class="stat-box"><div class="stat-num">${Object.values(counts).reduce((a,b)=>a+b,0)}</div><div class="stat-label">Total Shows</div></div>
     </div>
 
-    ${byYear.length ? `
+    ${(byYear.length || beforeTracker > 0) ? `
     <div class="stats-section">
       <div class="stats-title">By Year</div>
       <div class="year-tabs" id="year-tabs">
         <button class="year-tab ${!statsYearFilter?'on':''}" onclick="selectYear(null,${JSON.stringify(allShows).replace(/"/g,'&quot;')})">All Time</button>
+        ${beforeTracker > 0 ? `<button class="year-tab ${statsYearFilter==='before'?'on':''}" style="${statsYearFilter==='before'?'':'border-color:var(--muted)'}" onclick="selectYear('before',${JSON.stringify(allShows).replace(/"/g,'&quot;')})">📼 Before Tracker</button>` : ''}
         ${byYear.map(r=>`<button class="year-tab ${statsYearFilter===r.yr?'on':''}" onclick="selectYear(${r.yr},${JSON.stringify(allShows).replace(/"/g,'&quot;')})">${r.yr}</button>`).join('')}
       </div>
+      ${beforeTracker > 0 ? `
+        <div class="stats-row" style="${statsYearFilter==='before'?'border-color:var(--accent);':''} cursor:pointer; opacity:0.7" onclick="selectYear('before',${JSON.stringify(allShows).replace(/"/g,'&quot;')})">
+          <div class="stats-rank" style="font-size:11px;width:36px;color:var(--muted)">📼</div>
+          <div class="stats-name" style="color:var(--muted)">Before Tracker</div>
+          <div class="stats-bar-wrap"><div class="stats-bar" style="width:${Math.round((beforeTracker/maxYearEps)*100)}%;background:var(--muted)"></div></div>
+          <div class="stats-val">${beforeTracker} eps · ${fmtTime(beforeTracker*45)}</div>
+        </div>` : ''}
       ${byYear.map(r=>{
         const pct=Math.round((r.ep_count/maxYearEps)*100);
-        const isSelected=statsYearFilter===r.yr;
-        return `<div class="stats-row" style="${isSelected?'border-color:var(--accent);':''}cursor:pointer" onclick="selectYear(${r.yr},${JSON.stringify(allShows).replace(/"/g,'&quot;')})">
+        return `<div class="stats-row" style="${statsYearFilter===r.yr?'border-color:var(--accent);':''}cursor:pointer" onclick="selectYear(${r.yr},${JSON.stringify(allShows).replace(/"/g,'&quot;')})">
           <div class="stats-rank" style="font-size:12px;width:36px">${r.yr}</div>
           <div class="stats-bar-wrap"><div class="stats-bar" style="width:${pct}%"></div></div>
           <div class="stats-val">${r.ep_count} eps · ${fmtTime(r.ep_count*45)}</div>
         </div>`;
       }).join('')}
       <div id="year-detail-content" style="margin-top:12px"></div>
-    </div>` : `<div style="color:var(--muted);font-size:14px;margin-bottom:20px">Year-by-year stats appear once you have watch dates on your episodes. Import from Trakt or set dates in the History tab.</div>`}
+    </div>` : `<div style="color:var(--muted);font-size:14px;margin-bottom:20px">Year-by-year stats appear once you have watch dates on your episodes. Import from Trakt or set dates in Settings.</div>`}
 
     ${sorted.length?`
     <div class="stats-section">
@@ -1622,19 +1639,19 @@ function renderStatsContent(container, counts, totalWatched, totalMins, topShows
     `<div style="color:var(--muted);font-size:14px;margin-top:16px">Genre data loads as you browse shows — come back after opening a few show pages.</div>`}
   `;
 
-  // Auto-load selected year detail if one is active
   if (statsYearFilter) loadYearStats(statsYearFilter, allShows);
 }
 
+
 async function selectYear(year, allShows) {
   statsYearFilter = year;
-  // Update year tab highlight
   document.querySelectorAll('.year-tab').forEach(b => {
-    const yr = b.textContent.trim();
-    b.classList.toggle('on', year === null ? yr === 'All Time' : parseInt(yr) === year);
-  });
-  document.querySelectorAll('.stats-row[onclick*="selectYear"]').forEach(r => {
-    r.style.borderColor = '';
+    const txt = b.textContent.trim();
+    b.classList.toggle('on',
+      year === null ? txt === 'All Time' :
+      year === 'before' ? txt === '📼 Before Tracker' :
+      parseInt(txt) === year
+    );
   });
   if (year === null) {
     const el = document.getElementById('year-detail-content');
@@ -1650,10 +1667,10 @@ let pendingResolveData = null; // { tmdb_id, title, episodes } for the show bein
 
 async function loadHistory() {
   const container = document.getElementById('history-content');
-  container.innerHTML = '<div style="text-align:center;padding:30px;color:var(--muted)">Loading...</div>';
+  if (!container) return;
+  container.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted)">Loading...</div>';
   traktUnmatched = await api('/api/history/unmatched');
   renderHistoryTab(container);
-  // Load undated section after main render
   loadUndatedSection(container);
 }
 
