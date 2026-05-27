@@ -878,13 +878,16 @@ async function openDetail(tmdbId,showId){
   document.body.style.overflow='hidden';
 
   const id=parseInt(tmdbId);
-  let details={}, epData=[], similarData=[];
+  let details={}, epData=[], similarData=[], freshNextEp=null;
   try {
-    [details, epData, similarData] = await Promise.all([
+    [details, epData, similarData, freshNextEp] = await Promise.all([
       api(`/api/tmdb/show/${id}`).then(r => r||{}),
       api(`/api/episodes/${id}`).then(r => Array.isArray(r)?r:[]),
       api(`/api/tmdb/show/${id}/similar`).then(r => Array.isArray(r)?r:[]),
+      api(`/api/next-episode/${id}`).then(r => r||null).catch(()=>null),
     ]);
+    // Update nextEps cache with fresh data
+    if (freshNextEp && !freshNextEp.error) nextEps.set(id, freshNextEp);
   } catch(e) {
     content.innerHTML='<div style="padding:40px;text-align:center;color:var(--muted)">Failed to load show. Try again.</div>';
     return;
@@ -919,7 +922,7 @@ async function openDetail(tmdbId,showId){
   // Stats — use aired episodes from next-ep data (matches what's actually trackable)
   const totalAired = nextEpInfo?.total_aired || seasons.reduce((sum,s)=>sum+(s.episode_count||0),0) || details.number_of_episodes || 0;
   const totalEps = totalAired;
-  const watchedCount = epSet.size;
+  const watchedCount = Array.from(epSet).filter(k => !k.startsWith('0_')).length;
   const remaining = Math.max(0, totalEps - watchedCount);
   const avgRuntime = details.episode_run_time?.[0] || 45;
   const minsLeft = remaining * avgRuntime;
@@ -1269,7 +1272,7 @@ function updateTotalProgress(tmdbId){
   const next=nextEps.get(parseInt(tmdbId));
   const totalAired=next?.total_aired||0;
   if(!totalAired){wrap.innerHTML='';return;}
-  const w=epSet.size,pct=Math.min(100,Math.round((w/totalAired)*100));
+  const w=Array.from(epSet).filter(k => !k.startsWith('0_')).length,pct=Math.min(100,Math.round((w/totalAired)*100));
   wrap.innerHTML=`<div class="total-progress">
     <div class="total-prog-row"><span>Total: ${w} / ${totalAired} episodes watched</span><span>${pct}%</span></div>
     <div class="total-prog-bar"><div class="total-prog-fill" style="width:${pct}%"></div></div>
