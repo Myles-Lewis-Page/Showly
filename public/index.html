@@ -517,8 +517,13 @@ function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replac
 function escAttr(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
 function fmtTime(mins){
   if(!mins) return '0m';
-  const d=Math.floor(mins/(60*24)), h=Math.floor((mins%(60*24))/60), m=mins%(60);
-  return [d?`${d}d`:null, h?`${h}h`:null, m?`${m}m`:null].filter(Boolean).join(' ');
+  const total=Math.floor(mins);
+  const y=Math.floor(total/(60*24*365));
+  const mo=Math.floor((total%(60*24*365))/(60*24*30));
+  const d=Math.floor((total%(60*24*30))/(60*24));
+  const h=Math.floor((total%(60*24))/60);
+  const m=total%60;
+  return [y?`${y}y`:null,mo?`${mo}mo`:null,d?`${d}d`:null,h?`${h}h`:null,m?`${m}m`:null].filter(Boolean).join(' ');
 }
 function sortList(list) {
   if (sortMode === 'updated') return [...list].sort((a,b) => new Date(b.updated_at) - new Date(a.updated_at));
@@ -943,7 +948,7 @@ async function openDetail(tmdbId,showId){
     <div class="ep-prog-bar" style="margin-bottom:14px"><div class="ep-prog-fill" style="width:${pct}%"></div></div>
     <div class="panel-stats">
       <div class="p-stat"><div class="p-stat-num">${remaining}</div><div class="p-stat-label">Episodes Left</div><div class="p-stat-sub">of ${totalEps} total</div></div>
-      <div class="p-stat"><div class="p-stat-num">${timeStr}</div><div class="p-stat-label">${remaining===0?'All done!':'Time Remaining'}</div>${remaining>0?`<div class="p-stat-sub">~${avgRuntime}m per ep</div>`:''}</div>
+      <div class="p-stat"><div class="p-stat-num" style="font-size:clamp(12px,2.5vw,18px)">${timeStr}</div><div class="p-stat-label">${remaining===0?'All done!':'Time Remaining'}</div>${remaining>0?`<div class="p-stat-sub">~${avgRuntime}m per ep</div>`:''}</div>
     </div>`:'';
 
   // Where to watch — if platform selected collapse to just "Watching on X", else show chips
@@ -1555,7 +1560,7 @@ async function loadYearStats(year, allShows) {
   container.innerHTML = `
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;margin-bottom:14px">
       <div class="stat-box"><div class="stat-num">${eps}</div><div class="stat-label">Episodes</div></div>
-      <div class="stat-box"><div class="stat-num" style="font-size:16px">${fmtTime(mins)}</div><div class="stat-label">Time Watched</div></div>
+      <div class="stat-box"><div class="stat-num" style="font-size:clamp(11px,2vw,16px)">${fmtTime(mins)}</div><div class="stat-label">Time Watched</div></div>
     </div>
     ${data.top_shows?.length ? `
       <div class="stats-title" style="margin-bottom:8px">Top Shows — ${label}</div>
@@ -1580,7 +1585,7 @@ function renderStatsContent(container, counts, totalWatched, totalMins, topShows
       <div class="stat-box"><div class="stat-num">${counts.finished}</div><div class="stat-label">Shows Finished</div></div>
       <div class="stat-box"><div class="stat-num">${counts.watchlist}</div><div class="stat-label">In Watchlist</div></div>
       <div class="stat-box"><div class="stat-num">${totalWatched}</div><div class="stat-label">Episodes Watched</div></div>
-      <div class="stat-box"><div class="stat-num" style="font-size:14px">${fmtTime(totalMins)}</div><div class="stat-label">Total Time Watched</div></div>
+      <div class="stat-box"><div class="stat-num" style="font-size:clamp(11px,2vw,14px)">${fmtTime(totalMins)}</div><div class="stat-label">Total Time Watched</div></div>
       <div class="stat-box"><div class="stat-num">${Object.values(counts).reduce((a,b)=>a+b,0)}</div><div class="stat-label">Total Shows</div></div>
     </div>
 
