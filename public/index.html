@@ -271,6 +271,12 @@ main{padding:16px}
 .genre-filter-chip{background:var(--surface2);border:1px solid var(--border);color:var(--muted);padding:5px 12px;border-radius:99px;font-size:12px;cursor:pointer;font-family:inherit;white-space:nowrap;transition:all .15s}
 .genre-filter-chip:hover{border-color:#555;color:var(--text)}
 .genre-filter-chip.on{background:var(--accent);border-color:var(--accent);color:#fff}
+/* TIME UNIT SPANS (fmtTimeFull) */
+.t-unit{display:inline-flex;align-items:baseline;gap:1px;margin-right:4px}
+.t-unit:last-child{margin-right:0}
+.t-val{font-variant-numeric:tabular-nums}
+.t-lbl{font-size:.8em;color:var(--muted)}
+
 /* TOAST */
 .toast{position:fixed;bottom:20px;right:20px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 16px;font-size:13px;z-index:999;animation:fadeUp .2s ease;box-shadow:0 4px 20px rgba(0,0,0,.4)}
 @keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
@@ -524,6 +530,18 @@ function fmtTime(mins){
   const h=Math.floor((total%(60*24))/60);
   const m=total%60;
   return [y?`${y}y`:null,mo?`${mo}mo`:null,d?`${d}d`:null,h?`${h}h`:null,m?`${m}m`:null].filter(Boolean).join(' ');
+}
+// Always shows all units, zero ones are hidden but space is reserved via inline spans
+function fmtTimeFull(mins){
+  if(!mins||mins<=0) return '<span class="t-unit">0m</span>';
+  const total=Math.floor(mins);
+  const y=Math.floor(total/(60*24*365));
+  const mo=Math.floor((total%(60*24*365))/(60*24*30));
+  const d=Math.floor((total%(60*24*30))/(60*24));
+  const h=Math.floor((total%(60*24))/60);
+  const m=total%60;
+  const fmt=(v,u)=>`<span class="t-unit" style="${v===0?'visibility:hidden':''}"><span class="t-val">${v}</span><span class="t-lbl">${u}</span></span>`;
+  return fmt(y,'y')+fmt(mo,'mo')+fmt(d,'d')+fmt(h,'h')+fmt(m,'m');
 }
 function sortList(list) {
   if (sortMode === 'updated') return [...list].sort((a,b) => new Date(b.updated_at) - new Date(a.updated_at));
@@ -1560,7 +1578,7 @@ async function loadYearStats(year, allShows) {
   container.innerHTML = `
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;margin-bottom:14px">
       <div class="stat-box"><div class="stat-num">${eps}</div><div class="stat-label">Episodes</div></div>
-      <div class="stat-box"><div class="stat-num" style="font-size:clamp(11px,2vw,16px)">${fmtTime(mins)}</div><div class="stat-label">Time Watched</div></div>
+      <div class="stat-box"><div class="stat-num" style="font-size:clamp(11px,2vw,16px)">${fmtTimeFull(mins)}</div><div class="stat-label">Time Watched</div></div>
     </div>
     ${data.top_shows?.length ? `
       <div class="stats-title" style="margin-bottom:8px">Top Shows — ${label}</div>
@@ -1569,14 +1587,14 @@ async function loadYearStats(year, allShows) {
           <div class="stats-rank">#${i+1}</div>
           ${s.poster_path?`<img src="${IMG}/w92${s.poster_path}" style="width:28px;height:42px;border-radius:4px;object-fit:cover;flex-shrink:0" alt=""/>`:`<div style="width:28px;height:42px;border-radius:4px;background:var(--surface3);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:14px">📺</div>`}
           <div class="stats-name">${esc(s.title)}</div>
-          <div class="stats-val">${s.ep_count} eps</div>
+          <div class="stats-val">${fmtTimeFull(s.ep_count*45)}</div>
         </div>`).join('')}` : '<div style="color:var(--muted);font-size:13px">No dated episodes for this period yet.</div>'}`;
 }
 
 function renderStatsContent(container, counts, totalWatched, totalMins, topShows, topGenres, maxGenre, byYear, allShows, beforeTracker) {
-  const byHours = statsSortMode === 'hours';
-  const sorted = [...topShows].sort((a,b) => byHours ? b.hours - a.hours : b.ep_count - a.ep_count);
-  const maxVal = sorted[0] ? (byHours ? sorted[0].hours : sorted[0].ep_count) : 1;
+  const byTime = statsSortMode === 'time';
+  const sorted = [...topShows].sort((a,b) => byTime ? b.hours - a.hours : b.ep_count - a.ep_count);
+  const maxVal = sorted[0] ? (byTime ? sorted[0].hours : sorted[0].ep_count) : 1;
   const maxYearEps = Math.max(...byYear.map(r=>r.ep_count), beforeTracker, 1);
 
   container.innerHTML = `
@@ -1585,7 +1603,7 @@ function renderStatsContent(container, counts, totalWatched, totalMins, topShows
       <div class="stat-box"><div class="stat-num">${counts.finished}</div><div class="stat-label">Shows Finished</div></div>
       <div class="stat-box"><div class="stat-num">${counts.watchlist}</div><div class="stat-label">In Watchlist</div></div>
       <div class="stat-box"><div class="stat-num">${totalWatched}</div><div class="stat-label">Episodes Watched</div></div>
-      <div class="stat-box"><div class="stat-num" style="font-size:clamp(11px,2vw,14px)">${fmtTime(totalMins)}</div><div class="stat-label">Total Time Watched</div></div>
+      <div class="stat-box"><div class="stat-num" style="font-size:clamp(11px,2vw,14px)">${fmtTimeFull(totalMins)}</div><div class="stat-label">Total Time Watched</div></div>
       <div class="stat-box"><div class="stat-num">${Object.values(counts).reduce((a,b)=>a+b,0)}</div><div class="stat-label">Total Shows</div></div>
     </div>
 
@@ -1601,16 +1619,16 @@ function renderStatsContent(container, counts, totalWatched, totalMins, topShows
         const pct=Math.round((r.ep_count/maxYearEps)*100);
         return `<div class="stats-row" style="${statsYearFilter===r.yr?'border-color:var(--accent);':''}cursor:pointer" onclick="selectYear(${r.yr},${JSON.stringify(allShows).replace(/"/g,'&quot;')})">
           <div class="stats-rank" style="font-size:12px;width:36px">${r.yr}</div>
-          <div class="stats-bar-wrap"><div class="stats-bar" style="width:${pct}%"></div></div>
-          <div class="stats-val">${r.ep_count} eps · ${fmtTime(r.ep_count*45)}</div>
+          <div class="stats-val" style="flex:1;text-align:right">${r.ep_count} eps</div>
+          <div class="stats-val" style="min-width:160px;text-align:right">${fmtTimeFull(r.ep_count*45)}</div>
         </div>`;
       }).join('')}
       ${beforeTracker > 0 ? `
         <div class="stats-row" style="${statsYearFilter==='before'?'border-color:var(--accent);':''} cursor:pointer; opacity:0.6" onclick="selectYear('before',${JSON.stringify(allShows).replace(/"/g,'&quot;')})">
           <div class="stats-rank" style="font-size:11px;width:36px;color:var(--muted)">📼</div>
           <div class="stats-name" style="color:var(--muted)">Before Tracker</div>
-          <div class="stats-bar-wrap"><div class="stats-bar" style="width:${Math.round((beforeTracker/maxYearEps)*100)}%;background:var(--muted)"></div></div>
-          <div class="stats-val">${beforeTracker} eps · ${fmtTime(beforeTracker*45)}</div>
+          <div class="stats-val" style="flex:1;text-align:right">${beforeTracker} eps</div>
+          <div class="stats-val" style="min-width:160px;text-align:right">${fmtTimeFull(beforeTracker*45)}</div>
         </div>` : ''}
       <div id="year-detail-content" style="margin-top:12px"></div>
     </div>` : `<div style="color:var(--muted);font-size:14px;margin-bottom:20px">Year-by-year stats appear once you have watch dates on your episodes. Import from Trakt or set dates in Settings.</div>`}
@@ -1619,16 +1637,15 @@ function renderStatsContent(container, counts, totalWatched, totalMins, topShows
     <div class="stats-section">
       <div class="stats-title">Top 10 Shows</div>
       <div class="stats-sort">
-        <button class="sort-btn ${!byHours?'on':''}" onclick="statsSortMode='episodes';loadStats()">By Episodes</button>
-        <button class="sort-btn ${byHours?'on':''}" onclick="statsSortMode='hours';loadStats()">By Hours</button>
+        <button class="sort-btn ${!byTime?'on':''}" onclick="statsSortMode='episodes';loadStats()">By Episodes</button>
+        <button class="sort-btn ${byTime?'on':''}" onclick="statsSortMode='time';loadStats()">By Time</button>
       </div>
       ${sorted.map((s,i)=>`
         <div class="stats-row" onclick="openDetail(${s.tmdb_id},${s.id})" style="cursor:pointer">
           <div class="stats-rank">#${i+1}</div>
           ${s.poster_path?`<img src="${IMG}/w92${s.poster_path}" style="width:32px;height:48px;border-radius:4px;object-fit:cover;flex-shrink:0" alt=""/>`:`<div style="width:32px;height:48px;border-radius:4px;background:var(--surface3);flex-shrink:0;display:flex;align-items:center;justify-content:center">📺</div>`}
           <div class="stats-name">${esc(s.title)}</div>
-          <div class="stats-bar-wrap"><div class="stats-bar" style="width:${Math.round(((byHours?s.hours:s.ep_count)/maxVal)*100)}%"></div></div>
-          <div class="stats-val">${byHours ? s.hours+'h' : s.ep_count+' eps'}</div>
+          <div class="stats-val">${byTime ? fmtTimeFull(s.ep_count*45) : s.ep_count+' eps'}</div>
         </div>`).join('')}
     </div>`:''}
 
