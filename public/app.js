@@ -27,15 +27,22 @@ async function api(url, opts={}) {
 // ── AUTH ──────────────────────────────────────────────────────────────────────
 async function doLogin() {
   const res = await api('/api/login',{method:'POST',body:{username:document.getElementById('lu').value.trim(),password:document.getElementById('lp').value}});
-  if (res.ok) startApp(); else document.getElementById('lerr').textContent='Wrong username or password';
+  if (res.ok) startApp(res.demo); else document.getElementById('lerr').textContent='Wrong username or password';
+}
+async function doDemoLogin() {
+  const res = await api('/api/login',{method:'POST',body:{username:'demo',password:'demo1234'}});
+  if (res.ok) startApp(true); else document.getElementById('lerr').textContent='Demo login unavailable right now';
 }
 async function doLogout() { await api('/api/logout',{method:'POST'}); location.reload(); }
-async function init() { const r = await api('/api/me'); if (r.ok) startApp(); }
+async function exitDemo() { await api('/api/logout',{method:'POST'}); location.reload(); }
+async function init() { const r = await api('/api/me'); if (r.ok) startApp(r.demo); }
 
 // ── START ─────────────────────────────────────────────────────────────────────
-async function startApp() {
+async function startApp(isDemo) {
   document.getElementById('login').style.display='none';
   document.getElementById('app').classList.remove('hide');
+  const demoBanner = document.getElementById('demoBanner');
+  if (demoBanner) demoBanner.classList.toggle('hide', !isDemo);
   const [showsData, settings] = await Promise.all([api('/api/shows'), api('/api/settings')]);
   shows = showsData;
   if (settings?.owned_services) {

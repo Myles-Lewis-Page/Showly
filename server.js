@@ -41,17 +41,116 @@ async function initDB() {
   await pool.query(`
 CREATE TABLE IF NOT EXISTS user_settings (key TEXT PRIMARY KEY, value TEXT);
   `);
+
+  // ── Multi-tenant support (real account + demo account) ──────────────────
+  await pool.query(`ALTER TABLE shows ADD COLUMN IF NOT EXISTS user_id TEXT NOT NULL DEFAULT 'admin'`).catch(()=>{});
+  await pool.query(`ALTER TABLE watched_episodes ADD COLUMN IF NOT EXISTS user_id TEXT NOT NULL DEFAULT 'admin'`).catch(()=>{});
+  await pool.query(`ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS user_id TEXT NOT NULL DEFAULT 'admin'`).catch(()=>{});
+
+  // Replace tmdb_id-only unique constraint on shows with (tmdb_id, user_id), whatever its name is
+  await pool.query(`
+    DO $$
+    DECLARE r RECORD;
+    BEGIN
+      FOR r IN SELECT conname FROM pg_constraint WHERE conrelid = 'shows'::regclass AND contype='u'
+      LOOP
+        EXECUTE 'ALTER TABLE shows DROP CONSTRAINT ' || quote_ident(r.conname);
+      END LOOP;
+    END $$;
+  `).catch(()=>{});
+  await pool.query(`ALTER TABLE shows ADD CONSTRAINT shows_tmdb_user_unique UNIQUE (tmdb_id, user_id)`).catch(()=>{});
+
+  // Replace (tmdb_id, season_number, episode_number) unique constraint with user_id added
+  await pool.query(`
+    DO $$
+    DECLARE r RECORD;
+    BEGIN
+      FOR r IN SELECT conname FROM pg_constraint WHERE conrelid = 'watched_episodes'::regclass AND contype='u'
+      LOOP
+        EXECUTE 'ALTER TABLE watched_episodes DROP CONSTRAINT ' || quote_ident(r.conname);
+      END LOOP;
+    END $$;
+  `).catch(()=>{});
+  await pool.query(`ALTER TABLE watched_episodes ADD CONSTRAINT watched_episodes_unique UNIQUE (tmdb_id, season_number, episode_number, user_id)`).catch(()=>{});
+
+  // Replace single-column PK on user_settings with (key, user_id)
+  await pool.query(`
+    DO $$
+    BEGIN
+      IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'user_settings_pkey_v2') THEN
+        ALTER TABLE user_settings DROP CONSTRAINT IF EXISTS user_settings_pkey;
+        ALTER TABLE user_settings ADD CONSTRAINT user_settings_pkey_v2 PRIMARY KEY (key, user_id);
+      END IF;
+    END $$;
+  `).catch(()=>{});
+
+  await seedDemoData();
+}
+
+// ── Demo account seed data ──────────────────────────────────────────────────
+async function seedDemoData() {
+  const existing = await pool.query(`SELECT COUNT(*)::int as c FROM shows WHERE user_id='demo'`);
+  if (existing.rows[0].c > 0) return; // already seeded
+
+  const demoShows = [
+    { tmdb_id: 94605, title: 'Arcane', poster_path: '/fqldf2t8ztc9aiwn3k6mlX3tvRT.jpg', year: '2021', overview: 'Amid the stark discord of twin cities Piltover and Zaun, two sisters fight on rival sides of a war between magic technologies and clashing convictions.', status: 'finished', platform: 'Netflix', genres: 'Animation,Action,Drama' },
+    { tmdb_id: 60625, title: 'Rick and Morty', poster_path: '/cvhvaTMTluBrfBW34fFBVpi7QI7.jpg', year: '2013', overview: 'Rick is a mentally-unbalanced but scientifically gifted old man who has recently reconnected with his family.', status: 'watching', platform: 'Max', genres: 'Animation,Comedy,Sci-Fi & Fantasy' },
+    { tmdb_id: 1396, title: 'Breaking Bad', poster_path: '/ggFHVNu6YYI5L9pCfOacjizRGt.jpg', year: '2008', overview: 'A high school chemistry teacher diagnosed with inoperable lung cancer turns to manufacturing and selling methamphetamine.', status: 'finished', platform: 'Netflix', genres: 'Drama,Crime' },
+    { tmdb_id: 100088, title: 'The Last of Us', poster_path: '/uKvVjHNqB5VmOrdxqAt2F7J78ED.jpg', year: '2023', overview: 'Twenty years after modern civilization has been destroyed, Joel, a hardened survivor, is hired to smuggle Ellie out of an oppressive quarantine zone.', status: 'caughtup', platform: 'Max', genres: 'Drama' },
+    { tmdb_id: 66732, title: 'Stranger Things', poster_path: '/49WJfeN0moxb9IPfGn8AIqMGskD.jpg', year: '2016', overview: 'When a young boy vanishes, a small town uncovers a mystery involving secret experiments and supernatural forces.', status: 'watching', platform: 'Netflix', genres: 'Drama,Sci-Fi & Fantasy,Mystery' },
+    { tmdb_id: 84958, title: 'Loki', poster_path: '/kEl2t3OhXc3Zb9FBh1AuYzRTgZp.jpg', year: '2021', overview: 'The mercurial villain Loki resumes his role as the God of Mischief in a new series that takes place after the events of "Avengers: Endgame."', status: 'watchlist', platform: 'Disney+', genres: 'Sci-Fi & Fantasy,Drama' },
+  ];
+
+  for (const s of demoShows) {
+    await pool.query(
+      `INSERT INTO shows (tmdb_id,title,poster_path,year,overview,status,platform,genres,user_id)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'demo') ON CONFLICT (tmdb_id, user_id) DO NOTHING`,
+      [s.tmdb_id, s.title, s.poster_path, s.year, s.overview, s.status, s.platform, s.genres]
+    );
+  }
+
+  // Sprinkle some watched episodes across a spread of dates so stats/By Year look populated
+  const watchedSeed = [
+    { tmdb_id: 1396, season_number: 1, episode_count: 7, start: '2024-01-05' },
+    { tmdb_id: 1396, season_number: 2, episode_count: 13, start: '2024-02-01' },
+    { tmdb_id: 94605, season_number: 1, episode_count: 9, start: '2024-06-10' },
+    { tmdb_id: 66732, season_number: 1, episode_count: 8, start: '2025-05-01' },
+    { tmdb_id: 66732, season_number: 2, episode_count: 9, start: '2025-06-01' },
+    { tmdb_id: 100088, season_number: 1, episode_count: 9, start: '2025-07-01' },
+    { tmdb_id: 60625, season_number: 1, episode_count: 11, start: '2025-08-01' },
+  ];
+  for (const block of watchedSeed) {
+    for (let ep = 1; ep <= block.episode_count; ep++) {
+      const d = new Date(block.start);
+      d.setDate(d.getDate() + ep * 3);
+      await pool.query(
+        `INSERT INTO watched_episodes (tmdb_id,season_number,episode_number,watched_at,date_is_explicit,user_id)
+         VALUES ($1,$2,$3,$4,TRUE,'demo')
+         ON CONFLICT (tmdb_id,season_number,episode_number,user_id) DO NOTHING`,
+        [block.tmdb_id, block.season_number, ep, d.toISOString()]
+      );
+    }
+  }
 }
 
 const requireLogin = (req, res, next) => req.session?.ok ? next() : res.status(401).json({ error: 'Not logged in' });
+const uid = (req) => req.session?.userId || 'admin';
+
+const DEMO_USERNAME = process.env.DEMO_USERNAME || 'demo';
+const DEMO_PASSWORD = process.env.DEMO_PASSWORD || 'demo1234';
 
 app.post('/api/login', (req, res) => {
   const { username, password } = req.body;
-  if (username === process.env.ADMIN_USERNAME && password === process.env.ADMIN_PASSWORD) { req.session.ok = true; res.json({ ok: true }); }
-  else res.status(401).json({ error: 'Wrong credentials' });
+  if (username === process.env.ADMIN_USERNAME && password === process.env.ADMIN_PASSWORD) {
+    req.session.ok = true; req.session.userId = 'admin';
+    res.json({ ok: true, demo: false });
+  } else if (username === DEMO_USERNAME && password === DEMO_PASSWORD) {
+    req.session.ok = true; req.session.userId = 'demo';
+    res.json({ ok: true, demo: true });
+  } else res.status(401).json({ error: 'Wrong credentials' });
 });
 app.post('/api/logout', (req, res) => { req.session.destroy(); res.json({ ok: true }); });
-app.get('/api/me', (req, res) => res.json({ ok: !!req.session?.ok }));
+app.get('/api/me', (req, res) => res.json({ ok: !!req.session?.ok, demo: req.session?.userId === 'demo' }));
 
 async function tmdb(endpoint, params = {}) {
   const url = new URL(TMDB + endpoint);
@@ -130,7 +229,7 @@ app.get('/api/tmdb/show/:id', requireLogin, async (req, res) => {
 
 app.get('/api/settings', requireLogin, async (req, res) => {
   try {
-    const r = await pool.query('SELECT key, value FROM user_settings');
+    const r = await pool.query('SELECT key, value FROM user_settings WHERE user_id=$1', [uid(req)]);
     const settings = {};
     r.rows.forEach(row => { settings[row.key] = row.value; });
     res.json(settings);
@@ -141,8 +240,8 @@ app.post('/api/settings', requireLogin, async (req, res) => {
   try {
     const { key, value } = req.body;
     await pool.query(
-      'INSERT INTO user_settings (key, value) VALUES ($1,$2) ON CONFLICT (key) DO UPDATE SET value=$2',
-      [key, value]
+      'INSERT INTO user_settings (key, value, user_id) VALUES ($1,$2,$3) ON CONFLICT (key, user_id) DO UPDATE SET value=$2',
+      [key, value, uid(req)]
     );
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
@@ -151,7 +250,7 @@ app.post('/api/settings', requireLogin, async (req, res) => {
 app.get('/api/tmdb/trending', requireLogin, async (req, res) => {
   try {
     const data = await tmdb('/trending/tv/week');
-    const myIds = new Set((await pool.query('SELECT tmdb_id FROM shows')).rows.map(r => r.tmdb_id));
+    const myIds = new Set((await pool.query('SELECT tmdb_id FROM shows WHERE user_id=$1', [uid(req)])).rows.map(r => r.tmdb_id));
     res.json((data.results||[]).map(s => ({
       tmdb_id: s.id, title: s.name, poster_path: s.poster_path,
       year: (s.first_air_date||'').slice(0,4), overview: s.overview,
@@ -162,7 +261,7 @@ app.get('/api/tmdb/trending', requireLogin, async (req, res) => {
 
 app.get('/api/tmdb/show/:id/similar', requireLogin, async (req, res) => {
   try {
-    const myIds = new Set((await pool.query('SELECT tmdb_id FROM shows')).rows.map(r => r.tmdb_id));
+    const myIds = new Set((await pool.query('SELECT tmdb_id FROM shows WHERE user_id=$1', [uid(req)])).rows.map(r => r.tmdb_id));
     const data = await tmdb(`/tv/${req.params.id}/similar`);
     res.json((data.results||[]).slice(0,12).map(s => ({
       tmdb_id: s.id, title: s.name, poster_path: s.poster_path,
@@ -181,7 +280,7 @@ app.get('/api/tmdb/genres', requireLogin, async (req, res) => {
 
 app.get('/api/recommendations/genre/:genre_id', requireLogin, async (req, res) => {
   try {
-    const myIds = new Set((await pool.query('SELECT tmdb_id FROM shows')).rows.map(r => r.tmdb_id));
+    const myIds = new Set((await pool.query('SELECT tmdb_id FROM shows WHERE user_id=$1', [uid(req)])).rows.map(r => r.tmdb_id));
     const data = await tmdb('/discover/tv', { with_genres: req.params.genre_id, sort_by: 'popularity.desc', 'vote_count.gte': 100 });
     res.json((data.results||[]).filter(r => !myIds.has(r.id)).slice(0,24).map(s => ({
       tmdb_id: s.id, title: s.name, poster_path: s.poster_path,
@@ -228,8 +327,8 @@ app.get('/api/tmdb/show/:id/season/:season', requireLogin, async (req, res) => {
 
 app.get('/api/recommendations', requireLogin, async (req, res) => {
   try {
-    const myShows = await pool.query("SELECT tmdb_id FROM shows WHERE status IN ('watching','caughtup','paused') LIMIT 5");
-    const myIds = new Set((await pool.query('SELECT tmdb_id FROM shows')).rows.map(r => r.tmdb_id));
+    const myShows = await pool.query("SELECT tmdb_id FROM shows WHERE status IN ('watching','caughtup','paused') AND user_id=$1 LIMIT 5", [uid(req)]);
+    const myIds = new Set((await pool.query('SELECT tmdb_id FROM shows WHERE user_id=$1', [uid(req)])).rows.map(r => r.tmdb_id));
     let recs = [];
     if (myShows.rows.length) {
       for (const row of myShows.rows) { const d = await tmdb(`/tv/${row.tmdb_id}/recommendations`); recs.push(...(d.results||[])); }
@@ -245,17 +344,18 @@ app.get('/api/recommendations', requireLogin, async (req, res) => {
 app.get('/api/stats', requireLogin, async (req, res) => {
   try {
     const TRACKER_START = '2025-04-15T00:00:00Z'; // Episodes before this = "Before Tracker"
+    const u = uid(req);
     const [showsData, epData, yearData, beforeTracker, undatedCount] = await Promise.all([
-      pool.query('SELECT * FROM shows'),
-      pool.query('SELECT tmdb_id, COUNT(*) as ep_count FROM watched_episodes GROUP BY tmdb_id ORDER BY ep_count DESC LIMIT 10'),
+      pool.query('SELECT * FROM shows WHERE user_id=$1', [u]),
+      pool.query('SELECT tmdb_id, COUNT(*) as ep_count FROM watched_episodes WHERE user_id=$1 GROUP BY tmdb_id ORDER BY ep_count DESC LIMIT 10', [u]),
       pool.query(`SELECT EXTRACT(YEAR FROM watched_at)::int as yr, COUNT(*)::int as ep_count
                   FROM watched_episodes
-                  WHERE date_is_explicit=TRUE AND watched_at IS NOT NULL AND watched_at >= $1
-                  GROUP BY yr ORDER BY yr DESC`, [TRACKER_START]),
+                  WHERE date_is_explicit=TRUE AND watched_at IS NOT NULL AND watched_at >= $1 AND user_id=$2
+                  GROUP BY yr ORDER BY yr DESC`, [TRACKER_START, u]),
       pool.query(`SELECT COUNT(*)::int as cnt FROM watched_episodes
-                  WHERE date_is_explicit=TRUE AND watched_at IS NOT NULL AND watched_at < $1`, [TRACKER_START]),
+                  WHERE date_is_explicit=TRUE AND watched_at IS NOT NULL AND watched_at < $1 AND user_id=$2`, [TRACKER_START, u]),
       pool.query(`SELECT COUNT(*)::int as cnt FROM watched_episodes
-                  WHERE date_is_explicit=FALSE OR date_is_explicit IS NULL`),
+                  WHERE (date_is_explicit=FALSE OR date_is_explicit IS NULL) AND user_id=$1`, [u]),
     ]);
     res.json({
       shows: showsData.rows, topEps: epData.rows, byYear: yearData.rows,
@@ -268,7 +368,7 @@ app.get('/api/stats', requireLogin, async (req, res) => {
 app.get('/api/next-episode/:tmdb_id', requireLogin, async (req, res) => {
   try {
     const tmdb_id = parseInt(req.params.tmdb_id);
-    const watched = await pool.query('SELECT season_number, episode_number FROM watched_episodes WHERE tmdb_id=$1', [tmdb_id]);
+    const watched = await pool.query('SELECT season_number, episode_number FROM watched_episodes WHERE tmdb_id=$1 AND user_id=$2', [tmdb_id, uid(req)]);
     const watchedSet = new Set(watched.rows.map(r => `${r.season_number}_${r.episode_number}`));
     const showData = await tmdb(`/tv/${tmdb_id}`);
     const seasons = (showData.seasons||[]).filter(s => s.season_number > 0);
@@ -304,8 +404,8 @@ app.get('/api/next-episode/:tmdb_id', requireLogin, async (req, res) => {
         if (!watchedSet.has(`${season_number}_${ep.episode_number}`)) {
           // Save date/status/genre info back to shows table
           const genreStr2 = (showData.genres||[]).map(g=>g.name).join(',');
-          await pool.query('UPDATE shows SET last_air_date=$1, tmdb_status=$2, genres=$3 WHERE tmdb_id=$4',
-            [showData.last_air_date||null, showData.status||null, genreStr2||null, tmdb_id]).catch(()=>{});
+          await pool.query('UPDATE shows SET last_air_date=$1, tmdb_status=$2, genres=$3 WHERE tmdb_id=$4 AND user_id=$5',
+            [showData.last_air_date||null, showData.status||null, genreStr2||null, tmdb_id, uid(req)]).catch(()=>{});
           return res.json({
             ...baseInfo,
             season_number, episode_number: ep.episode_number,
@@ -320,8 +420,8 @@ app.get('/api/next-episode/:tmdb_id', requireLogin, async (req, res) => {
     // Save date/status/genre info back to shows table for instant card display
     const genreStr = (showData.genres||[]).map(g=>g.name).join(',');
     await pool.query(
-      'UPDATE shows SET last_air_date=$1, tmdb_status=$2, genres=$3 WHERE tmdb_id=$4',
-      [showData.last_air_date||null, showData.status||null, genreStr||null, tmdb_id]
+      'UPDATE shows SET last_air_date=$1, tmdb_status=$2, genres=$3 WHERE tmdb_id=$4 AND user_id=$5',
+      [showData.last_air_date||null, showData.status||null, genreStr||null, tmdb_id, uid(req)]
     ).catch(()=>{});
 
     // All aired episodes watched
@@ -334,7 +434,7 @@ app.get('/api/next-episode/:tmdb_id', requireLogin, async (req, res) => {
 });
 
 app.get('/api/shows', requireLogin, async (req, res) => {
-  try { res.json((await pool.query('SELECT * FROM shows ORDER BY title ASC')).rows); }
+  try { res.json((await pool.query('SELECT * FROM shows WHERE user_id=$1 ORDER BY title ASC', [uid(req)])).rows); }
   catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -342,9 +442,9 @@ app.post('/api/shows', requireLogin, async (req, res) => {
   try {
     const { tmdb_id, title, poster_path, year, overview, status } = req.body;
     const r = await pool.query(
-      `INSERT INTO shows (tmdb_id,title,poster_path,year,overview,status) VALUES ($1,$2,$3,$4,$5,$6)
-       ON CONFLICT (tmdb_id) DO UPDATE SET status=$6, updated_at=NOW() RETURNING *`,
-      [tmdb_id, title, poster_path||null, year||null, overview||null, status||'watching']
+      `INSERT INTO shows (tmdb_id,title,poster_path,year,overview,status,user_id) VALUES ($1,$2,$3,$4,$5,$6,$7)
+       ON CONFLICT (tmdb_id, user_id) DO UPDATE SET status=$6, updated_at=NOW() RETURNING *`,
+      [tmdb_id, title, poster_path||null, year||null, overview||null, status||'watching', uid(req)]
     );
     res.json(r.rows[0]);
   } catch (e) { res.status(500).json({ error: e.message }); }
@@ -359,46 +459,48 @@ app.patch('/api/shows/:id', requireLogin, async (req, res) => {
     if (genres !== undefined) { fields.push(`genres=$${fields.length+1}`); vals.push(genres); }
     fields.push(`updated_at=NOW()`);
     vals.push(req.params.id);
-    const r = await pool.query(`UPDATE shows SET ${fields.join(',')} WHERE id=$${vals.length} RETURNING *`, vals);
+    vals.push(uid(req));
+    const r = await pool.query(`UPDATE shows SET ${fields.join(',')} WHERE id=$${vals.length-1} AND user_id=$${vals.length} RETURNING *`, vals);
     if (!r.rows.length) return res.status(404).json({ error: 'Not found' });
     res.json(r.rows[0]);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.delete('/api/shows/:id', requireLogin, async (req, res) => {
-  try { await pool.query('DELETE FROM shows WHERE id=$1', [req.params.id]); res.json({ ok: true }); }
+  try { await pool.query('DELETE FROM shows WHERE id=$1 AND user_id=$2', [req.params.id, uid(req)]); res.json({ ok: true }); }
   catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.get('/api/episodes/all', requireLogin, async (req, res) => {
   try {
-    const r = await pool.query('SELECT COUNT(*) as total FROM watched_episodes');
+    const r = await pool.query('SELECT COUNT(*) as total FROM watched_episodes WHERE user_id=$1', [uid(req)]);
     res.json({ total: parseInt(r.rows[0].total) });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.get('/api/episodes/:tmdb_id', requireLogin, async (req, res) => {
-  try { res.json((await pool.query('SELECT season_number, episode_number, watched_at, date_is_explicit FROM watched_episodes WHERE tmdb_id=$1', [req.params.tmdb_id])).rows); }
+  try { res.json((await pool.query('SELECT season_number, episode_number, watched_at, date_is_explicit FROM watched_episodes WHERE tmdb_id=$1 AND user_id=$2', [req.params.tmdb_id, uid(req)])).rows); }
   catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.post('/api/episodes', requireLogin, async (req, res) => {
   try {
     const { tmdb_id, season_number, episode_number, watched_at } = req.body;
+    const u = uid(req);
     if (watched_at) {
       await pool.query(
-        `INSERT INTO watched_episodes (tmdb_id,season_number,episode_number,watched_at,date_is_explicit)
-         VALUES ($1,$2,$3,$4,TRUE)
-         ON CONFLICT (tmdb_id,season_number,episode_number)
+        `INSERT INTO watched_episodes (tmdb_id,season_number,episode_number,watched_at,date_is_explicit,user_id)
+         VALUES ($1,$2,$3,$4,TRUE,$5)
+         ON CONFLICT (tmdb_id,season_number,episode_number,user_id)
          DO UPDATE SET watched_at=$4, date_is_explicit=TRUE`,
-        [parseInt(tmdb_id), parseInt(season_number), parseInt(episode_number), watched_at]
+        [parseInt(tmdb_id), parseInt(season_number), parseInt(episode_number), watched_at, u]
       );
     } else {
       await pool.query(
-        `INSERT INTO watched_episodes (tmdb_id,season_number,episode_number,date_is_explicit)
-         VALUES ($1,$2,$3,FALSE)
-         ON CONFLICT (tmdb_id,season_number,episode_number) DO NOTHING`,
-        [parseInt(tmdb_id), parseInt(season_number), parseInt(episode_number)]
+        `INSERT INTO watched_episodes (tmdb_id,season_number,episode_number,date_is_explicit,user_id)
+         VALUES ($1,$2,$3,FALSE,$4)
+         ON CONFLICT (tmdb_id,season_number,episode_number,user_id) DO NOTHING`,
+        [parseInt(tmdb_id), parseInt(season_number), parseInt(episode_number), u]
       );
     }
     res.json({ ok: true });
@@ -408,7 +510,7 @@ app.post('/api/episodes', requireLogin, async (req, res) => {
 app.delete('/api/episodes', requireLogin, async (req, res) => {
   try {
     const { tmdb_id, season_number, episode_number } = req.body;
-    await pool.query('DELETE FROM watched_episodes WHERE tmdb_id=$1 AND season_number=$2 AND episode_number=$3', [parseInt(tmdb_id), parseInt(season_number), parseInt(episode_number)]);
+    await pool.query('DELETE FROM watched_episodes WHERE tmdb_id=$1 AND season_number=$2 AND episode_number=$3 AND user_id=$4', [parseInt(tmdb_id), parseInt(season_number), parseInt(episode_number), uid(req)]);
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -416,23 +518,24 @@ app.delete('/api/episodes', requireLogin, async (req, res) => {
 app.post('/api/episodes/season', requireLogin, async (req, res) => {
   try {
     const { tmdb_id, season_number, episodes, watched_ats } = req.body;
+    const u = uid(req);
     for (let i = 0; i < episodes.length; i++) {
       const ep = episodes[i];
       const wat = watched_ats?.[i] || null;
       if (wat) {
         await pool.query(
-          `INSERT INTO watched_episodes (tmdb_id,season_number,episode_number,watched_at,date_is_explicit)
-           VALUES ($1,$2,$3,$4,TRUE)
-           ON CONFLICT (tmdb_id,season_number,episode_number)
+          `INSERT INTO watched_episodes (tmdb_id,season_number,episode_number,watched_at,date_is_explicit,user_id)
+           VALUES ($1,$2,$3,$4,TRUE,$5)
+           ON CONFLICT (tmdb_id,season_number,episode_number,user_id)
            DO UPDATE SET watched_at=$4, date_is_explicit=TRUE`,
-          [parseInt(tmdb_id), parseInt(season_number), parseInt(ep), wat]
+          [parseInt(tmdb_id), parseInt(season_number), parseInt(ep), wat, u]
         );
       } else {
         await pool.query(
-          `INSERT INTO watched_episodes (tmdb_id,season_number,episode_number,date_is_explicit)
-           VALUES ($1,$2,$3,FALSE)
-           ON CONFLICT (tmdb_id,season_number,episode_number) DO NOTHING`,
-          [parseInt(tmdb_id), parseInt(season_number), parseInt(ep)]
+          `INSERT INTO watched_episodes (tmdb_id,season_number,episode_number,date_is_explicit,user_id)
+           VALUES ($1,$2,$3,FALSE,$4)
+           ON CONFLICT (tmdb_id,season_number,episode_number,user_id) DO NOTHING`,
+          [parseInt(tmdb_id), parseInt(season_number), parseInt(ep), u]
         );
       }
     }
@@ -442,7 +545,7 @@ app.post('/api/episodes/season', requireLogin, async (req, res) => {
 
 app.delete('/api/episodes/season', requireLogin, async (req, res) => {
   try {
-    await pool.query('DELETE FROM watched_episodes WHERE tmdb_id=$1 AND season_number=$2', [parseInt(req.body.tmdb_id), parseInt(req.body.season_number)]);
+    await pool.query('DELETE FROM watched_episodes WHERE tmdb_id=$1 AND season_number=$2 AND user_id=$3', [parseInt(req.body.tmdb_id), parseInt(req.body.season_number), uid(req)]);
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -454,7 +557,8 @@ app.post('/api/history/import', requireLogin, async (req, res) => {
     if (!Array.isArray(entries)) return res.status(400).json({ error: 'entries must be an array' });
 
     // Build map of our shows by tmdb_id
-    const ourShows = await pool.query('SELECT tmdb_id FROM shows');
+    const u = uid(req);
+    const ourShows = await pool.query('SELECT tmdb_id FROM shows WHERE user_id=$1', [u]);
     const ourIds = new Set(ourShows.rows.map(r => r.tmdb_id));
 
     // Group by show, then deduplicate per season+episode keeping most recent watched_at
@@ -489,18 +593,18 @@ app.post('/api/history/import', requireLogin, async (req, res) => {
           const wat = ep.watched_at || null;
           if (wat) {
             await pool.query(
-              `INSERT INTO watched_episodes (tmdb_id,season_number,episode_number,watched_at,date_is_explicit)
-               VALUES ($1,$2,$3,$4,TRUE)
-               ON CONFLICT (tmdb_id,season_number,episode_number)
+              `INSERT INTO watched_episodes (tmdb_id,season_number,episode_number,watched_at,date_is_explicit,user_id)
+               VALUES ($1,$2,$3,$4,TRUE,$5)
+               ON CONFLICT (tmdb_id,season_number,episode_number,user_id)
                DO UPDATE SET watched_at=$4, date_is_explicit=TRUE`,
-              [id, parseInt(ep.season), parseInt(ep.episode), wat]
+              [id, parseInt(ep.season), parseInt(ep.episode), wat, u]
             );
           } else {
             await pool.query(
-              `INSERT INTO watched_episodes (tmdb_id,season_number,episode_number,date_is_explicit)
-               VALUES ($1,$2,$3,FALSE)
-               ON CONFLICT (tmdb_id,season_number,episode_number) DO NOTHING`,
-              [id, parseInt(ep.season), parseInt(ep.episode)]
+              `INSERT INTO watched_episodes (tmdb_id,season_number,episode_number,date_is_explicit,user_id)
+               VALUES ($1,$2,$3,FALSE,$4)
+               ON CONFLICT (tmdb_id,season_number,episode_number,user_id) DO NOTHING`,
+              [id, parseInt(ep.season), parseInt(ep.episode), u]
             );
           }
           imported++;
@@ -517,8 +621,8 @@ app.post('/api/history/import', requireLogin, async (req, res) => {
 
     // Persist unmatched to user_settings so UI can display it
     await pool.query(
-      'INSERT INTO user_settings (key,value) VALUES ($1,$2) ON CONFLICT (key) DO UPDATE SET value=$2',
-      ['trakt_unmatched', JSON.stringify(unmatched)]
+      'INSERT INTO user_settings (key,value,user_id) VALUES ($1,$2,$3) ON CONFLICT (key,user_id) DO UPDATE SET value=$2',
+      ['trakt_unmatched', JSON.stringify(unmatched), u]
     );
 
     res.json({ matched, imported, unmatched_shows: unmatched.length, unmatched });
@@ -531,10 +635,10 @@ app.get('/api/history/undated', requireLogin, async (req, res) => {
       SELECT we.tmdb_id, we.season_number, we.episode_number,
              s.title, s.poster_path
       FROM watched_episodes we
-      JOIN shows s ON s.tmdb_id = we.tmdb_id
-      WHERE we.date_is_explicit = FALSE OR we.date_is_explicit IS NULL
+      JOIN shows s ON s.tmdb_id = we.tmdb_id AND s.user_id = we.user_id
+      WHERE (we.date_is_explicit = FALSE OR we.date_is_explicit IS NULL) AND we.user_id = $1
       ORDER BY s.title ASC, we.season_number ASC, we.episode_number ASC
-    `);
+    `, [uid(req)]);
     const byShow = {};
     for (const row of r.rows) {
       if (!byShow[row.tmdb_id]) byShow[row.tmdb_id] = { tmdb_id: row.tmdb_id, title: row.title, poster_path: row.poster_path, episodes: [] };
@@ -550,14 +654,15 @@ app.get('/api/stats/year/:year', requireLogin, async (req, res) => {
     const yr = req.params.year;
     const isBefore = yr === 'before';
 
+    const u = uid(req);
     const whereClause = isBefore
-      ? `date_is_explicit=TRUE AND watched_at IS NOT NULL AND watched_at < '${TRACKER_START}'`
-      : `date_is_explicit=TRUE AND EXTRACT(YEAR FROM watched_at) = ${parseInt(yr)} AND watched_at >= '${TRACKER_START}'`;
+      ? `date_is_explicit=TRUE AND watched_at IS NOT NULL AND watched_at < '${TRACKER_START}' AND user_id='${u}'`
+      : `date_is_explicit=TRUE AND EXTRACT(YEAR FROM watched_at) = ${parseInt(yr)} AND watched_at >= '${TRACKER_START}' AND user_id='${u}'`;
 
     const [epData, topShows] = await Promise.all([
       pool.query(`SELECT COUNT(*)::int as ep_count FROM watched_episodes WHERE ${whereClause}`),
       pool.query(`SELECT we.tmdb_id, COUNT(*)::int as ep_count, s.title, s.poster_path, s.id
-                  FROM watched_episodes we JOIN shows s ON s.tmdb_id = we.tmdb_id
+                  FROM watched_episodes we JOIN shows s ON s.tmdb_id = we.tmdb_id AND s.user_id = we.user_id
                   WHERE ${whereClause}
                   GROUP BY we.tmdb_id, s.title, s.poster_path, s.id
                   ORDER BY ep_count DESC LIMIT 5`),
@@ -568,7 +673,7 @@ app.get('/api/stats/year/:year', requireLogin, async (req, res) => {
 
 app.get('/api/history/unmatched', requireLogin, async (req, res) => {
   try {
-    const r = await pool.query("SELECT value FROM user_settings WHERE key='trakt_unmatched'");
+    const r = await pool.query("SELECT value FROM user_settings WHERE key='trakt_unmatched' AND user_id=$1", [uid(req)]);
     const unmatched = r.rows[0] ? JSON.parse(r.rows[0].value) : [];
     res.json(unmatched);
   } catch (e) { res.status(500).json({ error: e.message }); }
@@ -579,32 +684,33 @@ app.post('/api/history/unmatched/resolve', requireLogin, async (req, res) => {
     // After user adds a show, import its pending episodes and remove from unmatched list
     const { tmdb_id, episodes } = req.body;
     const id = parseInt(tmdb_id);
+    const u = uid(req);
     for (const ep of episodes) {
       const wat = ep.watched_at || null;
       if (wat) {
         await pool.query(
-          `INSERT INTO watched_episodes (tmdb_id,season_number,episode_number,watched_at,date_is_explicit)
-           VALUES ($1,$2,$3,$4,TRUE)
-           ON CONFLICT (tmdb_id,season_number,episode_number)
+          `INSERT INTO watched_episodes (tmdb_id,season_number,episode_number,watched_at,date_is_explicit,user_id)
+           VALUES ($1,$2,$3,$4,TRUE,$5)
+           ON CONFLICT (tmdb_id,season_number,episode_number,user_id)
            DO UPDATE SET watched_at=$4, date_is_explicit=TRUE`,
-          [id, parseInt(ep.season), parseInt(ep.episode), wat]
+          [id, parseInt(ep.season), parseInt(ep.episode), wat, u]
         );
       } else {
         await pool.query(
-          `INSERT INTO watched_episodes (tmdb_id,season_number,episode_number,date_is_explicit)
-           VALUES ($1,$2,$3,FALSE)
-           ON CONFLICT (tmdb_id,season_number,episode_number) DO NOTHING`,
-          [id, parseInt(ep.season), parseInt(ep.episode)]
+          `INSERT INTO watched_episodes (tmdb_id,season_number,episode_number,date_is_explicit,user_id)
+           VALUES ($1,$2,$3,FALSE,$4)
+           ON CONFLICT (tmdb_id,season_number,episode_number,user_id) DO NOTHING`,
+          [id, parseInt(ep.season), parseInt(ep.episode), u]
         );
       }
     }
     // Remove this show from unmatched list
-    const r = await pool.query("SELECT value FROM user_settings WHERE key='trakt_unmatched'");
+    const r = await pool.query("SELECT value FROM user_settings WHERE key='trakt_unmatched' AND user_id=$1", [u]);
     let unmatched = r.rows[0] ? JSON.parse(r.rows[0].value) : [];
-    unmatched = unmatched.filter(u => u.tmdb_id !== id);
+    unmatched = unmatched.filter(x => x.tmdb_id !== id);
     await pool.query(
-      'INSERT INTO user_settings (key,value) VALUES ($1,$2) ON CONFLICT (key) DO UPDATE SET value=$2',
-      ['trakt_unmatched', JSON.stringify(unmatched)]
+      'INSERT INTO user_settings (key,value,user_id) VALUES ($1,$2,$3) ON CONFLICT (key,user_id) DO UPDATE SET value=$2',
+      ['trakt_unmatched', JSON.stringify(unmatched), u]
     );
     res.json({ ok: true, remaining: unmatched.length });
   } catch (e) { res.status(500).json({ error: e.message }); }
@@ -613,12 +719,13 @@ app.post('/api/history/unmatched/resolve', requireLogin, async (req, res) => {
 app.delete('/api/history/unmatched/:tmdb_id', requireLogin, async (req, res) => {
   try {
     const id = parseInt(req.params.tmdb_id);
-    const r = await pool.query("SELECT value FROM user_settings WHERE key='trakt_unmatched'");
+    const u = uid(req);
+    const r = await pool.query("SELECT value FROM user_settings WHERE key='trakt_unmatched' AND user_id=$1", [u]);
     let unmatched = r.rows[0] ? JSON.parse(r.rows[0].value) : [];
-    unmatched = unmatched.filter(u => u.tmdb_id !== id);
+    unmatched = unmatched.filter(x => x.tmdb_id !== id);
     await pool.query(
-      'INSERT INTO user_settings (key,value) VALUES ($1,$2) ON CONFLICT (key) DO UPDATE SET value=$2',
-      ['trakt_unmatched', JSON.stringify(unmatched)]
+      'INSERT INTO user_settings (key,value,user_id) VALUES ($1,$2,$3) ON CONFLICT (key,user_id) DO UPDATE SET value=$2',
+      ['trakt_unmatched', JSON.stringify(unmatched), u]
     );
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: e.message }); }

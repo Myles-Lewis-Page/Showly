@@ -16,12 +16,14 @@
     <label>Username</label><input type="text" id="lu" autocomplete="username"/>
     <label>Password</label><input type="password" id="lp" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()"/>
     <button class="btn-submit" onclick="doLogin()">Sign in</button>
+    <button class="btn-demo" onclick="doDemoLogin()">View demo</button>
     <div class="login-err" id="lerr"></div>
   </div>
 </div>
 
 <!-- APP -->
 <div id="app" class="hide">
+  <div id="demoBanner" class="hide">You're viewing a demo account with sample data — changes here don't affect the real tracker. <button onclick="exitDemo()">Exit demo</button></div>
   <nav>
     <span class="nav-logo">📺</span>
     <button class="nav-tab on" onclick="setTab('watching')" id="t-watching">Watching</button>
