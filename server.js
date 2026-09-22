@@ -370,6 +370,8 @@ app.get('/api/next-episode/:tmdb_id', requireLogin, async (req, res) => {
     const tmdb_id = parseInt(req.params.tmdb_id);
     const watched = await pool.query('SELECT season_number, episode_number FROM watched_episodes WHERE tmdb_id=$1 AND user_id=$2', [tmdb_id, uid(req)]);
     const watchedSet = new Set(watched.rows.map(r => `${r.season_number}_${r.episode_number}`));
+    // total_watched/total_aired below must both exclude season 0 (specials) so the card and detail progress numbers agree
+    const watchedCountedSet = new Set(watched.rows.filter(r => r.season_number > 0).map(r => `${r.season_number}_${r.episode_number}`));
     const showData = await tmdb(`/tv/${tmdb_id}`);
     const seasons = (showData.seasons||[]).filter(s => s.season_number > 0);
     const showEnded = ['Ended','Canceled','Cancelled'].includes(showData.status);
@@ -410,7 +412,7 @@ app.get('/api/next-episode/:tmdb_id', requireLogin, async (req, res) => {
             ...baseInfo,
             season_number, episode_number: ep.episode_number,
             name: ep.name, air_date: ep.air_date, still_path: ep.still_path,
-            total_watched: watchedSet.size, total_aired: totalAired,
+            total_watched: watchedCountedSet.size, total_aired: totalAired,
             suggested_status: 'watching',
           });
         }
@@ -427,7 +429,7 @@ app.get('/api/next-episode/:tmdb_id', requireLogin, async (req, res) => {
     // All aired episodes watched
     res.json({
       ...baseInfo,
-      all_watched: true, total_watched: watchedSet.size, total_aired: totalAired,
+      all_watched: true, total_watched: watchedCountedSet.size, total_aired: totalAired,
       suggested_status: showEnded ? 'finished' : 'caughtup',
     });
   } catch (e) { res.status(500).json({ error: e.message }); }
