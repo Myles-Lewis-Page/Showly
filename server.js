@@ -10,7 +10,20 @@ const TMDB_TOKEN = process.env.TMDB_TOKEN;
 const TMDB = 'https://api.themoviedb.org/3';
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
+app.set('etag', false); // API responses are dynamic (DB-backed) — never let Express or an edge/proxy cache them via ETag/304
 app.use(express.json({ limit: '10mb' }));
+app.use('/api', (req, res, next) => {
+  // Belt-and-suspenders: explicitly tell the browser, Railway's edge, and any
+  // proxy in between not to cache or reuse API responses. Without this, a
+  // 304 Not Modified can get served for data that has actually changed
+  // underneath (e.g. after running SQL directly against the DB), and no
+  // amount of browser-side hard-refreshing fixes it since the server/edge
+  // itself is the one deciding to skip sending fresh data.
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.set('Pragma', 'no-cache');
+  res.set('Expires', '0');
+  next();
+});
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(session({ secret: process.env.SESSION_SECRET || 'dev-secret', resave: false, saveUninitialized: false, cookie: { secure: false, httpOnly: true, maxAge: 30*24*60*60*1000 } }));
 
