@@ -42,6 +42,47 @@ async function initDB() {
 CREATE TABLE IF NOT EXISTS user_settings (key TEXT PRIMARY KEY, value TEXT);
   `);
 
+  // ── Custom season/sub-season display overrides ───────────────────────────
+  // season_number/episode_number here are ALWAYS the raw TMDB values (source of truth).
+  // display_* columns are purely cosmetic grouping. A row only exists once a user has
+  // manually customized that episode, so existence == is_modified == true, meaning our
+  // "check for new episodes" sync (which only ever reads/writes raw TMDB columns) can
+  // never step on a customization, and new episodes TMDB adds simply have no override
+  // row until the user assigns one.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS episode_display (
+      id SERIAL PRIMARY KEY,
+      tmdb_id INTEGER NOT NULL,
+      season_number INTEGER NOT NULL,
+      episode_number INTEGER NOT NULL,
+      display_season INTEGER NOT NULL,
+      display_sub_season INTEGER,
+      display_episode_number INTEGER,
+      sub_season_label TEXT,
+      is_modified BOOLEAN NOT NULL DEFAULT TRUE,
+      user_id TEXT NOT NULL DEFAULT 'admin',
+      updated_at TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE(tmdb_id, season_number, episode_number, user_id)
+    );
+  `);
+
+  // ── Episode tags (canon/filler/crossover/etc) ────────────────────────────
+  // Free-text tags, many-per-episode. Keyed off raw TMDB season/episode, same
+  // as episode_display, so tagging is completely independent of grouping and
+  // of the new-episode sync.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS episode_tags (
+      id SERIAL PRIMARY KEY,
+      tmdb_id INTEGER NOT NULL,
+      season_number INTEGER NOT NULL,
+      episode_number INTEGER NOT NULL,
+      tag TEXT NOT NULL,
+      user_id TEXT NOT NULL DEFAULT 'admin',
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE(tmdb_id, season_number, episode_number, tag, user_id)
+    );
+  `);
+
   // ── Multi-tenant support (real account + demo account) ──────────────────
   await pool.query(`ALTER TABLE shows ADD COLUMN IF NOT EXISTS user_id TEXT NOT NULL DEFAULT 'admin'`).catch(()=>{});
   await pool.query(`ALTER TABLE watched_episodes ADD COLUMN IF NOT EXISTS user_id TEXT NOT NULL DEFAULT 'admin'`).catch(()=>{});
@@ -325,6 +366,227 @@ app.get('/api/tmdb/show/:id/season/:season', requireLogin, async (req, res) => {
   catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// ── CUSTOM SEASON / SUB-SEASON DISPLAY ──────────────────────────────────────
+// Nothing in here ever mutates watched_episodes or the raw TMDB season/episode
+// numbers — it only maps them to a custom display grouping.
+
+app.get('/api/display/:tmdb_id', requireLogin, async (req, res) => {
+  try {
+    const r = await pool.query(
+      `SELECT season_number, episode_number, display_season, display_sub_season,
+              display_episode_number, sub_season_label
+       FROM episode_display WHERE tmdb_id=$1 AND user_id=$2`,
+      [parseInt(req.params.tmdb_id), uid(req)]
+    );
+    res.json(r.rows);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Upsert a single episode's custom placement
+app.post('/api/display', requireLogin, async (req, res) => {
+  try {
+    const { tmdb_id, season_number, episode_number, display_season, display_sub_season, display_episode_number, sub_season_label } = req.body;
+    const u = uid(req);
+    const r = await pool.query(
+      `INSERT INTO episode_display
+         (tmdb_id,season_number,episode_number,display_season,display_sub_season,display_episode_number,sub_season_label,is_modified,user_id)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,TRUE,$8)
+       ON CONFLICT (tmdb_id,season_number,episode_number,user_id)
+       DO UPDATE SET display_season=$4, display_sub_season=$5, display_episode_number=$6, sub_season_label=$7, is_modified=TRUE, updated_at=NOW()
+       RETURNING *`,
+      [parseInt(tmdb_id), parseInt(season_number), parseInt(episode_number),
+       parseInt(display_season), display_sub_season!=null?parseInt(display_sub_season):null,
+       display_episode_number!=null?parseInt(display_episode_number):null, sub_season_label||null, u]
+    );
+    res.json(r.rows[0]);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Bulk-assign a contiguous raw range (season_number, from_episode..to_episode) to one
+// display_season/display_sub_season, auto-numbering display_episode_number upward from
+// start_display_episode (defaults to 1).
+app.post('/api/display/bulk', requireLogin, async (req, res) => {
+  try {
+    const { tmdb_id, season_number, from_episode, to_episode, display_season, display_sub_season, sub_season_label, start_display_episode } = req.body;
+    const u = uid(req);
+    let dispEp = start_display_episode != null ? parseInt(start_display_episode) : 1;
+    const results = [];
+    for (let ep = parseInt(from_episode); ep <= parseInt(to_episode); ep++) {
+      const r = await pool.query(
+        `INSERT INTO episode_display
+           (tmdb_id,season_number,episode_number,display_season,display_sub_season,display_episode_number,sub_season_label,is_modified,user_id)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,TRUE,$8)
+         ON CONFLICT (tmdb_id,season_number,episode_number,user_id)
+         DO UPDATE SET display_season=$4, display_sub_season=$5, display_episode_number=$6, sub_season_label=$7, is_modified=TRUE, updated_at=NOW()
+         RETURNING *`,
+        [parseInt(tmdb_id), parseInt(season_number), ep,
+         parseInt(display_season), display_sub_season!=null?parseInt(display_sub_season):null,
+         dispEp, sub_season_label||null, u]
+      );
+      results.push(r.rows[0]);
+      dispEp++;
+    }
+    res.json({ ok: true, count: results.length, rows: results });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Revert one episode back to raw TMDB numbering
+app.delete('/api/display', requireLogin, async (req, res) => {
+  try {
+    const { tmdb_id, season_number, episode_number } = req.body;
+    await pool.query(
+      'DELETE FROM episode_display WHERE tmdb_id=$1 AND season_number=$2 AND episode_number=$3 AND user_id=$4',
+      [parseInt(tmdb_id), parseInt(season_number), parseInt(episode_number), uid(req)]
+    );
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Revert an entire raw TMDB season's worth of overrides at once
+app.delete('/api/display/season', requireLogin, async (req, res) => {
+  try {
+    const { tmdb_id, season_number } = req.body;
+    await pool.query(
+      'DELETE FROM episode_display WHERE tmdb_id=$1 AND season_number=$2 AND user_id=$3',
+      [parseInt(tmdb_id), parseInt(season_number), uid(req)]
+    );
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── EPISODE TAGS (canon / filler / crossover / custom) ──────────────────────
+app.get('/api/tags/:tmdb_id', requireLogin, async (req, res) => {
+  try {
+    const r = await pool.query(
+      'SELECT season_number, episode_number, tag FROM episode_tags WHERE tmdb_id=$1 AND user_id=$2',
+      [parseInt(req.params.tmdb_id), uid(req)]
+    );
+    res.json(r.rows);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/tags', requireLogin, async (req, res) => {
+  try {
+    const { tmdb_id, season_number, episode_number, tag } = req.body;
+    const cleanTag = (tag||'').trim();
+    if (!cleanTag) return res.status(400).json({ error: 'tag required' });
+    await pool.query(
+      `INSERT INTO episode_tags (tmdb_id,season_number,episode_number,tag,user_id)
+       VALUES ($1,$2,$3,$4,$5) ON CONFLICT (tmdb_id,season_number,episode_number,tag,user_id) DO NOTHING`,
+      [parseInt(tmdb_id), parseInt(season_number), parseInt(episode_number), cleanTag, uid(req)]
+    );
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/tags', requireLogin, async (req, res) => {
+  try {
+    const { tmdb_id, season_number, episode_number, tag } = req.body;
+    await pool.query(
+      'DELETE FROM episode_tags WHERE tmdb_id=$1 AND season_number=$2 AND episode_number=$3 AND tag=$4 AND user_id=$5',
+      [parseInt(tmdb_id), parseInt(season_number), parseInt(episode_number), tag, uid(req)]
+    );
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Bulk-tag a raw episode range in one go (e.g. tag a whole filler arc "Filler" at once)
+app.post('/api/tags/bulk', requireLogin, async (req, res) => {
+  try {
+    const { tmdb_id, season_number, from_episode, to_episode, tag } = req.body;
+    const cleanTag = (tag||'').trim();
+    if (!cleanTag) return res.status(400).json({ error: 'tag required' });
+    const u = uid(req);
+    for (let ep = parseInt(from_episode); ep <= parseInt(to_episode); ep++) {
+      await pool.query(
+        `INSERT INTO episode_tags (tmdb_id,season_number,episode_number,tag,user_id)
+         VALUES ($1,$2,$3,$4,$5) ON CONFLICT (tmdb_id,season_number,episode_number,tag,user_id) DO NOTHING`,
+        [parseInt(tmdb_id), parseInt(season_number), ep, cleanTag, u]
+      );
+    }
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// All distinct tags this user has ever used, for filter-chip/autocomplete UI
+app.get('/api/tags-all/list', requireLogin, async (req, res) => {
+  try {
+    const r = await pool.query('SELECT DISTINCT tag FROM episode_tags WHERE user_id=$1 ORDER BY tag ASC', [uid(req)]);
+    res.json(r.rows.map(row => row.tag));
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Merged view: raw TMDB seasons/episodes + any display overrides, grouped by
+// display_season/display_sub_season. This is what the UI renders from. The
+// "check for new episodes" logic (next-episode, season fetch) never reads this —
+// it only ever touches raw TMDB data — so this endpoint can't desync new episodes.
+app.get('/api/tmdb/show/:id/display-seasons', requireLogin, async (req, res) => {
+  try {
+    const tmdb_id = parseInt(req.params.id);
+    const u = uid(req);
+    const [showData, overridesRes, tagsRes] = await Promise.all([
+      tmdb(`/tv/${tmdb_id}`),
+      pool.query(
+        `SELECT season_number, episode_number, display_season, display_sub_season,
+                display_episode_number, sub_season_label
+         FROM episode_display WHERE tmdb_id=$1 AND user_id=$2`,
+        [tmdb_id, u]
+      ),
+      pool.query(
+        'SELECT season_number, episode_number, tag FROM episode_tags WHERE tmdb_id=$1 AND user_id=$2',
+        [tmdb_id, u]
+      ),
+    ]);
+    const overrideMap = new Map();
+    for (const row of overridesRes.rows) overrideMap.set(`${row.season_number}_${row.episode_number}`, row);
+    const tagMap = new Map(); // `${season}_${ep}` -> [tags]
+    for (const row of tagsRes.rows) {
+      const k = `${row.season_number}_${row.episode_number}`;
+      if (!tagMap.has(k)) tagMap.set(k, []);
+      tagMap.get(k).push(row.tag);
+    }
+
+    const rawSeasons = (showData.seasons || []).filter(s => s.season_number > 0);
+    const groups = new Map(); // key: `${display_season}_${display_sub_season ?? ''}`
+
+    for (const season of rawSeasons) {
+      const seasonData = await tmdb(`/tv/${tmdb_id}/season/${season.season_number}`);
+      const episodes = seasonData.episodes || [];
+      for (const ep of episodes) {
+        const ov = overrideMap.get(`${season.season_number}_${ep.episode_number}`);
+        const displaySeason = ov ? ov.display_season : season.season_number;
+        const displaySubSeason = ov ? ov.display_sub_season : null;
+        const displayEpNum = ov && ov.display_episode_number != null ? ov.display_episode_number : ep.episode_number;
+        const key = `${displaySeason}_${displaySubSeason ?? ''}`;
+        if (!groups.has(key)) {
+          groups.set(key, {
+            display_season: displaySeason,
+            display_sub_season: displaySubSeason,
+            sub_season_label: ov?.sub_season_label || null,
+            episodes: [],
+          });
+        }
+        groups.get(key).episodes.push({
+          season_number: season.season_number,       // raw TMDB — source of truth for watched tracking
+          episode_number: ep.episode_number,          // raw TMDB — source of truth for watched tracking
+          display_episode_number: displayEpNum,
+          is_modified: !!ov,
+          tags: tagMap.get(`${season.season_number}_${ep.episode_number}`) || [],
+          name: ep.name, overview: ep.overview,
+          air_date: ep.air_date, still_path: ep.still_path, runtime: ep.runtime,
+        });
+      }
+    }
+
+    const result = Array.from(groups.values()).map(g => {
+      g.episodes.sort((a, b) => a.season_number - b.season_number || a.episode_number - b.episode_number);
+      return g;
+    }).sort((a, b) => a.display_season - b.display_season || (a.display_sub_season||0) - (b.display_sub_season||0));
+
+    res.json({ raw_seasons: rawSeasons.map(s => ({ season_number: s.season_number, episode_count: s.episode_count, name: s.name })), seasons: result });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 app.get('/api/recommendations', requireLogin, async (req, res) => {
   try {
     const myShows = await pool.query("SELECT tmdb_id FROM shows WHERE status IN ('watching','caughtup','paused') AND user_id=$1 LIMIT 5", [uid(req)]);
@@ -540,6 +802,41 @@ app.post('/api/episodes/season', requireLogin, async (req, res) => {
           [parseInt(tmdb_id), parseInt(season_number), parseInt(ep), u]
         );
       }
+    }
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Bulk mark/unmark an arbitrary set of raw (season_number, episode_number) pairs —
+// used for "mark all watched" on a custom display season/sub-season, which may span
+// more than one raw TMDB season.
+app.post('/api/episodes/pairs', requireLogin, async (req, res) => {
+  try {
+    const { tmdb_id, pairs, watched_at } = req.body; // pairs: [{season_number, episode_number}]
+    const u = uid(req);
+    const wat = watched_at || new Date().toISOString();
+    for (const p of pairs) {
+      await pool.query(
+        `INSERT INTO watched_episodes (tmdb_id,season_number,episode_number,watched_at,date_is_explicit,user_id)
+         VALUES ($1,$2,$3,$4,TRUE,$5)
+         ON CONFLICT (tmdb_id,season_number,episode_number,user_id)
+         DO UPDATE SET watched_at=$4, date_is_explicit=TRUE`,
+        [parseInt(tmdb_id), parseInt(p.season_number), parseInt(p.episode_number), wat, u]
+      );
+    }
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/episodes/pairs', requireLogin, async (req, res) => {
+  try {
+    const { tmdb_id, pairs } = req.body;
+    const u = uid(req);
+    for (const p of pairs) {
+      await pool.query(
+        'DELETE FROM watched_episodes WHERE tmdb_id=$1 AND season_number=$2 AND episode_number=$3 AND user_id=$4',
+        [parseInt(tmdb_id), parseInt(p.season_number), parseInt(p.episode_number), u]
+      );
     }
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
