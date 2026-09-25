@@ -60,6 +60,10 @@ DATABASE_URL=postgres://...  TMDB_TOKEN=...  node arc-tag-setup.js --apply
 
 ## Notes
 
+- **Episode numbers stay continuous.** display_episode_number is always the
+  show's real, continuous episode number (e.g. 1181 for the current One
+  Piece episode) — it never resets to 1 at the start of an arc. Loguetown's
+  episodes show as their real numbers (45, 48–53), not 1–7.
 - **TMDB's episode numbering can be scrambled.** For at least part of One
   Piece's season 1, TMDB's own `episode_number` field doesn't match real
   broadcast order (an episode that actually aired 6th is filed under episode
@@ -69,7 +73,7 @@ DATABASE_URL=postgres://...  TMDB_TOKEN=...  node arc-tag-setup.js --apply
   it could be a similar TMDB data quirk elsewhere in the season list.
 - If any individual episode's arc or tag looks off after running this, fix
   it directly in the app, nothing here is meant to be perfect. The ⚙️
-  button on each episode row reassigns its season/part, and 🏷️ edits its
+  button on each episode row reassigns its saga/arc, and 🏷️ edits its
   tags.
 - Re-running is safe: it upserts, it won't create duplicates. If you're
   re-running after a logic fix (like the air_date change above) and want to
