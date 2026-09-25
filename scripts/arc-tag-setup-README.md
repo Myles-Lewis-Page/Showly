@@ -60,11 +60,21 @@ DATABASE_URL=postgres://...  TMDB_TOKEN=...  node arc-tag-setup.js --apply
 
 ## Notes
 
+- **TMDB's episode numbering can be scrambled.** For at least part of One
+  Piece's season 1, TMDB's own `episode_number` field doesn't match real
+  broadcast order (an episode that actually aired 6th is filed under episode
+  45 in TMDB's data). The script sorts by `air_date` instead of trusting
+  `episode_number` for chronological order, so this is handled automatically
+  — but if you see an episode that looks out of place after running this,
+  it could be a similar TMDB data quirk elsewhere in the season list.
 - If any individual episode's arc or tag looks off after running this, fix
   it directly in the app, nothing here is meant to be perfect. The ⚙️
   button on each episode row reassigns its season/part, and 🏷️ edits its
   tags.
-- Re-running is safe: it upserts, it won't create duplicates.
+- Re-running is safe: it upserts, it won't create duplicates. If you're
+  re-running after a logic fix (like the air_date change above) and want to
+  make sure no stale, incorrectly-classified rows are left behind, add
+  `--reset` to clear this show's existing rows before writing fresh ones.
 - The script prints a warning if it finds any aired episode not covered by
   the arc list (shouldn't happen — the list was checked to fully cover
   1–1085 with no gaps and no overlaps).

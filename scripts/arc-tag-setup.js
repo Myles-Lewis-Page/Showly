@@ -33,20 +33,26 @@
  *
  * USAGE:
  *   DATABASE_URL=postgres://...  TMDB_TOKEN=...  node arc-tag-setup.js --dry-run
- *   DATABASE_URL=postgres://...  TMDB_TOKEN=...  node arc-tag-setup.js --apply
+ *   DATABASE_URL=postgres://...  TMDB_TOKEN=...  node arc-tag-setup.js --apply --reset
+ *
+ * --reset clears any existing episode_display/episode_tags rows for this show
+ * and user before writing, useful after a fix to the mapping logic to make
+ * sure no stale, incorrectly-classified rows are left behind. Safe to include
+ * on every --apply run if you'd rather always start clean.
  *
  * Optional env vars:
  *   USER_ID            which Showly user_id to write under (default: admin)
- *   SHOW_TMDB_ID  override the TMDB show id (default: 37854)
+ *   ONE_PIECE_TMDB_ID  override the TMDB show id (default: 37854)
  */
 
 const { Pool } = require('pg');
 
-const TMDB_ID = parseInt(process.env.SHOW_TMDB_ID || '37854'); // default show: One Piece — override with SHOW_TMDB_ID for a different show
+const TMDB_ID = parseInt(process.env.ONE_PIECE_TMDB_ID || '37854');
 const USER_ID = process.env.USER_ID || 'admin';
 const TMDB = 'https://api.themoviedb.org/3';
 const TMDB_TOKEN = process.env.TMDB_TOKEN;
 const APPLY = process.argv.includes('--apply');
+const RESET = process.argv.includes('--reset');
 
 if (!process.env.DATABASE_URL) { console.error('Set DATABASE_URL'); process.exit(1); }
 if (!TMDB_TOKEN) { console.error('Set TMDB_TOKEN'); process.exit(1); }
@@ -157,7 +163,22 @@ async function buildAbsoluteMap() {
   let absolute = 0;
   for (const season of rawSeasons) {
     const seasonData = await tmdb(`/tv/${TMDB_ID}/season/${season.season_number}`);
-    const episodes = (seasonData.episodes || []).sort((a,b)=>a.episode_number-b.episode_number);
+    // IMPORTANT: sort by air_date, not by TMDB's episode_number field. For some
+    // long-running shows (One Piece included) TMDB's internal episode_number
+    // doesn't reliably reflect real broadcast order — episodes can be filed
+    // under numbers that don't match when they actually aired. air_date is the
+    // trustworthy signal for chronological order; episode_number is only used
+    // afterward to identify the raw row to write to (it's still the real,
+    // correct identifier for that episode in the database — just not a safe
+    // sort key). Episodes with no air_date (rare, usually unaired/placeholder
+    // entries) sort last so they don't get slotted into the middle of the story.
+    const episodes = (seasonData.episodes || []).slice().sort((a,b)=>{
+      if (!a.air_date && !b.air_date) return a.episode_number - b.episode_number;
+      if (!a.air_date) return 1;
+      if (!b.air_date) return -1;
+      const d = new Date(a.air_date) - new Date(b.air_date);
+      return d !== 0 ? d : a.episode_number - b.episode_number;
+    });
     for (const ep of episodes) {
       absolute++;
       map.set(absolute, { season_number: season.season_number, episode_number: ep.episode_number });
@@ -255,6 +276,11 @@ async function main() {
   }
 
   console.log('Applying grouping + tags...');
+  if (RESET) {
+    console.log(`--reset: clearing existing episode_display / episode_tags rows for tmdb_id=${TMDB_ID}, user_id="${USER_ID}"...`);
+    await pool.query('DELETE FROM episode_display WHERE tmdb_id=$1 AND user_id=$2', [TMDB_ID, USER_ID]);
+    await pool.query('DELETE FROM episode_tags WHERE tmdb_id=$1 AND user_id=$2', [TMDB_ID, USER_ID]);
+  }
   let n = 0;
   const total = plan.reduce((s,p)=>s+p.runs.reduce((a,r)=>a+r.count,0),0);
   for (const p of plan) {
