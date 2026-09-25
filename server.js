@@ -405,6 +405,38 @@ app.post('/api/display', requireLogin, async (req, res) => {
 // Bulk-assign a contiguous raw range (season_number, from_episode..to_episode) to one
 // display_season/display_sub_season, auto-numbering display_episode_number upward from
 // start_display_episode (defaults to 1).
+// Relabel a set of specific episodes (identified by their raw season/episode
+// pairs), keeping each episode's current display_season/display_sub_season/
+// display_episode_number as given by the caller and only changing the label.
+// Used by the in-app "rename this season/arc" control: the frontend already
+// knows every episode's current effective display values (from the merge
+// endpoint), whether they came from an existing override or from falling
+// back to raw TMDB numbers — so this works the same whether you're naming a
+// show's whole first season (nothing overridden yet) or renaming one of
+// several existing arcs. This never changes grouping or numbering, only the
+// label — so it can't accidentally split/merge/renumber anything.
+app.post('/api/display/relabel', requireLogin, async (req, res) => {
+  try {
+    const { tmdb_id, episodes, label } = req.body; // episodes: [{season_number,episode_number,display_season,display_sub_season,display_episode_number}]
+    if (!Array.isArray(episodes) || !episodes.length) return res.status(400).json({ error: 'episodes required' });
+    const u = uid(req);
+    for (const e of episodes) {
+      await pool.query(
+        `INSERT INTO episode_display
+           (tmdb_id,season_number,episode_number,display_season,display_sub_season,display_episode_number,sub_season_label,is_modified,user_id)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,TRUE,$8)
+         ON CONFLICT (tmdb_id,season_number,episode_number,user_id)
+         DO UPDATE SET display_season=$4, display_sub_season=$5, display_episode_number=$6, sub_season_label=$7, is_modified=TRUE, updated_at=NOW()`,
+        [parseInt(tmdb_id), parseInt(e.season_number), parseInt(e.episode_number),
+         parseInt(e.display_season), e.display_sub_season!=null?parseInt(e.display_sub_season):null,
+         e.display_episode_number!=null?parseInt(e.display_episode_number):parseInt(e.episode_number),
+         label||null, u]
+      );
+    }
+    res.json({ ok: true, count: episodes.length });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 app.post('/api/display/bulk', requireLogin, async (req, res) => {
   try {
     const { tmdb_id, season_number, from_episode, to_episode, display_season, display_sub_season, sub_season_label, start_display_episode } = req.body;
