@@ -187,27 +187,31 @@ async function buildAbsoluteMap() {
   return { map, maxAbsolute: absolute, showName: showData.name };
 }
 
-// Convert one absolute from/to range into contiguous runs grouped by raw TMDB season
+// Convert one absolute from/to range into contiguous runs grouped by raw TMDB season.
+// Each run also records firstAbs — the true absolute episode number its first
+// episode corresponds to — so display numbering can use real continuous episode
+// numbers (matching the show's actual numbering) instead of restarting per arc.
 function toRawRuns(map, from, to) {
   const runs = [];
   let current = null;
   for (let abs = from; abs <= to; abs++) {
     const raw = map.get(abs);
     if (!raw) continue; // not aired / beyond what TMDB has yet
-    if (current && current.season_number === raw.season_number && raw.episode_number === current.lastEp + 1) {
+    if (current && current.season_number === raw.season_number && raw.episode_number === current.lastEp + 1 && abs === current.lastAbs + 1) {
       current.lastEp = raw.episode_number;
+      current.lastAbs = abs;
       current.count++;
     } else {
       if (current) runs.push(current);
-      current = { season_number: raw.season_number, firstEp: raw.episode_number, lastEp: raw.episode_number, count: 1 };
+      current = { season_number: raw.season_number, firstEp: raw.episode_number, lastEp: raw.episode_number, firstAbs: abs, lastAbs: abs, count: 1 };
     }
   }
   if (current) runs.push(current);
   return runs;
 }
 
-async function upsertDisplay(season_number, from_episode, to_episode, display_season, display_sub_season, sub_season_label, start_display_episode) {
-  let dispEp = start_display_episode;
+async function upsertDisplay(season_number, from_episode, to_episode, display_season, display_sub_season, sub_season_label, first_display_episode) {
+  let dispEp = first_display_episode;
   for (let ep = from_episode; ep <= to_episode; ep++) {
     await pool.query(
       `INSERT INTO episode_display
@@ -268,10 +272,10 @@ async function main() {
   if (!APPLY) {
     console.log('--- DRY RUN (pass --apply to actually write) ---\n');
     for (const p of plan) {
-      const runStr = p.runs.map(r => `S${r.season_number}E${r.firstEp}${r.count>1?`-${r.lastEp}`:''}`).join(', ');
-      console.log(`Season ${p.displaySeason} Part ${p.subSeason} — "${p.arc}" [${p.tag}] (${p.saga}) -> ${runStr}`);
+      const runStr = p.runs.map(r => `S${r.season_number}E${r.firstEp}${r.count>1?`-${r.lastEp}`:''} (ep #${r.firstAbs}${r.count>1?`-${r.lastAbs}`:''})`).join(', ');
+      console.log(`Saga ${p.displaySeason} — Arc ${p.subSeason}: "${p.arc}" [${p.tag}] (${p.saga}) -> ${runStr}`);
     }
-    console.log(`\nWould write ${plan.reduce((s,p)=>s+p.runs.reduce((a,r)=>a+r.count,0),0)} display rows and a matching number of tag rows for user_id="${USER_ID}".`);
+    console.log(`\nWould write ${plan.reduce((s,p)=>s+p.runs.reduce((a,r)=>a+r.count,0),0)} display rows and a matching number of tag rows for user_id="${USER_ID}". Episode numbers shown are the show's real continuous numbering (no per-arc reset).`);
     return;
   }
 
@@ -284,14 +288,12 @@ async function main() {
   let n = 0;
   const total = plan.reduce((s,p)=>s+p.runs.reduce((a,r)=>a+r.count,0),0);
   for (const p of plan) {
-    let startEp = 1;
     for (const run of p.runs) {
-      await upsertDisplay(run.season_number, run.firstEp, run.lastEp, p.displaySeason, p.subSeason, p.arc, startEp);
+      await upsertDisplay(run.season_number, run.firstEp, run.lastEp, p.displaySeason, p.subSeason, p.arc, run.firstAbs);
       for (let ep = run.firstEp; ep <= run.lastEp; ep++) {
         await upsertTag(run.season_number, ep, p.tag);
         n++;
       }
-      startEp += run.count;
     }
     process.stdout.write(`\r  ${n}/${total}`);
   }
