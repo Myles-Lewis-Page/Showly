@@ -127,7 +127,7 @@ async function openDetail(tmdbId,showId){
           </div>`:''}
         ${seasons.length?`
           <div class="panel-section-title">Episodes
-            <button class="btn-edit-seasons" onclick="openSeasonEditor(${id},${showId})" title="Regroup episodes into custom seasons/parts">✏️ Edit Seasons</button>
+            <button class="btn-edit-seasons" onclick="openSeasonEditor(${id},${showId})" title="Regroup episodes into custom sagas/arcs">✏️ Edit Sagas</button>
           </div>
           <div id="total-progress-wrap"></div>
           <div class="season-tabs" id="season-tabs"><div style="padding:8px;color:var(--muted);font-size:12px">Loading seasons…</div></div>
@@ -249,9 +249,7 @@ async function loadDisplaySeasons(tmdbId,showId,preferredRawSeason){
     if(tabsEl){
       tabsEl.innerHTML = data.seasons.map(g=>{
         const key=`${g.display_season}_${g.display_sub_season ?? ''}`;
-        const label = g.display_sub_season!=null
-          ? `S${g.display_season}${g.sub_season_label?esc(g.sub_season_label):'.'+g.display_sub_season}`
-          : `S${g.display_season}`;
+        const label = `${g.display_season}.${g.display_sub_season ?? 1}${g.sub_season_label?' '+esc(g.sub_season_label):''}`;
         return `<button class="s-tab ${key===defaultKey?'on':''}" onclick="renderSeasonGroup(${id},${showId},'${key.replace(/'/g,"\\'")}')" id="stab-${key.replace(/[^a-zA-Z0-9]/g,'_')}">${label}</button>`;
       }).join('');
     }
@@ -283,9 +281,7 @@ function renderSeasonGroup(tmdbId,showId,groupKey){
   const seasonDateRange = firstAir ? (lastAir && lastAir !== firstAir
     ? `${fmtDate(firstAir)} – ${fmtDate(lastAir)}`
     : fmtDate(firstAir)) : '';
-  const seasonLabel = group.display_sub_season!=null
-    ? `Season ${group.display_season}${group.sub_season_label?' — '+esc(group.sub_season_label):' Part '+group.display_sub_season}`
-    : `Season ${group.display_season}`;
+  const seasonLabel = `Saga ${group.display_season}${group.sub_season_label?' — '+esc(group.sub_season_label):(group.display_sub_season!=null?' — Arc '+group.display_sub_season:'')}`;
   const seasonNameHTML = `<div class="season-name">${esc(seasonLabel)}</div>`;
 
   updateTotalProgress(id);
@@ -459,14 +455,14 @@ async function toggleGroupWatched(tmdbId,showId,groupKey,pairs,currentlyAllWatch
     pairs.forEach(p=>epSet.delete(`${p.season_number}_${p.episode_number}`));
     watchedEps.set(id,epSet);
     renderSeasonGroup(id,showId,groupKey);
-    toast('Season unmarked');
+    toast('Arc unmarked');
   } else {
     const now=new Date().toISOString();
     await api('/api/episodes/pairs',{method:'POST',body:{tmdb_id:id,pairs,watched_at:now}});
     pairs.forEach(p=>epSet.add(`${p.season_number}_${p.episode_number}`));
     watchedEps.set(id,epSet);
     renderSeasonGroup(id,showId,groupKey);
-    toast('Season marked watched ✓');
+    toast('Arc marked watched ✓');
     const show=shows.find(s=>s.tmdb_id===id);
     if(show){
       const next=await api(`/api/next-episode/${id}`);
@@ -602,7 +598,7 @@ function openEpisodeRegroup(tmdbId,rawSeason,rawEpNum,currentDispNum){
   pop.className='ep-regroup-popover';
   pop.innerHTML=`
     <h4>Reassign S${rawSeason}E${rawEpNum}</h4>
-    <label>Season <input type="number" id="rg-season" value="${curSeason}" style="width:70px"/></label>
+    <label>Saga <input type="number" id="rg-season" value="${curSeason}" style="width:70px"/></label>
     <label>Part / Sub-season <input type="number" id="rg-sub" value="${curSub===null?'':curSub}" placeholder="optional" style="width:90px"/></label>
     <label>Episode # <input type="number" id="rg-epnum" value="${currentDispNum}" style="width:70px"/></label>
     <div class="ep-regroup-btns">
@@ -657,11 +653,11 @@ async function openSeasonEditor(tmdbId,showId){
   modal.innerHTML=`
     <div class="season-editor-panel">
       <div class="season-editor-header">
-        <h3>Edit Seasons</h3>
+        <h3>Edit Sagas & Arcs</h3>
         <button onclick="closeSeasonEditor()">✕</button>
       </div>
       <p style="font-size:12px;color:var(--muted);margin:0 0 14px">
-        Group a range of TMDB's raw episodes into your own season / part numbering.
+        Group a range of TMDB's raw episodes into your own saga / arc numbering.
         The real TMDB season and episode numbers are never changed underneath — this
         only affects how episodes are displayed and grouped. New episodes TMDB adds
         will show up under their raw TMDB season until you assign them.
@@ -679,9 +675,9 @@ async function openSeasonEditor(tmdbId,showId){
           <label>To episode <input type="number" id="se-to" value="1" style="width:70px"/></label>
         </div>
         <div class="se-row">
-          <label>New season # <input type="number" id="se-disp-season" style="width:70px"/></label>
-          <label>Part / sub-season <input type="number" id="se-disp-sub" placeholder="optional" style="width:90px"/></label>
-          <label>Part label <input type="text" id="se-sub-label" placeholder="e.g. Wano" style="width:110px"/></label>
+          <label>Saga # <input type="number" id="se-disp-season" style="width:70px"/></label>
+          <label>Arc # <input type="number" id="se-disp-sub" placeholder="optional" style="width:90px"/></label>
+          <label>Arc name <input type="text" id="se-sub-label" placeholder="e.g. Wano" style="width:110px"/></label>
         </div>
         <div class="se-row">
           <label>Start numbering episodes at <input type="number" id="se-start-ep" value="1" style="width:70px"/></label>
@@ -711,7 +707,7 @@ async function openSeasonEditor(tmdbId,showId){
       </div>
       <div class="panel-section-title" style="margin-top:18px">Current Custom Groupings (${modifiedCount} episodes modified)</div>
       <div id="se-groups-list">${(data.seasons||[]).filter(g=>g.episodes.some(e=>e.is_modified)).map(g=>{
-        const label=g.display_sub_season!=null?`Season ${g.display_season}${g.sub_season_label?' — '+esc(g.sub_season_label):' Part '+g.display_sub_season}`:`Season ${g.display_season}`;
+        const label=`Saga ${g.display_season}${g.sub_season_label?' — '+esc(g.sub_season_label):(g.display_sub_season!=null?' — Arc '+g.display_sub_season:'')}`;
         const modEps=g.episodes.filter(e=>e.is_modified);
         return `<div class="se-group-row">
           <span>${label} — ${modEps.length} custom episode${modEps.length===1?'':'s'}</span>
