@@ -653,31 +653,57 @@ app.get('/api/next-episode/:tmdb_id', requireLogin, async (req, res) => {
       next_air_ep: nextEpData?.episode_number || null,
     };
 
-    // First pass: collect ALL aired episodes across all seasons
+    // First pass: collect ALL aired episodes across all seasons, sorted by air_date.
+    // TMDB's own episode_number field isn't always reliable chronological order for
+    // some shows (an episode can be filed under a number far from when it actually
+    // aired) — sorting by air_date instead of trusting array/episode_number order
+    // makes sure "next episode" is really the next chronological one, not just
+    // whatever happens to come next in TMDB's raw listing.
     const allSeasonEps = [];
     for (const season of seasons) {
       const seasonData = await tmdb(`/tv/${tmdb_id}/season/${season.season_number}`);
-      const episodes = (seasonData.episodes||[]).filter(e => e.air_date && new Date(e.air_date) <= new Date());
+      const episodes = (seasonData.episodes||[])
+        .filter(e => e.air_date && new Date(e.air_date) <= new Date());
       allSeasonEps.push({ season_number: season.season_number, episodes });
     }
-    const totalAired = allSeasonEps.reduce((sum, s) => sum + s.episodes.length, 0);
+    // Flatten and sort by air_date across ALL seasons so cross-season chronology is
+    // also correct (matters for shows where seasons overlap or aren't purely
+    // sequential in TMDB's own ordering).
+    const allEpsFlat = allSeasonEps.flatMap(s => s.episodes.map(e => ({ season_number: s.season_number, ep: e })));
+    allEpsFlat.sort((a,b) => {
+      const d = new Date(a.ep.air_date) - new Date(b.ep.air_date);
+      return d !== 0 ? d : a.ep.episode_number - b.ep.episode_number;
+    });
+    const totalAired = allEpsFlat.length;
 
-    // Second pass: find first unwatched episode
-    for (const { season_number, episodes } of allSeasonEps) {
-      for (const ep of episodes) {
-        if (!watchedSet.has(`${season_number}_${ep.episode_number}`)) {
-          // Save date/status/genre info back to shows table
-          const genreStr2 = (showData.genres||[]).map(g=>g.name).join(',');
-          await pool.query('UPDATE shows SET last_air_date=$1, tmdb_status=$2, genres=$3 WHERE tmdb_id=$4 AND user_id=$5',
-            [showData.last_air_date||null, showData.status||null, genreStr2||null, tmdb_id, uid(req)]).catch(()=>{});
-          return res.json({
-            ...baseInfo,
-            season_number, episode_number: ep.episode_number,
-            name: ep.name, air_date: ep.air_date, still_path: ep.still_path,
-            total_watched: watchedCountedSet.size, total_aired: totalAired,
-            suggested_status: 'watching',
-          });
-        }
+    // Second pass: find first unwatched episode in true chronological order
+    for (const { season_number, ep } of allEpsFlat) {
+      if (!watchedSet.has(`${season_number}_${ep.episode_number}`)) {
+        // Save date/status/genre info back to shows table
+        const genreStr2 = (showData.genres||[]).map(g=>g.name).join(',');
+        await pool.query('UPDATE shows SET last_air_date=$1, tmdb_status=$2, genres=$3 WHERE tmdb_id=$4 AND user_id=$5',
+          [showData.last_air_date||null, showData.status||null, genreStr2||null, tmdb_id, uid(req)]).catch(()=>{});
+        // Attach the display-grouping override for this episode, if this user has
+        // one set up (via the season/arc editor or a setup script) — lets the
+        // card show the same saga/arc numbering as the detail panel instead of
+        // a possibly-confusing raw TMDB season/episode pair.
+        const overrideRes = await pool.query(
+          `SELECT display_season, display_sub_season, display_episode_number, sub_season_label
+           FROM episode_display WHERE tmdb_id=$1 AND season_number=$2 AND episode_number=$3 AND user_id=$4`,
+          [tmdb_id, season_number, ep.episode_number, uid(req)]
+        );
+        const ov = overrideRes.rows[0] || null;
+        return res.json({
+          ...baseInfo,
+          season_number, episode_number: ep.episode_number,
+          name: ep.name, air_date: ep.air_date, still_path: ep.still_path,
+          total_watched: watchedCountedSet.size, total_aired: totalAired,
+          suggested_status: 'watching',
+          display_season: ov?.display_season ?? null,
+          display_sub_season: ov?.display_sub_season ?? null,
+          display_episode_number: ov?.display_episode_number ?? null,
+          sub_season_label: ov?.sub_season_label ?? null,
+        });
       }
     }
 
