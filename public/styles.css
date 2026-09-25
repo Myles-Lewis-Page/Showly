@@ -420,3 +420,11 @@ main{padding:16px}
 .sub-tab{flex-shrink:0;background:var(--surface2);border:1px solid var(--border);color:var(--muted);padding:3px 10px;border-radius:99px;font-size:11px;cursor:pointer}
 .sub-tab:hover{border-color:var(--accent)}
 .sub-tab.on{background:var(--accent);border-color:var(--accent);color:#fff}
+
+/* ── In-app season/arc rename (no script needed) ───────────────────────── */
+.season-rename-btn{background:none;border:none;color:var(--muted);font-size:12px;cursor:pointer;padding:0 2px;vertical-align:middle}
+.season-rename-btn:hover{color:var(--accent)}
+.season-rename-popover{position:fixed;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px;z-index:220;box-shadow:0 8px 32px rgba(0,0,0,.5);min-width:280px}
+.season-rename-popover h4{font-size:13px;font-weight:600;margin-bottom:10px}
+.season-rename-popover input[type=text]{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:7px 10px;color:var(--text);font-size:13px;font-family:inherit;margin-bottom:10px;box-sizing:border-box}
+.season-rename-popover input[type=text]:focus{border-color:var(--accent);outline:none}

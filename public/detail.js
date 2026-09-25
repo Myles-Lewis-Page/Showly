@@ -356,7 +356,7 @@ function renderSeasonGroup(tmdbId,showId,groupKey){
     ? `${fmtDate(firstAir)} – ${fmtDate(lastAir)}`
     : fmtDate(firstAir)) : '';
   const seasonLabel = `${seasonWord(id)} ${group.display_season}${group.sub_season_label?' — '+esc(group.sub_season_label):(group.display_sub_season!=null?' — Arc '+group.display_sub_season:'')}`;
-  const seasonNameHTML = `<div class="season-name">${esc(seasonLabel)}</div>`;
+  const seasonNameHTML = `<div class="season-name">${esc(seasonLabel)} <button class="season-rename-btn" onclick="openSeasonRename(${id},${showId},'${groupKey.replace(/'/g,"\\'")}')" title="Rename this ${group.display_sub_season!=null?'arc':seasonWord(id).toLowerCase()}">✏️</button></div>`;
 
   updateTotalProgress(id);
 
@@ -705,6 +705,51 @@ async function revertEpisodeRegroup(tmdbId,rawSeason,rawEpNum){
   toast('Reverted to TMDB numbering');
   const showId=currentDetail?.id;
   await loadDisplaySeasons(tmdbId,showId,rawSeason);
+}
+
+// ── RENAME (label only) — no npm/script needed for the common case of just
+// naming a whole season (or an existing arc), e.g. "Season 1 — The Lightning
+// Thief". Doesn't touch grouping or episode numbering, only sub_season_label,
+// applied to every episode currently in the group shown on screen.
+function openSeasonRename(tmdbId,showId,groupKey){
+  document.querySelector('.season-rename-popover')?.remove();
+  const id=parseInt(tmdbId);
+  const data=displaySeasonData.get(id);
+  const group=(data?.seasons||[]).find(g=>`${g.display_season}_${g.display_sub_season??''}`===groupKey);
+  if(!group) return;
+  const pop=document.createElement('div');
+  pop.className='season-rename-popover';
+  pop.innerHTML=`
+    <h4>Rename ${seasonWord(id)} ${group.display_season}${group.display_sub_season!=null?' · Arc '+group.display_sub_season:''}</h4>
+    <input type="text" id="season-rename-input" value="${escAttr(group.sub_season_label||'')}" placeholder="e.g. The Lightning Thief" maxlength="120"/>
+    <div class="ep-regroup-btns">
+      <button style="background:var(--green);color:#fff" onclick="saveSeasonRename(${id},${showId},'${groupKey.replace(/'/g,"\\'")}')">Save</button>
+      ${group.sub_season_label?`<button style="background:var(--surface3);color:var(--muted)" onclick="saveSeasonRename(${id},${showId},'${groupKey.replace(/'/g,"\\'")}',true)">Clear name</button>`:''}
+      <button style="background:var(--surface3);color:var(--muted)" onclick="this.closest('.season-rename-popover').remove()">Cancel</button>
+    </div>`;
+  document.body.appendChild(pop);
+  pop.style.top='50%'; pop.style.left='50%'; pop.style.transform='translate(-50%,-50%)';
+  const input=pop.querySelector('#season-rename-input');
+  input.focus(); input.select();
+  input.addEventListener('keydown',e=>{ if(e.key==='Enter') saveSeasonRename(id,showId,groupKey); });
+  setTimeout(()=>document.addEventListener('click',function h(e){if(!pop.contains(e.target)){pop.remove();document.removeEventListener('click',h);}}),10);
+}
+
+async function saveSeasonRename(tmdbId,showId,groupKey,clear){
+  const id=parseInt(tmdbId);
+  const label = clear ? '' : (document.getElementById('season-rename-input')?.value||'').trim();
+  document.querySelector('.season-rename-popover')?.remove();
+  const data=displaySeasonData.get(id);
+  const group=(data?.seasons||[]).find(g=>`${g.display_season}_${g.display_sub_season??''}`===groupKey);
+  if(!group) return;
+  const episodes = group.episodes.map(e=>({
+    season_number: e.season_number, episode_number: e.episode_number,
+    display_season: group.display_season, display_sub_season: group.display_sub_season,
+    display_episode_number: e.display_episode_number,
+  }));
+  await api('/api/display/relabel',{method:'POST',body:{tmdb_id:id,episodes,label}});
+  toast(label?'Renamed ✓':'Name cleared');
+  await loadDisplaySeasons(id,showId,group.episodes[0]?.season_number,group.episodes[0]?.episode_number);
 }
 
 // Full editor: bulk-assign a raw episode range to a custom season/sub-season, and
