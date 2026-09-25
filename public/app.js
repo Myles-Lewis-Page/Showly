@@ -229,11 +229,19 @@ function buildNextEpHTML(show, next) {
   if(!next) return `<div class="next-ep"><div class="next-ep-label">Next Episode</div><div class="next-ep-num" style="color:var(--muted)">Loading...</div></div>`;
   if(next.error) return '';
   if(!next.all_watched) {
+    // Prefer the saga/arc display numbering if this show has one set up (matches
+    // what the detail panel shows); otherwise fall back to the plain raw TMDB
+    // season/episode pair, which is what every show without custom grouping uses.
+    const epLabel = next.display_episode_number!=null
+      ? (next.display_sub_season!=null
+          ? `${seasonWord(show.tmdb_id)} ${next.display_season}${next.sub_season_label?' · '+esc(next.sub_season_label):''} · Ep ${next.display_episode_number}`
+          : `${seasonWord(show.tmdb_id)} ${next.display_season} · Ep ${next.display_episode_number}`)
+      : `S${next.season_number} E${next.episode_number}`;
     return `<div class="next-ep">
       <div class="next-ep-label">Next Up</div>
       <div class="next-ep-title">${esc(next.name||'Episode '+next.episode_number)}</div>
       <div class="next-ep-bottom">
-        <span class="next-ep-num">S${next.season_number} E${next.episode_number}</span>
+        <span class="next-ep-num">${epLabel}</span>
         <button class="btn-watched-ep" id="watched-btn-${show.id}" onclick="markNextWatched(event,${show.id},${show.tmdb_id},${next.season_number},${next.episode_number})">✓ Watched</button>
       </div>
     </div>`;
