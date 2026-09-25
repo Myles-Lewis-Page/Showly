@@ -44,6 +44,7 @@ async function openDetail(tmdbId,showId){
 
   const nextEpInfo = nextEps.get(id) || null;
   const defaultSeason = nextEpInfo && !nextEpInfo.all_watched ? nextEpInfo.season_number : (seasons[0]?.season_number||1);
+  const defaultEpisode = nextEpInfo && !nextEpInfo.all_watched ? nextEpInfo.episode_number : null;
 
   const totalAired = nextEpInfo?.total_aired || seasons.reduce((sum,s)=>sum+(s.episode_count||0),0) || details.number_of_episodes || 0;
   const totalEps = totalAired;
@@ -127,10 +128,12 @@ async function openDetail(tmdbId,showId){
           </div>`:''}
         ${seasons.length?`
           <div class="panel-section-title">Episodes
-            <button class="btn-edit-seasons" onclick="openSeasonEditor(${id},${showId})" title="Regroup episodes into custom sagas/arcs">✏️ Edit Sagas</button>
+            <button class="btn-edit-seasons" id="season-word-toggle-${id}" onclick="toggleSeasonWord(${id},${showId})" title="Switch between Season/Saga labeling">🔀 ${seasonWord(id)}</button>
+            <button class="btn-edit-seasons" onclick="openSeasonEditor(${id},${showId})" title="Regroup episodes into custom seasons/arcs">✏️ Edit</button>
           </div>
           <div id="total-progress-wrap"></div>
           <div class="season-tabs" id="season-tabs"><div style="padding:8px;color:var(--muted);font-size:12px">Loading seasons…</div></div>
+          <div class="subseason-tabs" id="subseason-tabs" style="display:none"></div>
           <div id="season-content"><div style="text-align:center;padding:20px;color:var(--muted)">Loading...</div></div>`:''}
         ${similarData?.length?`
           <div class="panel-section-title">Similar Shows</div>
@@ -148,7 +151,7 @@ async function openDetail(tmdbId,showId){
       </div>`;
 
     currentSimilarData = similarData || [];
-    if(seasons.length) loadDisplaySeasons(id,showId,defaultSeason);
+    if(seasons.length) loadDisplaySeasons(id,showId,defaultSeason,defaultEpisode);
   } catch(err) {
     console.error('Panel render error:', err);
     content.innerHTML = `<div style="padding:40px;text-align:center;color:var(--muted)">Error loading show details.</div>`;
@@ -234,36 +237,107 @@ async function clearProviderPlatform(showId) {
 // display_season/display_sub_season groups, and renders the requested group.
 // Raw TMDB season/episode numbers (never display numbers) are what drive watched
 // tracking and the new-episode sync — see server.js /api/tmdb/show/:id/display-seasons.
-async function loadDisplaySeasons(tmdbId,showId,preferredRawSeason){
+async function loadDisplaySeasons(tmdbId,showId,preferredRawSeason,preferredRawEpisode){
   const id=parseInt(tmdbId);
   const tabsEl=document.getElementById('season-tabs');
   try {
-    const data=await api(`/api/tmdb/show/${id}/display-seasons`);
+    const [data, settings] = await Promise.all([
+      api(`/api/tmdb/show/${id}/display-seasons`),
+      api('/api/settings').catch(()=>({}))
+    ]);
     if(!data || data.error || !Array.isArray(data.seasons)) { if(tabsEl) tabsEl.innerHTML='<div style="padding:8px;color:var(--muted);font-size:12px">Could not load seasons.</div>'; return; }
     displaySeasonData.set(id,data);
+    seasonLabelMode.set(id, (settings && settings[`season_label:${id}`]) || 'season');
+    const wordBtn=document.getElementById(`season-word-toggle-${id}`);
+    if(wordBtn) wordBtn.textContent = `🔀 ${seasonWord(id)}`;
 
-    // Pick default: the group containing the preferred raw season, else the first group
-    let defaultGroup = data.seasons.find(g=>g.episodes.some(e=>e.season_number===preferredRawSeason)) || data.seasons[0];
+    // Pick default: the group containing the EXACT next raw episode (a raw TMDB
+    // season can be split across multiple arcs/groups, so matching on season
+    // number alone is ambiguous — it could land on an already-finished arc that
+    // happens to share a raw season with the one you're actually still on).
+    // Falls back to season-only match, then the first group, if there's no
+    // specific next episode (e.g. everything's watched).
+    let defaultGroup = (preferredRawEpisode!=null
+        && data.seasons.find(g=>g.episodes.some(e=>e.season_number===preferredRawSeason && e.episode_number===preferredRawEpisode)))
+      || data.seasons.find(g=>g.episodes.some(e=>e.season_number===preferredRawSeason))
+      || data.seasons[0];
+    const defaultTopSeason = defaultGroup.display_season;
     const defaultKey = `${defaultGroup.display_season}_${defaultGroup.display_sub_season ?? ''}`;
 
+    // Top-level tabs: one per unique display_season (the "Season"/"Saga" number).
+    // Sub-season/arc tabs are NOT shown here — they only appear once you've
+    // selected a top-level season that actually has more than one part.
+    const topSeasons = Array.from(new Set(data.seasons.map(g=>g.display_season))).sort((a,b)=>a-b);
     if(tabsEl){
-      tabsEl.innerHTML = data.seasons.map(g=>{
-        const key=`${g.display_season}_${g.display_sub_season ?? ''}`;
-        const label = `${g.display_season}.${g.display_sub_season ?? 1}${g.sub_season_label?' '+esc(g.sub_season_label):''}`;
-        return `<button class="s-tab ${key===defaultKey?'on':''}" onclick="renderSeasonGroup(${id},${showId},'${key.replace(/'/g,"\\'")}')" id="stab-${key.replace(/[^a-zA-Z0-9]/g,'_')}">${label}</button>`;
-      }).join('');
+      tabsEl.innerHTML = topSeasons.map(sn=>
+        `<button class="s-tab ${sn===defaultTopSeason?'on':''}" onclick="selectTopSeason(${id},${showId},${sn})" id="stopseason-${sn}">${seasonWord(id)} ${sn}</button>`
+      ).join('');
     }
-    renderSeasonGroup(id,showId,defaultKey);
+    selectTopSeason(id,showId,defaultTopSeason,defaultKey);
   } catch(err) {
     console.error('loadDisplaySeasons error:', err);
     if(tabsEl) tabsEl.innerHTML='<div style="padding:8px;color:var(--muted);font-size:12px">Error loading seasons.</div>';
   }
 }
 
+// Selects a top-level season and shows its sub-season/arc chips (only when
+// there's more than one part) directly below the season tabs. Picks
+// preferredGroupKey if given and it actually belongs to this season,
+// otherwise defaults to the first part.
+function selectTopSeason(tmdbId,showId,seasonNum,preferredGroupKey){
+  const id=parseInt(tmdbId);
+  currentTopSeason.set(id,seasonNum);
+  document.querySelectorAll('#season-tabs .s-tab').forEach(t=>t.classList.toggle('on',t.id===`stopseason-${seasonNum}`));
+
+  const data=displaySeasonData.get(id);
+  const groups=(data?.seasons||[]).filter(g=>g.display_season===seasonNum)
+    .sort((a,b)=>(a.display_sub_season??0)-(b.display_sub_season??0));
+  if(!groups.length) return;
+
+  const targetKey = (preferredGroupKey && groups.some(g=>`${g.display_season}_${g.display_sub_season??''}`===preferredGroupKey))
+    ? preferredGroupKey
+    : `${groups[0].display_season}_${groups[0].display_sub_season??''}`;
+
+  const subTabsEl=document.getElementById('subseason-tabs');
+  if(groups.length>1){
+    if(subTabsEl){
+      subTabsEl.style.display='';
+      subTabsEl.innerHTML = groups.map(g=>{
+        const key=`${g.display_season}_${g.display_sub_season??''}`;
+        const label = `${g.display_sub_season??1}${g.sub_season_label?' '+esc(g.sub_season_label):''}`;
+        return `<button class="sub-tab ${key===targetKey?'on':''}" onclick="renderSeasonGroup(${id},${showId},'${key.replace(/'/g,"\\'")}')" id="stab-${key.replace(/[^a-zA-Z0-9]/g,'_')}">${label}</button>`;
+      }).join('');
+    }
+  } else if(subTabsEl){
+    subTabsEl.style.display='none';
+    subTabsEl.innerHTML='';
+  }
+  renderSeasonGroup(id,showId,targetKey);
+}
+
+async function toggleSeasonWord(tmdbId,showId){
+  const id=parseInt(tmdbId);
+  const next = seasonWord(id)==='Saga' ? 'season' : 'saga';
+  seasonLabelMode.set(id,next);
+  await api('/api/settings',{method:'POST',body:{key:`season_label:${id}`,value:next}});
+  const wordBtn=document.getElementById(`season-word-toggle-${id}`);
+  if(wordBtn) wordBtn.textContent = `🔀 ${seasonWord(id)}`;
+  const topSeason = currentTopSeason.get(id);
+  const data=displaySeasonData.get(id);
+  const tabsEl=document.getElementById('season-tabs');
+  if(tabsEl && data){
+    const topSeasons = Array.from(new Set(data.seasons.map(g=>g.display_season))).sort((a,b)=>a-b);
+    tabsEl.innerHTML = topSeasons.map(sn=>
+      `<button class="s-tab ${sn===topSeason?'on':''}" onclick="selectTopSeason(${id},${showId},${sn})" id="stopseason-${sn}">${seasonWord(id)} ${sn}</button>`
+    ).join('');
+  }
+  renderSeasonGroup(id,showId,currentGroupKey); // refreshes the "Season N — Arc" header text
+}
+
 function renderSeasonGroup(tmdbId,showId,groupKey){
   currentGroupKey=groupKey;
   const id=parseInt(tmdbId);
-  document.querySelectorAll('.s-tab').forEach(t=>t.classList.toggle('on',t.id===`stab-${groupKey.replace(/[^a-zA-Z0-9]/g,'_')}`));
+  document.querySelectorAll('#subseason-tabs .sub-tab').forEach(t=>t.classList.toggle('on',t.id===`stab-${groupKey.replace(/[^a-zA-Z0-9]/g,'_')}`));
   const container=document.getElementById('season-content');
   if(!container) return;
   const data=displaySeasonData.get(id);
@@ -281,7 +355,7 @@ function renderSeasonGroup(tmdbId,showId,groupKey){
   const seasonDateRange = firstAir ? (lastAir && lastAir !== firstAir
     ? `${fmtDate(firstAir)} – ${fmtDate(lastAir)}`
     : fmtDate(firstAir)) : '';
-  const seasonLabel = `Saga ${group.display_season}${group.sub_season_label?' — '+esc(group.sub_season_label):(group.display_sub_season!=null?' — Arc '+group.display_sub_season:'')}`;
+  const seasonLabel = `${seasonWord(id)} ${group.display_season}${group.sub_season_label?' — '+esc(group.sub_season_label):(group.display_sub_season!=null?' — Arc '+group.display_sub_season:'')}`;
   const seasonNameHTML = `<div class="season-name">${esc(seasonLabel)}</div>`;
 
   updateTotalProgress(id);
@@ -598,7 +672,7 @@ function openEpisodeRegroup(tmdbId,rawSeason,rawEpNum,currentDispNum){
   pop.className='ep-regroup-popover';
   pop.innerHTML=`
     <h4>Reassign S${rawSeason}E${rawEpNum}</h4>
-    <label>Saga <input type="number" id="rg-season" value="${curSeason}" style="width:70px"/></label>
+    <label>${seasonWord(id)} <input type="number" id="rg-season" value="${curSeason}" style="width:70px"/></label>
     <label>Part / Sub-season <input type="number" id="rg-sub" value="${curSub===null?'':curSub}" placeholder="optional" style="width:90px"/></label>
     <label>Episode # <input type="number" id="rg-epnum" value="${currentDispNum}" style="width:70px"/></label>
     <div class="ep-regroup-btns">
@@ -653,11 +727,11 @@ async function openSeasonEditor(tmdbId,showId){
   modal.innerHTML=`
     <div class="season-editor-panel">
       <div class="season-editor-header">
-        <h3>Edit Sagas & Arcs</h3>
+        <h3>Edit ${seasonWord(id)}s & Arcs</h3>
         <button onclick="closeSeasonEditor()">✕</button>
       </div>
       <p style="font-size:12px;color:var(--muted);margin:0 0 14px">
-        Group a range of TMDB's raw episodes into your own saga / arc numbering.
+        Group a range of TMDB's raw episodes into your own ${seasonWord(id).toLowerCase()} / arc numbering.
         The real TMDB season and episode numbers are never changed underneath — this
         only affects how episodes are displayed and grouped. New episodes TMDB adds
         will show up under their raw TMDB season until you assign them.
@@ -675,7 +749,7 @@ async function openSeasonEditor(tmdbId,showId){
           <label>To episode <input type="number" id="se-to" value="1" style="width:70px"/></label>
         </div>
         <div class="se-row">
-          <label>Saga # <input type="number" id="se-disp-season" style="width:70px"/></label>
+          <label>${seasonWord(id)} # <input type="number" id="se-disp-season" style="width:70px"/></label>
           <label>Arc # <input type="number" id="se-disp-sub" placeholder="optional" style="width:90px"/></label>
           <label>Arc name <input type="text" id="se-sub-label" placeholder="e.g. Wano" style="width:110px"/></label>
         </div>
@@ -707,7 +781,7 @@ async function openSeasonEditor(tmdbId,showId){
       </div>
       <div class="panel-section-title" style="margin-top:18px">Current Custom Groupings (${modifiedCount} episodes modified)</div>
       <div id="se-groups-list">${(data.seasons||[]).filter(g=>g.episodes.some(e=>e.is_modified)).map(g=>{
-        const label=`Saga ${g.display_season}${g.sub_season_label?' — '+esc(g.sub_season_label):(g.display_sub_season!=null?' — Arc '+g.display_sub_season:'')}`;
+        const label=`${seasonWord(id)} ${g.display_season}${g.sub_season_label?' — '+esc(g.sub_season_label):(g.display_sub_season!=null?' — Arc '+g.display_sub_season:'')}`;
         const modEps=g.episodes.filter(e=>e.is_modified);
         return `<div class="se-group-row">
           <span>${label} — ${modEps.length} custom episode${modEps.length===1?'':'s'}</span>

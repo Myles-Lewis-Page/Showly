@@ -17,6 +17,9 @@ let currentSeason = null;
 let searchTimer = null;
 let displaySeasonData = new Map(); // tmdbId -> { raw_seasons, seasons: [{display_season, display_sub_season, sub_season_label, episodes:[...]}] }
 let currentGroupKey = null; // `${display_season}_${display_sub_season ?? ''}` currently shown
+let currentTopSeason = new Map(); // tmdbId -> currently selected top-level display_season number
+let seasonLabelMode = new Map(); // tmdbId -> 'season' | 'saga' — per-show top-level label, from /api/settings
+function seasonWord(id){ return (seasonLabelMode.get(parseInt(id))||'season')==='saga' ? 'Saga' : 'Season'; }
 const TAG_PRESETS = ['Canon','Filler','Crossover'];
 let seasonFilters = new Map(); // tmdbId -> { hiddenTags:Set<string>, sortMode:'air'|'tag' }
 function getSeasonFilter(id){

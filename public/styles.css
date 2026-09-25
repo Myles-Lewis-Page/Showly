@@ -414,3 +414,9 @@ main{padding:16px}
 .tag-chip-toggle.on{background:var(--accent);border-color:var(--accent);color:#fff}
 .ep-tag-popover input[type=text]{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--text);font-size:13px;font-family:inherit;margin-bottom:10px;box-sizing:border-box}
 .ep-tag-popover input[type=text]:focus{border-color:var(--accent);outline:none}
+
+/* ── Sub-season/arc tabs — only shown once a top-level season is selected ── */
+.subseason-tabs{display:flex;gap:5px;flex-wrap:wrap;margin:-4px 0 12px 2px;padding-left:10px;border-left:2px solid var(--border)}
+.sub-tab{flex-shrink:0;background:var(--surface2);border:1px solid var(--border);color:var(--muted);padding:3px 10px;border-radius:99px;font-size:11px;cursor:pointer}
+.sub-tab:hover{border-color:var(--accent)}
+.sub-tab.on{background:var(--accent);border-color:var(--accent);color:#fff}
