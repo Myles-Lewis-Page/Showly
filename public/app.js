@@ -41,7 +41,7 @@ async function doLogin() {
   if (res.ok) startApp(res.demo); else document.getElementById('lerr').textContent='Wrong username or password';
 }
 async function doDemoLogin() {
-  const res = await api('/api/login',{method:'POST',body:{username:'demo',password:'demo1234'}});
+  const res = await api('/api/demo-login',{method:'POST'});
   if (res.ok) startApp(true); else document.getElementById('lerr').textContent='Demo login unavailable right now';
 }
 async function doLogout() { await api('/api/logout',{method:'POST'}); location.reload(); }
