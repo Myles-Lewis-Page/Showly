@@ -190,18 +190,16 @@ async function seedDemoData() {
 const requireLogin = (req, res, next) => req.session?.ok ? next() : res.status(401).json({ error: 'Not logged in' });
 const uid = (req) => req.session?.userId || 'admin';
 
-const DEMO_USERNAME = process.env.DEMO_USERNAME || 'demo';
-const DEMO_PASSWORD = process.env.DEMO_PASSWORD || 'demo1234';
-
 app.post('/api/login', (req, res) => {
   const { username, password } = req.body;
   if (username === process.env.ADMIN_USERNAME && password === process.env.ADMIN_PASSWORD) {
     req.session.ok = true; req.session.userId = 'admin';
     res.json({ ok: true, demo: false });
-  } else if (username === DEMO_USERNAME && password === DEMO_PASSWORD) {
-    req.session.ok = true; req.session.userId = 'demo';
-    res.json({ ok: true, demo: true });
   } else res.status(401).json({ error: 'Wrong credentials' });
+});
+app.post('/api/demo-login', (req, res) => {
+  req.session.ok = true; req.session.userId = 'demo';
+  res.json({ ok: true, demo: true });
 });
 app.post('/api/logout', (req, res) => { req.session.destroy(); res.json({ ok: true }); });
 app.get('/api/me', (req, res) => res.json({ ok: !!req.session?.ok, demo: req.session?.userId === 'demo' }));
