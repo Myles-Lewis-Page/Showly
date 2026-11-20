@@ -2,7 +2,7 @@
 
 A full-stack TV show tracker. Search for shows, build a watchlist, track upcoming episodes, and browse a discovery feed powered by the TMDB API.
 
-**Live demo:** https://showly-production.up.railway.app
+[![Live demo](https://img.shields.io/badge/Live%20demo-showly--production.up.railway.app-2ea44f?style=for-the-badge)](https://showly-production.up.railway.app)
 
 ## Features
 
