@@ -4,6 +4,8 @@ A full-stack TV show tracker. Search for shows, build a watchlist, track upcomin
 
 [![Live demo](https://img.shields.io/badge/Live%20demo-showly--production.up.railway.app-2ea44f?style=for-the-badge)](https://showly-production.up.railway.app)
 
+![Showly watching page (demo account)](docs/watching.jpg)
+
 ## Features
 
 - User login with session-based auth
